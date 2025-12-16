@@ -1,0 +1,19 @@
+{
+  "name": "@ma/api",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@ma/shared": "workspace:*",
+    "fastify": "^4.28.1",
+    "nanoid": "^5.0.7"
+  },
+  "devDependencies": {
+    "tsx": "^4.16.2",
+    "typescript": "^5.6.3"
+  }
+}
