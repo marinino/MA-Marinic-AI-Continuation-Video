@@ -156,16 +156,33 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
     const incomingTargets = new Set(rfEdges.map((e) => e.target));
     return rfNodes.map((n) => {
       const isRoot = n.type === "clip" && !incomingTargets.has(n.id);
-      return { ...n, data: { ...(n.data as any), isRoot } };
+
+      return {
+        ...n,
+        data: {
+          ...(n.data as any),
+          isRoot,
+          onAdd: (nodeId: string) => {
+            setClickedNodeId(nodeId);
+            setActionDialogOpen(true);
+          },
+        },
+      };
     });
-  }, [rfNodes, rfEdges]);
+  }, [rfNodes, rfEdges, setClickedNodeId, setActionDialogOpen]);
 
 
-  const onNodeClick: NodeMouseHandler = (_evt, node) => {
+
+  const onNodeClick: NodeMouseHandler = (evt, node) => {
+    // falls Klick aus einem Button/Icon/Dialog kommt -> ignorieren
+    const target = evt.target as HTMLElement | null;
+    if (target?.closest("button, a, [role='button'], .MuiDialog-root")) return;
+
     if (node.type !== "clip") return;
     setClickedNodeId(node.id);
     setActionDialogOpen(true);
   };
+
 
   const addAIContinuation = (fromClipId: string) => {
     const paramId = nanoid();
