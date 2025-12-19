@@ -98,6 +98,7 @@ function findFreePosition(
    ========================= */
 
 export function GraphView(props: { project: Project; onChange: (p: Project) => void }) {
+
   // ✅ local ReactFlow state (the key fix)
   const initial = useMemo(() => toRF(props.project), [props.project.id]);
   const [rfNodes, setRfNodes, onNodesChangeRF] = useNodesState(initial.nodes);
@@ -136,19 +137,29 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
       return;
     }
 
-    const rootId = nanoid();
+    const id = nanoid();     // ✅
+
     const rootClip: RFNode = {
-      id: rootId,
+      id: id,
       type: "clip",
       position: { x: 50, y: 80 },
-      data: { label: "Root Clip" } as any,
-      draggable: true,
+      data: { label: "Root Clip"} as any,
+      draggable: true
     };
 
     const nextNodes = [...rfNodes, rootClip];
     setRfNodes(nextNodes);
     commit(nextNodes, rfEdges);
   };
+
+  const nodesWithRootFlag = useMemo(() => {
+    const incomingTargets = new Set(rfEdges.map((e) => e.target));
+    return rfNodes.map((n) => {
+      const isRoot = n.type === "clip" && !incomingTargets.has(n.id);
+      return { ...n, data: { ...(n.data as any), isRoot } };
+    });
+  }, [rfNodes, rfEdges]);
+
 
   const onNodeClick: NodeMouseHandler = (_evt, node) => {
     if (node.type !== "clip") return;
@@ -178,16 +189,16 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
       id: paramId,
       type: "params",
       position: paramPos,
-      data: { label: "AI Params (dummy)", prompt: "continuation…", mode: "continuation" } as any,
-      draggable: true,
+      data: { label: "AI Params (dummy)", prompt: "continuation…", mode: "continuation"} as any,
+      draggable: true
     };
 
     const newClipNode: RFNode = {
       id: newClipId,
       type: "clip",
       position: clipPos,
-      data: { label: "New Clip (dummy)" } as any,
-      draggable: true,
+      data: { label: "New Clip (dummy)"} as any,
+      draggable: true
     };
 
     const e1 = { id: nanoid(), type: "input" as const, source: fromClipId, target: paramId };
@@ -249,16 +260,16 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
       id: editId,
       type: "edit",
       position: editPos,
-      data: { label: "Edit (dummy)", tool: "manual", notes: "" } as any,
-      draggable: true,
+      data: { label: "Edit (dummy)", tool: "manual", notes: ""} as any,
+      draggable: true
     };
 
     const newClipNode: RFNode = {
       id: newClipId,
       type: "clip",
       position: clipPos,
-      data: { label: "New Clip (dummy)" } as any,
-      draggable: true,
+      data: { label: "New Clip (dummy)"} as any,
+      draggable: true
     };
 
     // Keep your edge semantics:
@@ -320,7 +331,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
       </Paper>
 
       <ReactFlow
-        nodes={rfNodes}
+        nodes={nodesWithRootFlag}
         edges={rfEdges}
         nodeTypes={nodeTypes}
         edgeTypes={{ labeled: LabeledEdge }}

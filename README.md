@@ -35,6 +35,7 @@ storage/        – lokale Projektdateien
 
 1) Dependencies installieren (Repo-Root):
 pnpm install
+pnpm -r build
 
 2) Storage Ordner anlegen:
 mkdir storage
