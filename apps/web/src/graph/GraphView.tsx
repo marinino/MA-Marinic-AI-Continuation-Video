@@ -14,15 +14,19 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 
 import type { Project } from "@ma/shared";
-import { nodeTypes } from "./nodes";
-import { LabeledEdge } from "./edges";
+import { nodeTypes } from "./nodes/nodes";
+import { LabeledEdge } from "./edges/edges";
+import { useReactFlow } from "reactflow";
+
 
 // MUI
 import { Button, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Stack, Typography } from "@mui/material";
 
+const edgeTypes = { labeled: LabeledEdge };
+
 /* ---------- Project ↔ ReactFlow ---------- */
 
-function toRF(project: Project): { nodes: RFNode[]; edges: RFEdge[] } {
+function toRF(project: Project, showEdgeLabels: boolean): { nodes: RFNode[]; edges: RFEdge[] } {
   return {
     nodes: project.nodes.map((n) => ({
       id: n.id,
@@ -36,12 +40,13 @@ function toRF(project: Project): { nodes: RFNode[]; edges: RFEdge[] } {
       source: e.source,
       target: e.target,
       type: "labeled",
-      data: { label: e.type },
+      data: { label: e.type, showLabel: showEdgeLabels },
       sourceHandle: "out",
       targetHandle: "in",
     })),
   };
 }
+
 
 function fromRF(project: Project, nodes: RFNode[], edges: RFEdge[]): Project {
   return {
@@ -97,19 +102,42 @@ function findFreePosition(
    GraphView
    ========================= */
 
-export function GraphView(props: { project: Project; onChange: (p: Project) => void }) {
+export function GraphView(props: { project: Project; onChange: (p: Project) => void, showEdgeLabels: boolean}) {
+
+  const rf = useReactFlow();
 
   // ✅ local ReactFlow state (the key fix)
-  const initial = useMemo(() => toRF(props.project), [props.project.id]);
-  const [rfNodes, setRfNodes, onNodesChangeRF] = useNodesState(initial.nodes);
-  const [rfEdges, setRfEdges, onEdgesChangeRF] = useEdgesState(initial.edges);
+  const [{ nodes: initialNodes, edges: initialEdges }] = useState(() =>
+    toRF(props.project, props.showEdgeLabels)
+  );
 
-  // if a different project loads, reset local state
+  const [rfNodes, setRfNodes, onNodesChangeRF] = useNodesState(initialNodes);
+  const [rfEdges, setRfEdges, onEdgesChangeRF] = useEdgesState(initialEdges);
+
+
+
   useEffect(() => {
-    const next = toRF(props.project);
+    const next = toRF(props.project, props.showEdgeLabels);
     setRfNodes(next.nodes);
     setRfEdges(next.edges);
+    setClickedNodeId(null);
+    setActionDialogOpen(false);
+
+    requestAnimationFrame(() => {
+      rf.fitView({ padding: 5, duration: 200 });
+    });
   }, [props.project.id, setRfNodes, setRfEdges]);
+
+  useEffect(() => {
+    setRfEdges((prev) =>
+      prev.map((e) => ({
+        ...e,
+        data: { ...(e.data as any), showLabel: props.showEdgeLabels },
+      }))
+    );
+  }, [props.showEdgeLabels, setRfEdges]);
+
+
 
   // commit local RF → project
   const commit = (nodes = rfNodes, edges = rfEdges) => {
@@ -230,7 +258,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
         source: e1.source,
         target: e1.target,
         type: "labeled",
-        data: { label: e1.type },
+        data: { label: e1.type, showLabel: props.showEdgeLabels },
         sourceHandle: "out",
         targetHandle: "in",
       },
@@ -239,7 +267,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
         source: e2.source,
         target: e2.target,
         type: "labeled",
-        data: { label: e2.type },
+        data: { label: e2.type, showLabel: props.showEdgeLabels },
         sourceHandle: "out",
         targetHandle: "in",
       },
@@ -302,7 +330,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
         source: e1.source,
         target: e1.target,
         type: "labeled",
-        data: { label: e1.type },
+        data: { label: e1.type, showLabel: props.showEdgeLabels },
         sourceHandle: "out",
         targetHandle: "in",
       },
@@ -311,7 +339,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
         source: e2.source,
         target: e2.target,
         type: "labeled",
-        data: { label: e2.type },
+        data: { label: e2.type, showLabel: props.showEdgeLabels },
         sourceHandle: "out",
         targetHandle: "in",
       },
@@ -351,10 +379,12 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
         nodes={nodesWithRootFlag}
         edges={rfEdges}
         nodeTypes={nodeTypes}
-        edgeTypes={{ labeled: LabeledEdge }}
+        edgeTypes={edgeTypes}
         nodesDraggable
         nodesConnectable={false}
-        elementsSelectable={false}
+        elementsSelectable={true}
+        fitView
+        fitViewOptions={{ padding: 5, duration: 200 }}
         panOnDrag={[1, 2]}
         zoomOnScroll
         deleteKeyCode={null}

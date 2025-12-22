@@ -26,3 +26,10 @@ export async function saveProject(p: Project): Promise<void> {
   });
   if (!res.ok) throw new Error("saveProject failed");
 }
+
+export async function listProjects(): Promise<Array<{ id: string; name: string }>> {
+  const res = await fetch(`${API}/projects`);
+  if (!res.ok) throw new Error("listProjects failed");
+  return await res.json();
+}
+

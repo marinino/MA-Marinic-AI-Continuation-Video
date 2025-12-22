@@ -11,7 +11,7 @@ import { useTheme } from "@mui/material/styles";
 type EdgeKind = "input" | "output" | "edit_in" | "edit_out";
 
 export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
-  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd } = props;
+  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd } = props;
   const theme = useTheme();
 
   const [edgePath, labelX, labelY] = getBezierPath({
@@ -21,8 +21,10 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
   const text = (data as any)?.label ?? "";
   const kind: EdgeKind = (data as any)?.label ?? "";
 
+  // ✅ DAS ist dein Toggle-Flag:
+  const showLabel: boolean = (data as any)?.showLabel ?? true;
+
   const edgeColor = (() => {
-    // Nimm MUI Theme-Farben -> sehen in light/dark gut aus
     switch (kind) {
       case "input":
         return theme.palette.primary.main;
@@ -47,30 +49,32 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
           strokeWidth: 2,
         }}
       />
-      <EdgeLabelRenderer>
-  <Box
-    
-    sx={{
-      position: "absolute",
-      transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-      pointerEvents: "none",
 
-      fontSize: 12,
-      bgcolor: "background.paper",   // NICHT transparent
-      color: "text.primary",
-      px: 0.75,
-      py: 0.25,
-      borderRadius: 1.5,
-      border: 1,
-      borderColor: edgeColor,     // 👈 Label-Rahmen in Edge-Farbe
-              
-      whiteSpace: "nowrap",
-    }}
-  >
-    {text}
-  </Box>
-</EdgeLabelRenderer>
+      {/* ✅ Nur rendern, wenn showLabel true ist */}
+      {showLabel && (
+        <EdgeLabelRenderer>
+          <Box
+            sx={{
+              position: "absolute",
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              pointerEvents: "none",
 
+              fontSize: 12,
+              bgcolor: "background.paper",
+              color: "text.primary",
+              px: 0.75,
+              py: 0.25,
+              borderRadius: 1.5,
+              border: 1,
+              borderColor: edgeColor,
+
+              whiteSpace: "nowrap",
+            }}
+          >
+            {text}
+          </Box>
+        </EdgeLabelRenderer>
+      )}
     </>
   );
 });
