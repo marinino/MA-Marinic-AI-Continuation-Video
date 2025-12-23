@@ -33,3 +33,14 @@ export async function listProjects(): Promise<Array<{ id: string; name: string }
   return await res.json();
 }
 
+export async function getProject(id: string): Promise<Project> {
+  const res = await fetch(`/api/projects/${id}`);
+  if (!res.ok) {
+    const err: any = new Error("getProject failed");
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
+

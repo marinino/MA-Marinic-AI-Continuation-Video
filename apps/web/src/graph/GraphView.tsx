@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -10,6 +10,7 @@ import ReactFlow, {
   type NodeMouseHandler,
   useNodesState,
   useEdgesState,
+  Viewport,
 } from "reactflow";
 import "reactflow/dist/style.css";
 
@@ -17,6 +18,7 @@ import type { Project } from "@ma/shared";
 import { nodeTypes } from "./nodes/nodes";
 import { LabeledEdge } from "./edges/edges";
 import { useReactFlow } from "reactflow";
+import type { ReactFlowInstance } from "reactflow";
 
 
 // MUI
@@ -98,6 +100,11 @@ function findFreePosition(
   return pos;
 }
 
+
+
+
+
+
 /* =========================
    GraphView
    ========================= */
@@ -114,8 +121,42 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
   const [rfNodes, setRfNodes, onNodesChangeRF] = useNodesState(initialNodes);
   const [rfEdges, setRfEdges, onEdgesChangeRF] = useEdgesState(initialEdges);
 
+  const viewportKey = useMemo(() => `ma.viewport.${props.project.id}`, [props.project.id]);
+  const hasRestoredRef = useRef(false);
+  const saveTimer = useRef<number | null>(null);
+  const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
+  const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
 
 
+  const scheduleSaveViewport = () => {
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      if (!hasRestoredRef.current) return;
+      saveViewport();
+    }, 150);
+  };
+
+  const restoreViewport = () => {
+    const raw = localStorage.getItem(viewportKey);
+    if (!raw) return false;
+
+    try {
+      const vp = JSON.parse(raw) as Viewport;
+      rf.setViewport(vp, { duration: 250 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const saveViewport = () => {
+    const vp = rf.getViewport();
+    console.log("SAVE", viewportKey, vp);
+    localStorage.setItem(viewportKey, JSON.stringify(vp));
+  };
+
+
+  // Project → RF sync
   useEffect(() => {
     const next = toRF(props.project, props.showEdgeLabels);
     setRfNodes(next.nodes);
@@ -123,11 +164,61 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
     setClickedNodeId(null);
     setActionDialogOpen(false);
 
-    requestAnimationFrame(() => {
-      rf.fitView({ padding: 5, duration: 200 });
-    });
-  }, [props.project.id, setRfNodes, setRfEdges]);
+    // Wir triggern restore/fit erst, wenn rfInstance da ist
+    hasRestoredRef.current = false;
+  }, [props.project.id, props.showEdgeLabels, setRfNodes, setRfEdges]);
 
+  useEffect(() => {
+    if (!pendingFocusId) return;
+
+    // versuch ein paar frames lang, bis node existiert und Maße hat
+    let tries = 0;
+    let raf = 0;
+
+    const run = () => {
+      const n = rf.getNode(pendingFocusId);
+      const w = (n as any)?.width;
+      const h = (n as any)?.height;
+
+      if (n && w && h) {
+        rf.setCenter(n.position.x + w / 2, n.position.y + h / 2, {
+          zoom: rf.getViewport().zoom,
+          duration: 350,
+        });
+        // optional: viewport speichern
+        requestAnimationFrame(saveViewport);
+
+        setPendingFocusId(null);
+        return;
+      }
+
+      tries++;
+      if (tries < 20) raf = requestAnimationFrame(run);
+      else setPendingFocusId(null); // give up
+    };
+
+    raf = requestAnimationFrame(run);
+    return () => cancelAnimationFrame(raf);
+  }, [pendingFocusId, rfNodes.length]); // rfNodes.length triggert wenn Node dazu kommt
+
+
+  useEffect(() => {
+    if (!rfInstance) return;
+
+    // restore/fit AFTER init + after nodes are in state
+    requestAnimationFrame(() => {
+      const restored = restoreViewport();
+      hasRestoredRef.current = true;
+
+      if (!restored) {
+        rfInstance.fitView({ padding: 0.5, duration: 200 });
+        requestAnimationFrame(saveViewport);
+      }
+    });
+  }, [rfInstance, props.project.id, rfNodes.length]); // rfNodes.length damit es nach Node-Update nochmal greift
+
+
+  // show/hide edge labels without recreating edges
   useEffect(() => {
     setRfEdges((prev) =>
       prev.map((e) => ({
@@ -136,6 +227,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
       }))
     );
   }, [props.showEdgeLabels, setRfEdges]);
+
 
 
 
@@ -152,6 +244,23 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
     return rfNodes.find((n) => n.id === clickedNodeId) ?? null;
   }, [clickedNodeId, rfNodes]);
 
+  function focusNode(nodeId: string) {
+    requestAnimationFrame(() => {
+      const n = rf.getNode(nodeId);
+      if (!n) return;
+
+      // Node-Mitte (wenn width/height noch nicht da sind, fallback)
+      const w = (n as any).width ?? 220;
+      const h = (n as any).height ?? 120;
+
+      rf.setCenter(n.position.x + w / 2, n.position.y + h / 2, {
+        zoom: rf.getViewport().zoom, // Zoom behalten
+        duration: 250,
+      });
+    });
+  }
+
+
   const createRoot = () => {
     // Root = clip with no incoming edge
     const hasRoot = rfNodes.some((n) => {
@@ -161,7 +270,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
     });
 
     if (hasRoot) {
-      alert("Root existiert bereits (Clip ohne eingehende Kante).");
+      alert("There is already a root node for tis project. Create a new project if you want to start with a new root.");
       return;
     }
 
@@ -178,6 +287,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
     const nextNodes = [...rfNodes, rootClip];
     setRfNodes(nextNodes);
     commit(nextNodes, rfEdges);
+    setPendingFocusId(id);
   };
 
   const nodesWithRootFlag = useMemo(() => {
@@ -282,6 +392,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
       edges: nextEdgesProject,
       uiState: { ...props.project.uiState, selectedNodeId: newClipId },
     });
+    setPendingFocusId(newClipId);
   };
 
   const addManualEdit = (fromClipId: string) => {
@@ -353,6 +464,10 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
       edges: nextEdgesProject,
       uiState: { ...props.project.uiState, selectedNodeId: newClipId },
     });
+
+    
+    setPendingFocusId(newClipId);
+
   };
 
   // ✅ Let ReactFlow update local state; commit to project on drag stop
@@ -376,6 +491,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
       </Paper>
 
       <ReactFlow
+        onInit={(instance) => setRfInstance(instance)}
         nodes={nodesWithRootFlag}
         edges={rfEdges}
         nodeTypes={nodeTypes}
@@ -383,19 +499,28 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
         nodesDraggable
         nodesConnectable={false}
         elementsSelectable={true}
-        fitView
-        fitViewOptions={{ padding: 5, duration: 200 }}
+        // ❌ fitView raus!
+        // ❌ fitViewOptions raus!
         panOnDrag={[1, 2]}
         zoomOnScroll
         deleteKeyCode={null}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
-        onNodeDragStop={() => commit()}
+        onNodeDragStop={() => {
+          commit();
+          requestAnimationFrame(saveViewport);
+        }}
+        onMove={scheduleSaveViewport}
+        onMoveEnd={() => {
+          if (!hasRestoredRef.current) return;
+          saveViewport();
+        }}
       >
         <Background />
         <Controls />
       </ReactFlow>
+
 
       <Dialog open={actionDialogOpen} onClose={() => setActionDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Next step</DialogTitle>
