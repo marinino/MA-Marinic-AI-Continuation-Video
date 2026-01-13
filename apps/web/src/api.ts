@@ -1,4 +1,4 @@
-import type { Project } from "@ma/shared";
+import type { ComfyHistory, ComfyStartVideoInput, ComfyStartVideoResult, Project } from "@ma/shared";
 
 const API = "/api";
 
@@ -41,6 +41,67 @@ export async function getProject(id: string): Promise<Project> {
     throw err;
   }
   return res.json();
+}
+
+export async function comfyStartVideo(
+  input: ComfyStartVideoInput
+): Promise<ComfyStartVideoResult> {
+  const res = await fetch(`${API}/comfy/video`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) throw new Error("comfyStartVideo failed");
+  return await res.json();
+}
+
+/**
+ * Holt den kompletten History-Eintrag von ComfyUI
+ */
+export async function comfyGetHistory(promptId: string): Promise<ComfyHistory> {
+  const res = await fetch(`${API}/comfy/history/${promptId}`);
+  if (!res.ok) throw new Error("comfyGetHistory failed");
+  return await res.json();
+}
+
+/**
+ * Baut eine URL für ein gespeichertes Video (Proxy!)
+ */
+export function comfyBuildVideoUrl(opts: {
+  filename: string;
+  subfolder?: string;
+  type?: string;
+}): string {
+  const params = new URLSearchParams({
+    filename: opts.filename,
+    subfolder: opts.subfolder ?? "video",
+    type: opts.type ?? "output",
+  });
+
+  return `${API}/comfy/view?${params.toString()}`;
+}
+
+/* =======================
+   ComfyUI – Helper
+======================= */
+
+/**
+ * Versucht aus der History das SaveVideo-Result zu extrahieren
+ */
+export function comfyFindVideoFromHistory(
+  history: ComfyHistory,
+  promptId: string
+): { filename: string; subfolder?: string; type?: string } | null {
+  const entry = history[promptId];
+  if (!entry?.outputs) return null;
+
+  for (const node of Object.values(entry.outputs)) {
+    const v = node.videos?.[0];
+    if (v?.filename) return v;
+  }
+
+  return null;
 }
 
 

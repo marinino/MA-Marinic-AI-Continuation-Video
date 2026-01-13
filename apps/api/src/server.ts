@@ -3,6 +3,9 @@ import cors from "@fastify/cors";
 import { nanoid } from "nanoid";
 import { ProjectSchema, type Project } from "@ma/shared";
 import { listProjects, loadProject, saveProject } from "./storage";
+import { comfyRoutes } from "./routes/comfy";
+import websocket from "@fastify/websocket";
+
 
 const app = Fastify({ logger: true });
 
@@ -11,6 +14,10 @@ await app.register(cors, {
 });
 
 app.get("/health", async () => ({ ok: true }));
+
+await app.register(websocket);
+
+await app.register(comfyRoutes);
 
 app.get("/projects", async () => {
   return await listProjects();

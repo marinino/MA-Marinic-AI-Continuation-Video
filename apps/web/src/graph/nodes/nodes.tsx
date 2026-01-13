@@ -1,13 +1,14 @@
-import { Card, CardContent, Typography, Chip, Stack, useTheme, Box, IconButton, DialogTitle, Dialog, Button, DialogContent, DialogActions } from "@mui/material";
+import { Card, CardContent, Typography, Chip, Stack, useTheme, Box, IconButton, DialogTitle, Dialog, Button, DialogContent, DialogActions, LinearProgress } from "@mui/material";
 import MovieIcon from "@mui/icons-material/Movie";
 import TuneIcon from "@mui/icons-material/Tune";
 import ContentCutIcon from "@mui/icons-material/ContentCut";
 import type { NodeProps } from "reactflow";
 import { Handle, Position } from "reactflow";
 import "reactflow/dist/style.css";
-import { NodeType } from "@ma/shared";
+import { NodeType, StoredMediaFile } from "@ma/shared";
 import { useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
+import { comfyBuildVideoUrl } from "../../api";
 
 function getNodeColors(kind: NodeType, isRoot: boolean) {
   if (isRoot) return { border: "#FFB300", bg: "#FFF8E1" }; // Root Clip
@@ -31,6 +32,9 @@ function NodeCard(props: {
   onAdd?: (nodeId: string) => void;
   infoText?: string;
   children?: React.ReactNode;
+  videoUrl?: string | null;
+  videoFile?: StoredMediaFile | null;
+  videoStatus?: string;
 }) {
   const theme = useTheme();
   const [infoOpen, setInfoOpen] = useState(false);
@@ -111,9 +115,36 @@ function NodeCard(props: {
 
         <DialogTitle>{props.title} – Info</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary">
-            {infoText}
-          </Typography>
+          <Stack spacing={1} sx={{ mt: 2 }}>
+            {props.videoStatus === "generating" && (
+              <>
+                <Typography variant="body2" color="text.secondary">
+                  Video is generating…
+                </Typography>
+                <LinearProgress />
+              </>
+            )}
+
+            {props.videoUrl ? (
+              <>
+                <video
+                  src={props.videoUrl}
+                  controls
+                  style={{ width: "100%", borderRadius: 8 }}
+                />
+                {props.videoFile?.filename && (
+                  <Typography variant="caption" color="text.secondary">
+                    {props.videoFile.filename}
+                  </Typography>
+                )}
+              </>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                No video attached to this clip yet.
+              </Typography>
+            )}
+          </Stack>
+
         </DialogContent>
         <DialogActions>
           <Button
@@ -138,6 +169,14 @@ function NodeCard(props: {
 }
 
 export function ClipNode(props: NodeProps<any>) {
+
+  const videoFile = (props.data?.videoFile as StoredMediaFile | null) ?? null;
+  const videoStatus = props.data?.videoStatus as string | undefined;
+
+  const videoUrl =
+    props.data?.videoUrl ??
+    (videoFile ? comfyBuildVideoUrl(videoFile) : null);
+
   return (
     <div style={{ position: "relative" }}>
       <Handle id="in" type="target" position={Position.Left} />
@@ -149,8 +188,13 @@ export function ClipNode(props: NodeProps<any>) {
         icon={<MovieIcon fontSize="small" />}
         title="Clip"
         type="clip"
-        isRoot={Boolean(props.data?.isRoot)}   // <-- wichtig
+        isRoot={Boolean(props.data?.isRoot)}
         selected={props.selected}
+
+        // ✅ gib die infos in NodeCard rein, damit das Popup sie nutzen kann
+        videoUrl={videoUrl}
+        videoFile={videoFile}
+        videoStatus={videoStatus}
       >
         <Typography variant="body2">{props.data?.label}</Typography>
       </NodeCard>
