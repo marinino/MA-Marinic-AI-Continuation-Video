@@ -91,20 +91,24 @@ export default function App({
   const title = useMemo(() => project?.name ?? "Loading...", [project]);
 
   function withTimeout<T>(p: Promise<T>, ms = 1500): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const t = window.setTimeout(() => reject(new Error("timeout")), ms);
-    p.then(
-      (v) => {
-        window.clearTimeout(t);
-        resolve(v);
-      },
-      (e) => {
-        window.clearTimeout(t);
-        reject(e);
-      }
-    );
-  });
-}
+    return new Promise((resolve, reject) => {
+      const t = window.setTimeout(() => reject(new Error("timeout")), ms);
+      p.then(
+        (v) => {
+          window.clearTimeout(t);
+          resolve(v);
+        },
+        (e) => {
+          window.clearTimeout(t);
+          reject(e);
+        }
+      );
+    });
+  }
+
+  const onChange = (upd: Project | ((prev: Project) => Project)) => {
+    setProject((prev) => (typeof upd === "function" ? (upd as any)(prev) : upd));
+  };
 
 
   if (!project) return <div style={{ padding: 16 }}>{title}</div>;
@@ -154,7 +158,7 @@ export default function App({
 
         <Box sx={{ flexGrow: 1 }}>
           <ReactFlowProvider>
-            <GraphView project={project} onChange={setProject} showEdgeLabels={showEdgeLabels} />
+            <GraphView project={project} onChange={onChange} showEdgeLabels={showEdgeLabels} />
           </ReactFlowProvider>
         </Box>
       </Box>
