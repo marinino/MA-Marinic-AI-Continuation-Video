@@ -18,7 +18,19 @@ export const ParamNodeDataSchema = z.object({
   mode: z.enum(["continuation", "variation", "extension", "v2v"]).optional(),
 
   parentClipId: z.string().optional(),
-});
+
+  negativePrompt: z.string().optional(),
+  seed: z.number().optional(),
+  steps: z.number().optional(),
+  cfg: z.number().optional(),
+  fps: z.number().optional(),
+  length: z.number().optional(),
+
+  // Job-Meta (optional, aber sehr nützlich)
+  status: z.enum(["idle", "queued", "running", "done", "error"]).optional(),
+  promptId: z.string().optional(),
+  error: z.string().optional(),
+}).passthrough();
 
 
 export const EditNodeDataSchema = z.object({

@@ -35,6 +35,7 @@ function NodeCard(props: {
   videoUrl?: string | null;
   videoFile?: StoredMediaFile | null;
   videoStatus?: string;
+  prompt?: string
 }) {
   const theme = useTheme();
   const [infoOpen, setInfoOpen] = useState(false);
@@ -125,7 +126,15 @@ function NodeCard(props: {
               </>
             )}
 
-            {props.videoUrl ? (
+            {props.type === "params" ? (
+             
+                <Typography variant="body2" color="text.secondary">
+                  Prompt: {props.prompt?.trim()
+                    ? `${props.prompt.slice(0, 120)}${props.prompt.length > 120 ? "…" : ""}`
+                    : "No prompt set yet."}
+                </Typography>
+              
+            ) : (props.videoUrl ? (
               <>
                 <video
                   src={props.videoUrl}
@@ -142,7 +151,7 @@ function NodeCard(props: {
               <Typography variant="body2" color="text.secondary">
                 No video attached to this clip yet.
               </Typography>
-            )}
+            ))}
           </Stack>
 
         </DialogContent>
@@ -215,6 +224,7 @@ export function ParamNode(props: NodeProps<any>) {
         type="params"
         isRoot={false}
         selected={props.selected}
+        prompt={props.data.prompt}
       >
         <Typography variant="body2">{props.data?.label}</Typography>
         <Chip size="small" label={props.data?.mode ?? "ai"} sx={{ mt: 0.5 }} />

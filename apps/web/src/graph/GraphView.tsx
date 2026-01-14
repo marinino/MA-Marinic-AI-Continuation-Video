@@ -138,7 +138,6 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
   const promptIdRef = useRef<string | null>(null);
 
   const [clipDialogOpen, setClipDialogOpen] = useState(false);
-  const [clipPrompt, setClipPrompt] = useState("");
   const [clipGenerating, setClipGenerating] = useState(false);
   const [clipStatus, setClipStatus] = useState("");
   const [clipPreviewUrl, setClipPreviewUrl] = useState<string | null>(null);
@@ -268,33 +267,15 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
     return rfNodes.find((n) => n.id === clickedNodeId) ?? null;
   }, [clickedNodeId, rfNodes]);
 
-  const clickedVideoUrl =
-    (clickedNode?.data as any)?.videoUrl ??
-    (((clickedNode?.data as any)?.videoFile)
-      ? comfyBuildVideoUrl((clickedNode?.data as any).videoFile)
-      : null);
+  const activeParamNode = useMemo(() => {
+    if (!activeParamId) return null;
+    return rfNodes.find((n) => n.id === activeParamId) ?? null;
+  }, [activeParamId, rfNodes]);
 
-  const clickedVideoFile =
-    ((clickedNode?.data as any)?.videoFile as StoredMediaFile | null) ?? null;
+  const paramPrompt = (activeParamNode?.data as any)?.prompt ?? "";
+  const parentId = (activeParamNode?.data as any)?.parentClipId as string | undefined;
 
-  const clickedVideoStatus =
-    (clickedNode?.data as any)?.videoStatus as string | undefined;
 
-  function focusNode(nodeId: string) {
-    requestAnimationFrame(() => {
-      const n = rf.getNode(nodeId);
-      if (!n) return;
-
-      // Node-Mitte (wenn width/height noch nicht da sind, fallback)
-      const w = (n as any).width ?? 220;
-      const h = (n as any).height ?? 120;
-
-      rf.setCenter(n.position.x + w / 2, n.position.y + h / 2, {
-        zoom: rf.getViewport().zoom, // Zoom behalten
-        duration: 250,
-      });
-    });
-  }
 
   function updateNodeData(nodeId: string, patch: Record<string, any>) {
     setRfNodes((prev) => {
@@ -372,7 +353,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
       promptIdRef.current = prompt_id;
 
       setCreateStatus("Generating…");
-      updateNodeData(id, { videoStatus: "generating", videoUrl: null, videoFile: null });
+      updateNodeData(id, { videoStatus: "generating", videoFile: null });
 
       // WS connect
       const proto = window.location.protocol === "https:" ? "wss" : "ws";
@@ -430,7 +411,6 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
             if (id) {
               updateNodeData(id, {
                 videoFile: file,
-                videoUrl: url,
                 videoStatus: "done",
               });
             }
@@ -470,7 +450,6 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
               if (id) {
                 updateNodeData(id, {
                   videoFile: file,
-                  videoUrl: url,
                   videoStatus: "done",
                 });
               }
@@ -715,7 +694,6 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
     setActiveParamId(paramId);
     setActiveClipId(newClipId);
     
-    setClipPrompt("");        // ✅ fehlt bei dir
     setClipStatus("");
     setClipPreviewUrl(null);
 
@@ -726,9 +704,6 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
 
   async function handleGenerateClipVideo() {
     if (!activeClipId || !activeParamId) return;
-
-    const paramNode = rfNodes.find((n) => n.id === activeParamId);
-    const parentId = (paramNode?.data as any)?.parentClipId as string | undefined;
 
     if (!parentId) {
       setClipStatus("Missing parentClipId on params node.");
@@ -741,17 +716,17 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
       return;
     }
 
-    if (!clipPrompt.trim()) return;
+    if (!paramPrompt.trim()) return;
 
       setClipGenerating(true);
       setClipStatus("Starting workflow…");
       setClipPreviewUrl(null);
 
       try {
-        updateNodeData(activeClipId, { videoStatus: "generating", videoUrl: null, videoFile: null });
+        updateNodeData(activeClipId, { videoStatus: "generating", videoFile: null });
 
         const { prompt_id, client_id } = await comfyStartV2V({
-          text: clipPrompt,
+          text: paramPrompt,
           videoFile: parentFile,
         });
         promptIdRef.current = prompt_id;
@@ -797,7 +772,6 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
 
               updateNodeData(activeClipId, {
                 videoFile: file,
-                videoUrl: url,
                 videoStatus: "done",
               });
 
@@ -826,7 +800,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
                 const url = comfyBuildVideoUrl(file);
                 setClipPreviewUrl(url);
                 setClipStatus("Done ✅");
-                updateNodeData(activeClipId, { videoFile: file, videoUrl: url, videoStatus: "done" });
+                updateNodeData(activeClipId, { videoFile: file, videoStatus: "done" });
               } else {
                 setClipStatus("Done ✅ (but no output found in history)");
               }
@@ -1012,8 +986,11 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
               label="Prompt"
-              value={clipPrompt}
-              onChange={(e) => setClipPrompt(e.target.value)}
+              value={paramPrompt}
+              onChange={(e) => {
+                if (!activeParamId) return;
+                updateNodeData(activeParamId, { prompt: e.target.value });
+              }}
               multiline
               minRows={4}
               fullWidth
@@ -1053,7 +1030,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
           <Button
             variant="contained"
             onClick={handleGenerateClipVideo}
-            disabled={clipGenerating || !clipPrompt.trim()}
+            disabled={clipGenerating || !paramPrompt.trim()}
           >
             {clipGenerating ? "Working…" : "Generate Video"}
           </Button>
