@@ -23,7 +23,7 @@ import type { ReactFlowInstance } from "reactflow";
 
 // MUI
 import { Button, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Stack, Typography, LinearProgress, TextField } from "@mui/material";
-import { comfyBuildVideoUrl, comfyFindVideoFromHistory, comfyGetHistory, comfyStartVideo } from "../api";
+import { comfyBuildVideoUrl, comfyFindVideoFromHistory, comfyGetHistory, comfyStartV2V, comfyStartVideo } from "../api";
 
 const edgeTypes = { labeled: LabeledEdge };
 
@@ -136,6 +136,17 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
   const wsRef = useRef<WebSocket | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const promptIdRef = useRef<string | null>(null);
+
+  const [clipDialogOpen, setClipDialogOpen] = useState(false);
+  const [clipPrompt, setClipPrompt] = useState("");
+  const [clipGenerating, setClipGenerating] = useState(false);
+  const [clipStatus, setClipStatus] = useState("");
+  const [clipPreviewUrl, setClipPreviewUrl] = useState<string | null>(null);
+
+  const [activeClipId, setActiveClipId] = useState<string | null>(null);
+  const [activeParamId, setActiveParamId] = useState<string | null>(null);
+
+
 
 
 
@@ -400,8 +411,8 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
           // prompt filter (robust)
           if (promptIdRef.current && msg?.data?.prompt_id && msg.data.prompt_id !== promptIdRef.current) return;
 
-          // SaveVideo node id = "14"
-          if (String(msg?.data?.node ?? msg?.data?.display_node) === "14") {
+          // SaveVideo node id = "123"
+          if (String(msg?.data?.node ?? msg?.data?.display_node) === "123") {
             const file = pickMediaFile(msg?.data?.output);
             if (!file) {
               console.warn("No media file in executed output:", msg?.data?.output);
@@ -427,6 +438,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
             clearTimeout(timeout);
             ws.close();
             setCreatingVideo(false);
+            setRootDialogOpen(false)
           }
         }
 
@@ -526,79 +538,6 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
   };
 
 
-  const addAIContinuation = (fromClipId: string) => {
-    const paramId = nanoid();
-    const newClipId = nanoid();
-
-    const fromNode = rfNodes.find((n) => n.id === fromClipId);
-    const baseX = fromNode?.position.x ?? 50;
-    const baseY = fromNode?.position.y ?? 80;
-
-    // IMPORTANT: use RF edges for branch counting (not project)
-    const branchIndex = countBranches(rfEdges as any, fromClipId);
-    const yOffset = branchIndex * 180;
-
-    const desiredParamPos = { x: baseX + 260, y: baseY + yOffset };
-    const paramPos = findFreePosition(desiredParamPos, rfNodes);
-
-    const desiredClipPos = { x: baseX + 520, y: paramPos.y };
-    const clipPos = findFreePosition(desiredClipPos, rfNodes);
-
-    const paramNode: RFNode = {
-      id: paramId,
-      type: "params",
-      position: paramPos,
-      data: { label: "AI Params (dummy)", prompt: "continuation…", mode: "continuation"} as any,
-      draggable: true
-    };
-
-    const newClipNode: RFNode = {
-      id: newClipId,
-      type: "clip",
-      position: clipPos,
-      data: { label: "New Clip (dummy)"} as any,
-      draggable: true
-    };
-
-    const e1 = { id: nanoid(), type: "input" as const, source: fromClipId, target: paramId };
-    const e2 = { id: nanoid(), type: "output" as const, source: paramId, target: newClipId };
-
-    const nextNodes = [...rfNodes, paramNode, newClipNode];
-    const nextEdgesProject = [...props.project.edges, e1 as any, e2 as any]; // keep schema types
-    const nextEdgesRF: RFEdge[] = [
-      ...rfEdges,
-      {
-        id: e1.id,
-        source: e1.source,
-        target: e1.target,
-        type: "labeled",
-        data: { label: e1.type, showLabel: props.showEdgeLabels },
-        sourceHandle: "out",
-        targetHandle: "in",
-      },
-      {
-        id: e2.id,
-        source: e2.source,
-        target: e2.target,
-        type: "labeled",
-        data: { label: e2.type, showLabel: props.showEdgeLabels },
-        sourceHandle: "out",
-        targetHandle: "in",
-      },
-    ];
-
-    setRfNodes(nextNodes);
-    setRfEdges(nextEdgesRF);
-    // commit using fromRF to keep your project schema in sync
-    props.onChange({
-      ...props.project,
-      nodes: fromRF(props.project, nextNodes, nextEdgesRF).nodes,
-      edges: nextEdgesProject,
-      uiState: { ...props.project.uiState, selectedNodeId: newClipId },
-    });
-    setPendingFocusId(newClipId);
-  };
-
   const addManualEdit = (fromClipId: string) => {
     const editId = nanoid();
     const newClipId = nanoid();
@@ -690,6 +629,229 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
     };
   }, []);
 
+  function getNodeVideoFile(nodeId: string): StoredMediaFile | null {
+    const n = rfNodes.find((x) => x.id === nodeId);
+    return ((n?.data as any)?.videoFile as StoredMediaFile | null) ?? null;
+  }
+
+  const addAIGenerateFromParent = (fromClipId: string) => {
+    const paramId = nanoid();
+    const newClipId = nanoid();
+
+    const fromNode = rfNodes.find((n) => n.id === fromClipId);
+    const baseX = fromNode?.position.x ?? 50;
+    const baseY = fromNode?.position.y ?? 80;
+
+    const branchIndex = countBranches(rfEdges as any, fromClipId);
+    const yOffset = branchIndex * 180;
+
+    const desiredParamPos = { x: baseX + 260, y: baseY + yOffset };
+    const paramPos = findFreePosition(desiredParamPos, rfNodes);
+
+    const desiredClipPos = { x: baseX + 520, y: paramPos.y };
+    const clipPos = findFreePosition(desiredClipPos, rfNodes);
+
+    const paramNode: RFNode = {
+      id: paramId,
+      type: "params",
+      position: paramPos,
+      data: {
+        label: "I2V Params",
+        prompt: "",
+        mode: "i2v",          // ✅ wichtig: unterscheidet sich von continuation
+        parentClipId: fromClipId, // ✅ damit du später Parent Video findest
+      } as any,
+      draggable: true,
+    };
+
+    const newClipNode: RFNode = {
+      id: newClipId,
+      type: "clip",
+      position: clipPos,
+      data: { label: "Generated Clip" } as any,
+      draggable: true,
+    };
+
+    const e1 = { id: nanoid(), type: "input" as const, source: fromClipId, target: paramId };
+    const e2 = { id: nanoid(), type: "output" as const, source: paramId, target: newClipId };
+
+    const nextNodes = [...rfNodes, paramNode, newClipNode];
+    const nextEdgesProject = [...props.project.edges, e1 as any, e2 as any];
+    const nextEdgesRF: RFEdge[] = [
+      ...rfEdges,
+      {
+        id: e1.id,
+        source: e1.source,
+        target: e1.target,
+        type: "labeled",
+        data: { label: e1.type, showLabel: props.showEdgeLabels },
+        sourceHandle: "out",
+        targetHandle: "in",
+      },
+      {
+        id: e2.id,
+        source: e2.source,
+        target: e2.target,
+        type: "labeled",
+        data: { label: e2.type, showLabel: props.showEdgeLabels },
+        sourceHandle: "out",
+        targetHandle: "in",
+      },
+    ];
+
+    setRfNodes(nextNodes);
+    setRfEdges(nextEdgesRF);
+
+    props.onChange({
+      ...props.project,
+      nodes: fromRF(props.project, nextNodes, nextEdgesRF).nodes,
+      edges: nextEdgesProject,
+      uiState: { ...props.project.uiState, selectedNodeId: newClipId },
+    });
+
+    setPendingFocusId(newClipId);
+
+    // ✅ Optional: direkt Dialog öffnen und merken, welche Nodes dazugehören
+    setActiveParamId(paramId);
+    setActiveClipId(newClipId);
+    
+    setClipPrompt("");        // ✅ fehlt bei dir
+    setClipStatus("");
+    setClipPreviewUrl(null);
+
+    setClipDialogOpen(true);
+
+  };
+
+
+  async function handleGenerateClipVideo() {
+    if (!activeClipId || !activeParamId) return;
+
+    const paramNode = rfNodes.find((n) => n.id === activeParamId);
+    const parentId = (paramNode?.data as any)?.parentClipId as string | undefined;
+
+    if (!parentId) {
+      setClipStatus("Missing parentClipId on params node.");
+      return;
+    }
+
+    const parentFile = getNodeVideoFile(parentId);
+    if (!parentFile) {
+      setClipStatus("Parent clip has no video yet.");
+      return;
+    }
+
+    if (!clipPrompt.trim()) return;
+
+      setClipGenerating(true);
+      setClipStatus("Starting workflow…");
+      setClipPreviewUrl(null);
+
+      try {
+        updateNodeData(activeClipId, { videoStatus: "generating", videoUrl: null, videoFile: null });
+
+        const { prompt_id, client_id } = await comfyStartV2V({
+          text: clipPrompt,
+          videoFile: parentFile,
+        });
+        promptIdRef.current = prompt_id;
+
+        setClipStatus("Generating…");
+
+        const proto = window.location.protocol === "https:" ? "wss" : "ws";
+        const ws = new WebSocket(`${proto}://${window.location.host}/api/comfy/ws?clientId=${client_id}`);
+        wsRef.current = ws;
+
+        const timeout = window.setTimeout(() => {
+          ws.close();
+          wsRef.current = null;
+          timeoutRef.current = null;
+          setClipStatus("Timeout waiting for websocket events.");
+          setClipGenerating(false);
+        }, 10 * 60 * 1000);
+
+        timeoutRef.current = timeout;
+
+        ws.onmessage = async (evt) => {
+          console.log("WS RAW:", evt.data);  // <-- wichtig
+          let msg: any;
+          try { msg = JSON.parse(evt.data); } catch { return; }
+
+          if (msg?.type === "executed") {
+            if (promptIdRef.current && msg?.data?.prompt_id && msg.data.prompt_id !== promptIdRef.current) return;
+
+            // ✅ i2v SaveVideo node = "123"
+            if (String(msg?.data?.node ?? msg?.data?.display_node) === "123") {
+              const file = pickMediaFile(msg?.data?.output);
+              if (!file) {
+                setClipStatus("Done, but no output file found.");
+                clearTimeout(timeout);
+                ws.close();
+                setClipGenerating(false);
+                return;
+              }
+
+              const url = comfyBuildVideoUrl(file);
+              setClipPreviewUrl(url);
+              setClipStatus("Done ✅");
+
+              updateNodeData(activeClipId, {
+                videoFile: file,
+                videoUrl: url,
+                videoStatus: "done",
+              });
+
+              clearTimeout(timeout);
+              ws.close();
+              setClipGenerating(false);
+              return;
+            }
+          }
+
+          if (msg?.type === "execution_error") {
+            clearTimeout(timeout);
+            ws.close();
+            setClipStatus("Execution error (see console).");
+            console.error(msg);
+            setClipGenerating(false);
+          }
+
+          if (msg?.type === "execution_success") {
+            // fallback wie bei root: history holen
+            setClipStatus("Finalizing…");
+            try {
+              const history = await comfyGetHistory(prompt_id);
+              const file = comfyFindVideoFromHistory(history, prompt_id);
+              if (file) {
+                const url = comfyBuildVideoUrl(file);
+                setClipPreviewUrl(url);
+                setClipStatus("Done ✅");
+                updateNodeData(activeClipId, { videoFile: file, videoUrl: url, videoStatus: "done" });
+              } else {
+                setClipStatus("Done ✅ (but no output found in history)");
+              }
+            } finally {
+              clearTimeout(timeout);
+              ws.close();
+              setClipGenerating(false);
+            }
+          }
+        };
+
+        ws.onerror = (e) => {
+          clearTimeout(timeout);
+          ws.close();
+          setClipStatus("WebSocket error.");
+          console.error(e);
+          setClipGenerating(false);
+        };
+      } catch (e: any) {
+        setClipStatus(`Error: ${e?.message ?? String(e)}`);
+        setClipGenerating(false);
+      }
+    }
+
+
 
   return (
     <div style={{ height: "100%", position: "relative" }}>
@@ -764,12 +926,14 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
             <Button
               variant="contained"
               onClick={() => {
-                if (clickedNodeId) addAIContinuation(clickedNodeId);
+                if (clickedNodeId) addAIGenerateFromParent(clickedNodeId);
                 setActionDialogOpen(false);
               }}
+              disabled={!clickedNodeId || !getNodeVideoFile(clickedNodeId)}
             >
-              AI continuation
+              Generate Clip (I2V)
             </Button>
+
           </Stack>
         </DialogActions>
       </Dialog>
@@ -836,6 +1000,66 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Dialog
+        open={clipDialogOpen}
+        onClose={() => !clipGenerating && setClipDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Generate Clip – Prompt</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Prompt"
+              value={clipPrompt}
+              onChange={(e) => setClipPrompt(e.target.value)}
+              multiline
+              minRows={4}
+              fullWidth
+              disabled={clipGenerating}
+            />
+
+            {clipGenerating && <LinearProgress />}
+
+            {clipStatus && (
+              <Typography variant="body2" color="text.secondary">
+                {clipStatus}
+              </Typography>
+            )}
+
+            {clipPreviewUrl && (
+              <video src={clipPreviewUrl} controls style={{ width: "100%", borderRadius: 8 }} />
+            )}
+          </Stack>
+        </DialogContent>
+
+        <DialogActions>
+          <Button
+            onClick={() => {
+              wsRef.current?.close();
+              wsRef.current = null;
+              if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+              timeoutRef.current = null;
+
+              setClipGenerating(false);
+              setClipDialogOpen(false);
+            }}
+            disabled={clipGenerating}
+          >
+            Close
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={handleGenerateClipVideo}
+            disabled={clipGenerating || !clipPrompt.trim()}
+          >
+            {clipGenerating ? "Working…" : "Generate Video"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
 
     </div>
   );

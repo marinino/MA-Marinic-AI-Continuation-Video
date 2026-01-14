@@ -2,7 +2,6 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMFY_DIR="$ROOT_DIR/tools/comfyui"
 COMFY_REPO="https://github.com/comfyanonymous/ComfyUI.git"
 COMFY_PORT="${COMFY_PORT:-8188}"
 
@@ -10,6 +9,7 @@ BACKEND_DIR="$ROOT_DIR/apps/api"
 FRONTEND_DIR="$ROOT_DIR/apps/web"   # ggf. anpassen
 
 export COMFY_URL="http://127.0.0.1:${COMFY_PORT}"
+export COMFY_DIR="$ROOT_DIR/tools/comfyui"
 
 pids=()
 cleanup() {

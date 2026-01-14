@@ -8,19 +8,18 @@ export const BaseNodeSchema = z.object({
   position: z.object({ x: z.number(), y: z.number() })
 });
 
-export const ClipNodeDataSchema = z.object({
-  label: z.string(),
-  mediaId: z.string().optional(),      // später: referenz auf upload/stream
-  durationSec: z.number().optional()
-});
+
+
 
 export const ParamNodeDataSchema = z.object({
   label: z.string(),
-  // minimal: später erweiterbar für comfyui workflow, seed, steps, etc.
   prompt: z.string().optional(),
   strength: z.number().min(0).max(1).optional(),
-  mode: z.enum(["continuation", "variation", "extension"]).optional()
+  mode: z.enum(["continuation", "variation", "extension", "i2v", "v2v"]).optional(),
+
+  parentClipId: z.string().optional(),
 });
+
 
 export const EditNodeDataSchema = z.object({
   label: z.string(),
@@ -28,11 +27,7 @@ export const EditNodeDataSchema = z.object({
   notes: z.string().optional()
 });
 
-export const NodeSchema = z.discriminatedUnion("type", [
-  BaseNodeSchema.extend({ type: z.literal("clip"), data: ClipNodeDataSchema }),
-  BaseNodeSchema.extend({ type: z.literal("params"), data: ParamNodeDataSchema }),
-  BaseNodeSchema.extend({ type: z.literal("edit"), data: EditNodeDataSchema })
-]);
+
 
 export const EdgeTypeSchema = z.enum(["input", "output", "edit_in", "edit_out"]);
 
@@ -42,6 +37,31 @@ export const EdgeSchema = z.object({
   source: z.string(),
   target: z.string()
 });
+
+
+
+export const StoredMediaFileSchema = z.object({
+  filename: z.string(),
+  subfolder: z.string(),
+  type: z.string(),
+});
+
+export const ClipNodeDataSchema = z.object({
+  label: z.string(),
+  mediaId: z.string().optional(),
+  durationSec: z.number().optional(),
+
+  // ✅ neu: comfy outputs persistieren
+  videoStatus: z.enum(["idle", "generating", "done", "error"]).optional(),
+  videoUrl: z.string().optional(),
+  videoFile: StoredMediaFileSchema.optional(),
+});
+
+export const NodeSchema = z.discriminatedUnion("type", [
+  BaseNodeSchema.extend({ type: z.literal("clip"), data: ClipNodeDataSchema }),
+  BaseNodeSchema.extend({ type: z.literal("params"), data: ParamNodeDataSchema }),
+  BaseNodeSchema.extend({ type: z.literal("edit"), data: EditNodeDataSchema })
+]);
 
 export const ProjectSchema = z.object({
   id: z.string(),
@@ -59,6 +79,7 @@ export const ProjectSchema = z.object({
   })
 });
 
+export type StoredMediaFile = z.infer<typeof StoredMediaFileSchema>;
 export type Project = z.infer<typeof ProjectSchema>;
 export type Node = z.infer<typeof NodeSchema>;
 export type Edge = z.infer<typeof EdgeSchema>;
@@ -91,11 +112,5 @@ export type ComfyHistory = Record<
     >;
   }
 >;
-
-export type StoredMediaFile = {
-  filename: string;
-  subfolder: string;
-  type: string;
-};
 
 

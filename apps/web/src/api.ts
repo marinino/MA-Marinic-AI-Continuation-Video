@@ -1,4 +1,4 @@
-import type { ComfyHistory, ComfyStartVideoInput, ComfyStartVideoResult, Project } from "@ma/shared";
+import type { ComfyHistory, ComfyStartVideoInput, ComfyStartVideoResult, Project, StoredMediaFile } from "@ma/shared";
 
 const API = "/api";
 
@@ -89,19 +89,37 @@ export function comfyBuildVideoUrl(opts: {
 /**
  * Versucht aus der History das SaveVideo-Result zu extrahieren
  */
-export function comfyFindVideoFromHistory(
-  history: ComfyHistory,
-  promptId: string
-): { filename: string; subfolder?: string; type?: string } | null {
+export function comfyFindVideoFromHistory(history: ComfyHistory, promptId: string) {
   const entry = history[promptId];
   if (!entry?.outputs) return null;
 
-  for (const node of Object.values(entry.outputs)) {
-    const v = node.videos?.[0];
+  // ✅ bevorzugt: final SaveVideo node 123
+  const preferred = (entry.outputs as any)["123"];
+  const cand =
+    preferred?.videos?.[0] ??
+    preferred?.gifs?.[0] ??
+    preferred?.images?.[0];
+
+  if (cand?.filename) return cand;
+
+  // fallback: irgendein output
+  for (const node of Object.values(entry.outputs as any)) {
+    const v = (node as any)?.videos?.[0] ?? (node as any)?.gifs?.[0] ?? (node as any)?.images?.[0];
     if (v?.filename) return v;
   }
 
   return null;
+}
+
+
+export async function comfyStartV2V(args: { text: string; seed?: number; videoFile: StoredMediaFile }) {
+  const r = await fetch("/api/comfy/v2v", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(args),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return (await r.json()) as { prompt_id: string; client_id: string };
 }
 
 
