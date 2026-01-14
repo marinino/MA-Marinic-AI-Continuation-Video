@@ -15,7 +15,7 @@ export const ParamNodeDataSchema = z.object({
   label: z.string(),
   prompt: z.string().optional(),
   strength: z.number().min(0).max(1).optional(),
-  mode: z.enum(["continuation", "variation", "extension", "i2v", "v2v"]).optional(),
+  mode: z.enum(["continuation", "variation", "extension", "v2v"]).optional(),
 
   parentClipId: z.string().optional(),
 });

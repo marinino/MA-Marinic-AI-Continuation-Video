@@ -656,9 +656,9 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
       type: "params",
       position: paramPos,
       data: {
-        label: "I2V Params",
+        label: "V2V Params",
         prompt: "",
-        mode: "i2v",          // ✅ wichtig: unterscheidet sich von continuation
+        mode: "v2v",          // ✅ wichtig: unterscheidet sich von continuation
         parentClipId: fromClipId, // ✅ damit du später Parent Video findest
       } as any,
       draggable: true,
@@ -780,7 +780,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
           if (msg?.type === "executed") {
             if (promptIdRef.current && msg?.data?.prompt_id && msg.data.prompt_id !== promptIdRef.current) return;
 
-            // ✅ i2v SaveVideo node = "123"
+            // ✅ v2v SaveVideo node = "123"
             if (String(msg?.data?.node ?? msg?.data?.display_node) === "123") {
               const file = pickMediaFile(msg?.data?.output);
               if (!file) {
@@ -931,7 +931,7 @@ export function GraphView(props: { project: Project; onChange: (p: Project) => v
               }}
               disabled={!clickedNodeId || !getNodeVideoFile(clickedNodeId)}
             >
-              Generate Clip (I2V)
+              Generate Clip (V2V)
             </Button>
 
           </Stack>
