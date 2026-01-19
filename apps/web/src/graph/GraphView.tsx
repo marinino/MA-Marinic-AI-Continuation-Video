@@ -68,6 +68,9 @@ function fromRF(project: Project, nodes: RFNode[], edges: RFEdge[]): Project {
   };
 }
 
+
+
+
 /* ---------- Layout helpers ---------- */
 
 function countBranches(edges: { source: string; type?: string }[], clipId: string) {
@@ -152,7 +155,6 @@ export function GraphView(props: {
 
   const [v2vParentClipId, setV2vParentClipId] = useState<string | null>(null);
   const [v2vPrompt, setV2vPrompt] = useState("");
-
 
 
 
@@ -260,6 +262,22 @@ export function GraphView(props: {
     );
   }, [props.showEdgeLabels, setRfEdges]);
 
+  useEffect(() => {
+    wsRef.current?.close();
+    wsRef.current = null;
+
+    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+
+    promptIdRef.current = null;
+
+    setCreatingVideo(false);
+    setClipGenerating(false);
+    setRootDialogOpen(false);
+    setClipDialogOpen(false);
+  }, [props.project.id]);
+
+
 
 
 
@@ -340,7 +358,7 @@ export function GraphView(props: {
         setCreateStatus("Timeout waiting for websocket events.");
         setCreatingVideo(false);
         promptIdRef.current = null;
-      }, 10 * 60 * 1000);
+      }, 100 * 60 * 1000);
       timeoutRef.current = timeout;
 
       const finalizeSuccess = (file: StoredMediaFile) => {
@@ -633,7 +651,7 @@ export function GraphView(props: {
         setClipStatus("Timeout waiting for websocket events.");
         setClipGenerating(false);
         promptIdRef.current = null;
-      }, 10 * 60 * 1000);
+      }, 100 * 60 * 1000);
       timeoutRef.current = timeout;
 
       const finalizeSuccess = (file: StoredMediaFile) => {

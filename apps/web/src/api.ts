@@ -14,9 +14,14 @@ export async function createProject(name?: string): Promise<Project> {
 
 export async function loadProject(id: string): Promise<Project> {
   const res = await fetch(`${API}/projects/${id}`);
-  if (!res.ok) throw new Error("loadProject failed");
+  if (!res.ok) {
+    const err: any = new Error("loadProject failed");
+    err.status = res.status;
+    throw err;
+  }
   return await res.json();
 }
+
 
 export async function saveProject(p: Project): Promise<void> {
   const res = await fetch(`${API}/projects/${p.id}`, {
@@ -33,15 +38,6 @@ export async function listProjects(): Promise<Array<{ id: string; name: string }
   return await res.json();
 }
 
-export async function getProject(id: string): Promise<Project> {
-  const res = await fetch(`/api/projects/${id}`);
-  if (!res.ok) {
-    const err: any = new Error("getProject failed");
-    err.status = res.status;
-    throw err;
-  }
-  return res.json();
-}
 
 export async function comfyStartVideo(
   input: ComfyStartVideoInput

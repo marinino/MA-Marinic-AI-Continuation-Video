@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Project } from "@ma/shared";
-import { createProject, saveProject, getProject } from "./api"; // ✅ getProject dazu
+import { createProject, saveProject, loadProject } from "./api"; // ✅ getProject dazu
 import { GraphView } from "./graph/GraphView";
 import {
   AppBar,
@@ -9,6 +9,7 @@ import {
   Box,
   IconButton,
   Tooltip,
+  Button,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
@@ -47,7 +48,7 @@ export default function App({
       if (savedId) {
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
-            const loaded = await withTimeout(getProject(savedId), 1500);
+            const loaded = await withTimeout(loadProject(savedId), 1500);
             if (!cancelled) setProject(loaded);
             return;
           } catch (err: any) {
@@ -107,8 +108,24 @@ export default function App({
   }
 
   const onChange = (upd: Project | ((prev: Project) => Project)) => {
-    setProject((prev) => (typeof upd === "function" ? (upd as any)(prev) : upd));
+    setProject((prev) => {
+      if (!prev) return typeof upd === "function" ? prev : upd;
+      return typeof upd === "function" ? (upd as any)(prev) : upd;
+    });
   };
+
+
+  const newProject = async () => {
+    try {
+      const p = await withTimeout(createProject("New Project"), 1500);
+      localStorage.setItem(STORAGE_ACTIVE_PROJECT, p.id);
+      setProject(p);
+    } catch (e) {
+      console.error("create new project failed", e);
+    }
+  };
+
+
 
 
   if (!project) return <div style={{ padding: 16 }}>{title}</div>;
@@ -118,6 +135,9 @@ export default function App({
       <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
         <AppBar position="static" color="default" elevation={1}>
           <Toolbar>
+            <Button variant="outlined" onClick={newProject}>
+              New Project
+            </Button>
             <Typography variant="h6">
               {project.name} (ID: {project.id})
             </Typography>
