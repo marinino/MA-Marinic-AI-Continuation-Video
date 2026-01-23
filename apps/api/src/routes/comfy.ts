@@ -156,6 +156,23 @@ export async function comfyRoutes(app: FastifyInstance) {
       text?: string;
       seed?: number;
       videoFile?: StoredMediaFile;
+      highNoiseCfg?: number;
+      lowNoiseCfg?: number;
+
+      highNoiseModelStrength?: number;
+      lowNoiseModelStrength?: number;
+
+      highNoiseShift?: number;
+      lowNoiseShift?: number;
+
+      highNoiseSteps?: number;
+      lowNoiseSteps?: number;
+
+      highNoiseStartStep?: number;
+      lowNoiseStartStep?: number;
+
+      highNoiseEndStep?: number;
+      lowNoiseEndStep?: number;
     };
 
     if (!body.text || typeof body.text !== "string") {
@@ -172,21 +189,39 @@ export async function comfyRoutes(app: FastifyInstance) {
     // ✅ prompt patch
     wf["122:93"].inputs.text = body.text;
 
-    // ✅ seed patch (du hast zwei KSamplerAdvanced: 122:86 & 122:85)
     const seed = typeof body.seed === "number" ? body.seed : Math.floor(Math.random() * 1e15);
     wf["122:86"].inputs.noise_seed = seed;
-    wf["122:85"].inputs.noise_seed = seed + 1; // optional: leicht variieren
+    wf["122:85"].inputs.noise_seed = seed + 1;
     
 
-    // die 3 Stellen im Workflow, die dein Input-Video referenzieren
-    wf["150"].inputs.value = inputFilename; // oder videoPath, je nachdem wie dein Node es erwartet
-    wf["151"].inputs.file = inputFilename;  // häufig erwartet LoadVideo nur filename
-    wf["155"].inputs.video = inputFilename; // VHS_LoadVideoFFmpeg (Upload) meistens filename
+    wf["150"].inputs.value = inputFilename;
+    wf["151"].inputs.file = inputFilename;
+    wf["155"].inputs.video = inputFilename;
 
-    // Wenn bei dir die Nodes subfolder brauchen:
-    // wf["151"].inputs.file = videoPath;
-    // wf["155"].inputs.video = videoPath;
-    // wf["150"].inputs.value = videoPath;
+    // helper: patch nur wenn number
+    const setNum = (nodeId: string, key: string, v: unknown) => {
+      if (typeof v === "number" && Number.isFinite(v)) {
+        (wf as any)[nodeId].inputs[key] = v;
+      }
+    };
+
+    // ---- HIGH NOISE ----
+    setNum("122:104", "shift", body.highNoiseShift);
+    setNum("122:101", "strength_model", body.highNoiseModelStrength);
+
+    setNum("122:86", "cfg", body.highNoiseCfg);
+    setNum("122:86", "steps", body.highNoiseSteps);
+    setNum("122:86", "start_at_step", body.highNoiseStartStep);
+    setNum("122:86", "end_at_step", body.highNoiseEndStep);
+
+    // ---- LOW NOISE ----
+    setNum("122:103", "shift", body.lowNoiseShift);
+    setNum("122:102", "strength_model", body.lowNoiseModelStrength);
+
+    setNum("122:85", "cfg", body.lowNoiseCfg);
+    setNum("122:85", "steps", body.lowNoiseSteps);
+    setNum("122:85", "start_at_step", body.lowNoiseStartStep);
+    setNum("122:85", "end_at_step", body.lowNoiseEndStep);
 
     const client_id = nanoid();
 

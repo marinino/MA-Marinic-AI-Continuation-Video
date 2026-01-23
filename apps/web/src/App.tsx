@@ -10,6 +10,11 @@ import {
   IconButton,
   Tooltip,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TextField,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
@@ -38,6 +43,10 @@ export default function App({
   const [showEdgeLabels, setShowEdgeLabels] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
+  const [newDialogOpen, setNewDialogOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("New Project");
+  const [creating, setCreating] = useState(false);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -115,13 +124,20 @@ export default function App({
   };
 
 
-  const newProject = async () => {
+  const newProject = async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
     try {
-      const p = await withTimeout(createProject("New Project"), 1500);
+      setCreating(true);
+      const p = await withTimeout(createProject(trimmed), 1500);
       localStorage.setItem(STORAGE_ACTIVE_PROJECT, p.id);
       setProject(p);
+      setNewDialogOpen(false);
     } catch (e) {
       console.error("create new project failed", e);
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -134,46 +150,91 @@ export default function App({
     <>
       <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
         <AppBar position="static" color="default" elevation={1}>
-          <Toolbar>
-            <Button variant="outlined" onClick={newProject}>
-              New Project
-            </Button>
-            <Typography variant="h6">
-              {project.name} (ID: {project.id})
+          <Toolbar sx={{ position: "relative" }}>
+            {/* LEFT */}
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setNewProjectName("New Project");
+                  setNewDialogOpen(true);
+                }}
+              >
+                New Project
+              </Button>
+            </Box>
+
+            {/* CENTER (always screen-centered) */}
+            <Typography
+              variant="h6"
+              sx={{
+                position: "absolute",
+                left: "50%",
+                transform: "translateX(-50%)",
+                maxWidth: "60vw",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                pointerEvents: "none", // avoids blocking clicks on buttons if it overlaps
+              }}
+            >
+              {project.name}
             </Typography>
 
-            <Box sx={{ flexGrow: 1 }} />
+            {/* RIGHT */}
+            <Box sx={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
+              <Tooltip title={"Save"}>
+                <IconButton
+                  onClick={() => saveProject(project)}
+                  sx={{ mr: 1 }}
+                  aria-label="save project"
+                >
+                  <SaveIcon />
+                </IconButton>
+              </Tooltip>
 
-            <Tooltip title={"Save"}>
-              <IconButton onClick={() => saveProject(project)} sx={{ mr: 1 }} aria-label="save project">
-                <SaveIcon />
-              </IconButton>
-            </Tooltip>
+              <Tooltip title={"Open folder"}>
+                <IconButton
+                  onClick={() => setLoadOpen(true)}
+                  sx={{ mr: 1 }}
+                  aria-label="open file"
+                >
+                  <FolderOpenIcon />
+                </IconButton>
+              </Tooltip>
 
-            <Tooltip title={"Open folder"}>
-              <IconButton onClick={() => setLoadOpen(true)} sx={{ mr: 1 }} aria-label="open file">
-                <FolderOpenIcon />
-              </IconButton>
-            </Tooltip>
+              <Tooltip title={"Settings"}>
+                <IconButton
+                  onClick={() => setSettingsOpen(true)}
+                  sx={{ mr: 1 }}
+                  aria-label="toggle settings"
+                >
+                  <SettingsIcon />
+                </IconButton>
+              </Tooltip>
 
-            <Tooltip title={"Settings"}>
-              <IconButton onClick={() => setSettingsOpen(true)} sx={{ mr: 1 }} aria-label="toggle settings">
-                <SettingsIcon />
-              </IconButton>
-            </Tooltip>
+              <Tooltip title={mode === "dark" ? "Light Mode" : "Dark Mode"}>
+                <IconButton
+                  onClick={toggleColorMode}
+                  sx={{ mr: 1 }}
+                  aria-label="toggle dark mode"
+                >
+                  {mode === "dark" ? <LightModeIcon /> : <DarkModeIcon />}
+                </IconButton>
+              </Tooltip>
 
-            <Tooltip title={mode === "dark" ? "Light Mode" : "Dark Mode"}>
-              <IconButton onClick={toggleColorMode} sx={{ mr: 1 }} aria-label="toggle dark mode">
-                {mode === "dark" ? <LightModeIcon /> : <DarkModeIcon />}
-              </IconButton>
-            </Tooltip>
-
-            <Tooltip title={"Information"}>
-              <IconButton onClick={() => setLegendOpen(true)} sx={{ mr: 1 }} aria-label="toggle info">
-                <InfoIcon />
-              </IconButton>
-            </Tooltip>
+              <Tooltip title={"Information"}>
+                <IconButton
+                  onClick={() => setLegendOpen(true)}
+                  sx={{ mr: 1 }}
+                  aria-label="toggle info"
+                >
+                  <InfoIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Toolbar>
+
         </AppBar>
 
         <Box sx={{ flexGrow: 1 }}>
@@ -201,6 +262,42 @@ export default function App({
           setProject(p);
         }}
       />
+
+      <Dialog
+        open={newDialogOpen}
+        onClose={() => (creating ? null : setNewDialogOpen(false))}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Create new project</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            margin="dense"
+            label="Project name"
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") newProject(newProjectName);
+            }}
+            disabled={creating}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNewDialogOpen(false)} disabled={creating}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => newProject(newProjectName)}
+            disabled={creating || !newProjectName.trim()}
+          >
+            Create
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </>
   );
 }

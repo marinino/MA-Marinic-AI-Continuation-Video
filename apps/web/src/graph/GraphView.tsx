@@ -22,8 +22,9 @@ import type { ReactFlowInstance } from "reactflow";
 
 
 // MUI
-import { Button, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Stack, Typography, LinearProgress, TextField, Tabs, Tab } from "@mui/material";
+import { Button, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Stack, Typography, LinearProgress, TextField, Tabs, Tab,  Box, Tooltip } from "@mui/material";
 import { comfyBuildVideoUrl, comfyFindVideoFromHistory, comfyGetHistory, comfyStartV2V, comfyStartVideo, comfyUploadVideo, openInResolve, resolveExportTimeline } from "../api";
+
 
 const edgeTypes = { labeled: LabeledEdge };
 
@@ -155,6 +156,18 @@ export function GraphView(props: {
 
   const [v2vParentClipId, setV2vParentClipId] = useState<string | null>(null);
   const [v2vPrompt, setV2vPrompt] = useState("");
+  const [highNoiseCfg, setHighNoiseCfg] = useState(1)
+  const [lowNoiseCfg, setLowNoiseCfg] = useState(1)
+  const [highNoiseModelStrength, setHighNoiseModelStrength] = useState(1)
+  const [lowNoiseModelStrength, setLowNoiseModelStrength] = useState(1)
+  const [highNoiseShift, setHighNoiseShift] = useState(5)
+  const [lowNoiseShift, setLowNoiseShift] = useState(5)
+  const [highNoiseSteps, setHighNoiseSteps] = useState(4)
+  const [lowNoiseSteps, setLowNoiseSteps] = useState(4)
+  const [highNoiseStartStep, setHighNoiseStartStep] = useState(0)
+  const [lowNoiseStartStep, setLowNoiseStartStep] = useState(2)
+  const [highNoiseEndStep, setHighNoiseEndStep] = useState(2)
+  const [lowNoiseEndStep, setLowNoiseEndStep] = useState(4)
 
   const [rootMode, setRootMode] = useState<"generate" | "upload">("generate");
   const [rootUploadFile, setRootUploadFile] = useState<File | null>(null);
@@ -170,9 +183,51 @@ export function GraphView(props: {
   useEffect(() => { rfEdgesRef.current = rfEdges; }, [rfEdges]);
 
 
+  type GenState = "idle" | "running" | "error";
+
+  const [genState, setGenState] = useState<GenState>("idle");
+
+  // optional: für Tooltip/Text
+  const genLabel =
+    genState === "idle" ? "Ready" : genState === "running" ? "Generating…" : "Error";
 
 
+  function StatusDot({ state }: { state: "idle" | "running" | "error" }) {
+    const color =
+      state === "idle"
+        ? "success.main"
+        : state === "running"
+          ? "warning.main"
+          : "error.main";
 
+    const label =
+      state === "idle" ? "Ready" : state === "running" ? "Generating…" : "Error";
+
+    return (
+      <Tooltip title={label} arrow>
+        <Box
+          sx={{
+            width: 10,
+            height: 10,
+            borderRadius: "999px",
+            bgcolor: color,
+            boxShadow: 1,
+            // optional: pulsiert nur wenn running
+            ...(state === "running"
+              ? {
+                  animation: "pulse 1.2s ease-in-out infinite",
+                  "@keyframes pulse": {
+                    "0%": { transform: "scale(1)", opacity: 0.9 },
+                    "50%": { transform: "scale(1.35)", opacity: 0.6 },
+                    "100%": { transform: "scale(1)", opacity: 0.9 },
+                  },
+                }
+              : {}),
+          }}
+        />
+      </Tooltip>
+    );
+  }
 
 
   const scheduleSaveViewport = () => {
@@ -433,6 +488,9 @@ export function GraphView(props: {
     setCreateStatus("Starting workflow…");
     setCreatedVideoUrl(null);
 
+    setGenState("running");
+
+
     try {
       // ✅ Start Comfy job (noch KEIN Node!)
       const { prompt_id, client_id } = await comfyStartVideo({ text: rootPrompt });
@@ -451,6 +509,7 @@ export function GraphView(props: {
         setCreateStatus("Timeout waiting for websocket events.");
         setCreatingVideo(false);
         promptIdRef.current = null;
+        setGenState("error");
       }, 100 * 60 * 1000);
       timeoutRef.current = timeout;
 
@@ -493,6 +552,8 @@ export function GraphView(props: {
         ws.close();
         setCreatingVideo(false);
         setRootDialogOpen(false);
+        setGenState("idle");
+
       };
 
       ws.onmessage = async (evt) => {
@@ -523,6 +584,8 @@ export function GraphView(props: {
           setCreateStatus("Execution error (see console).");
           console.error(msg);
           setCreatingVideo(false);
+          setGenState("error");
+
         }
 
         if (msg?.type === "execution_success") {
@@ -558,10 +621,13 @@ export function GraphView(props: {
         setCreateStatus("WebSocket error.");
         console.error(e);
         setCreatingVideo(false);
+        setGenState("error");
+
       };
     } catch (e: any) {
       setCreateStatus(`Error: ${e?.message ?? String(e)}`);
       setCreatingVideo(false);
+      setGenState("error");
     }
   }
 
@@ -725,6 +791,18 @@ export function GraphView(props: {
   const addAIGenerateFromParent = (fromClipId: string) => {
     setV2vParentClipId(fromClipId);
     setV2vPrompt("");
+    setHighNoiseCfg(1)
+    setHighNoiseEndStep(2)
+    setHighNoiseModelStrength(1)
+    setHighNoiseShift(5)
+    setHighNoiseStartStep(0)
+    setHighNoiseSteps(4)
+    setLowNoiseCfg(1)
+    setLowNoiseEndStep(4)
+    setLowNoiseModelStrength(1)
+    setLowNoiseShift(5)
+    setLowNoiseStartStep(2)
+    setLowNoiseSteps(4)
     setClipStatus("");
     setClipPreviewUrl(null);
     setClipDialogOpen(true);
@@ -748,10 +826,25 @@ export function GraphView(props: {
     setClipStatus("Starting workflow…");
     setClipPreviewUrl(null);
 
+    setGenState("running");
+
     try {
       const { prompt_id, client_id } = await comfyStartV2V({
         text: v2vPrompt,
         videoFile: parentFile,
+        highNoiseCfg,
+        lowNoiseCfg,
+        highNoiseModelStrength,
+        lowNoiseModelStrength,
+        highNoiseShift,
+        lowNoiseShift,
+        highNoiseSteps,
+        lowNoiseSteps,
+        highNoiseStartStep,
+        lowNoiseStartStep,
+        highNoiseEndStep,
+        lowNoiseEndStep
+
       });
       promptIdRef.current = prompt_id;
 
@@ -768,6 +861,7 @@ export function GraphView(props: {
         setClipStatus("Timeout waiting for websocket events.");
         setClipGenerating(false);
         promptIdRef.current = null;
+        setGenState("error");
       }, 100 * 60 * 1000);
       timeoutRef.current = timeout;
 
@@ -831,6 +925,18 @@ export function GraphView(props: {
                 prompt: v2vPrompt,
                 mode: "v2v",
                 parentClipId: v2vParentClipId,
+                highNoiseCfg: highNoiseCfg,
+                lowNoiseCfg: lowNoiseCfg,
+                highNoiseModelStrength: highNoiseModelStrength,
+                lowNoiseModelStrength: lowNoiseModelStrength,
+                highNoiseShift: highNoiseShift,
+                lowNoiseShift: lowNoiseShift,
+                highNoiseSteps: highNoiseSteps,
+                lowNoiseSteps: lowNoiseSteps,
+                highNoiseStartStep: highNoiseStartStep,
+                lowNoiseStartStep: lowNoiseStartStep,
+                highNoiseEndStep: highNoiseEndStep,
+                lowNoiseEndStep: lowNoiseEndStep
               } as any,
               draggable: true,
             };
@@ -877,6 +983,8 @@ export function GraphView(props: {
         ws.close();
         setClipGenerating(false);
         setClipDialogOpen(false);
+        setGenState("idle");
+
       };
 
       ws.onmessage = async (evt) => {
@@ -906,6 +1014,7 @@ export function GraphView(props: {
           setClipStatus("Execution error (see console).");
           console.error(msg);
           setClipGenerating(false);
+          setGenState("error");
         }
 
         if (msg?.type === "execution_success") {
@@ -942,10 +1051,12 @@ export function GraphView(props: {
         setClipStatus("WebSocket error.");
         console.error(e);
         setClipGenerating(false);
+        setGenState("error");
       };
     } catch (e: any) {
       setClipStatus(`Error: ${e?.message ?? String(e)}`);
       setClipGenerating(false);
+      setGenState("error");
     }
   }
 
@@ -955,6 +1066,31 @@ export function GraphView(props: {
 
   return (
     <div style={{ height: "100%", position: "relative" }}>
+
+      <Paper
+        elevation={2}
+        style={{
+          position: "absolute",
+          zIndex: 10,
+          top: 12,
+          right: 12,
+          padding: 8,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
+          State:
+        </Typography>
+
+        <Stack direction="row" spacing={1} alignItems="center">
+          <StatusDot state={genState} />
+          <Typography variant="body2">{genLabel}</Typography>
+        </Stack>
+      </Paper>
+
+
       <Paper
         elevation={2}
         style={{ position: "absolute", zIndex: 10, top: 12, left: 12, padding: 8, display: "flex", gap: 8 }}
@@ -1154,7 +1290,7 @@ export function GraphView(props: {
 
       <Dialog
         open={clipDialogOpen}
-        onClose={() => !clipGenerating && setClipDialogOpen(false)}
+        onClose={() => setClipDialogOpen(false)}
         maxWidth="sm"
         fullWidth
       >
@@ -1168,7 +1304,102 @@ export function GraphView(props: {
               multiline
               minRows={4}
               fullWidth
-              disabled={clipGenerating}
+            />
+
+            <TextField
+              type="number"
+              label="Low Noise CFG"
+              value={lowNoiseCfg}
+              onChange={(e) => setLowNoiseCfg(Number(e.target.value))}
+
+              fullWidth
+            />
+            <TextField
+              type="number"
+              label="High Noise CFG"
+              value={highNoiseCfg}
+              onChange={(e) => setHighNoiseCfg(Number(e.target.value))}
+              fullWidth
+            />
+            <TextField
+              type="number"
+              label="Low Noise Model Strength"
+              value={lowNoiseModelStrength}
+              onChange={(e) => setLowNoiseModelStrength(Number(e.target.value))}
+
+              fullWidth
+            />
+            <TextField
+              type="number"
+              label="High Noise Model Strength"
+              value={highNoiseModelStrength}
+              onChange={(e) => setHighNoiseModelStrength(Number(e.target.value))}
+
+              fullWidth
+            />
+            <TextField
+              type="number"
+              label="Low Noise Shift"
+              value={lowNoiseShift}
+              onChange={(e) => setLowNoiseShift(Number(e.target.value))}
+
+              fullWidth
+            />
+            <TextField
+              type="number"
+              label="High Noise Shift"
+              value={highNoiseShift}
+              onChange={(e) => setHighNoiseShift(Number(e.target.value))}
+
+              fullWidth
+            />
+            <TextField
+              type="number"
+              label="Low Noise Steps"
+              value={lowNoiseSteps}
+              onChange={(e) => setLowNoiseSteps(Number(e.target.value))}
+
+              fullWidth
+            />
+            <TextField
+              type="number"
+              label="High Noise Steps"
+              value={highNoiseSteps}
+              onChange={(e) => setHighNoiseSteps(Number(e.target.value))}
+
+              fullWidth
+            />
+            <TextField
+              type="number"
+              label="Low Noise Start Step"
+              value={lowNoiseStartStep}
+              onChange={(e) => setLowNoiseStartStep(Number(e.target.value))}
+
+              fullWidth
+            />
+            <TextField
+              type="number"
+              label="High Noise Start Step"
+              value={highNoiseStartStep}
+              onChange={(e) => setHighNoiseSteps(Number(e.target.value))}
+
+              fullWidth
+            />
+            <TextField
+              type="number"
+              label="Low Noise End Step"
+              value={lowNoiseEndStep}
+              onChange={(e) => setLowNoiseEndStep(Number(e.target.value))}
+
+              fullWidth
+            />
+            <TextField
+              type="number"
+              label="High Noise End Step"
+              value={highNoiseEndStep}
+              onChange={(e) => setHighNoiseEndStep(Number(e.target.value))}
+
+              fullWidth
             />
 
             {clipGenerating && <LinearProgress />}
@@ -1188,19 +1419,14 @@ export function GraphView(props: {
         <DialogActions>
           <Button
             onClick={() => {
-              wsRef.current?.close();
-              wsRef.current = null;
-              if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
-              timeoutRef.current = null;
+              
 
-              promptIdRef.current = null;
+             
 
-              setClipGenerating(false);
+             
               setClipDialogOpen(false);
-              setV2vParentClipId(null)
-              setV2vPrompt("")
+           
             }}
-            disabled={clipGenerating}
           >
             Close
           </Button>
@@ -1208,9 +1434,9 @@ export function GraphView(props: {
           <Button
             variant="contained"
             onClick={handleGenerateClipVideo}
-            disabled={clipGenerating || !v2vPrompt.trim()}
+            disabled={!v2vPrompt.trim()}
           >
-            {clipGenerating ? "Working…" : "Generate Video"}
+            Start COMFYUI Genration
           </Button>
         </DialogActions>
       </Dialog>

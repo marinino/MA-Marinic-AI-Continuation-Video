@@ -38,6 +38,18 @@ function NodeCard(props: {
   prompt?: string
   metaSummary?: React.ReactNode;
 
+  highNoiseCfg?: number,
+  lowNoiseCfg?: number,
+  highNoiseModelStrength?: number,
+  lowNoiseModelStrength?: number,
+  highNoiseShift?: number,
+  lowNoiseShift?: number,
+  highNoiseSteps?: number,
+  lowNoiseSteps?: number,
+  highNoiseStartStep?: number,
+  lowNoiseStartStep?: number,
+  highNoiseEndStep?: number,
+  lowNoiseEndStep?: number
 }) {
   const theme = useTheme();
   const [infoOpen, setInfoOpen] = useState(false);
@@ -139,16 +151,49 @@ function NodeCard(props: {
             ) : props.type === "params" ? (
 
               
-                <Typography variant="body2" color="text.secondary">
-                  Prompt: {props.prompt?.trim()
-                    ? `${props.prompt.slice(0, 120)}${props.prompt.length > 120 ? "…" : ""}`
+                <>
+                {/* Prompt */}
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  <strong>Prompt:</strong>{" "}
+                  {props.prompt?.trim()
+                    ? `${props.prompt.slice(0, 300)}${props.prompt.length > 300 ? "…" : ""}`
                     : "No prompt set yet."}
                 </Typography>
+
+                {/* High Noise */}
+                <Typography variant="caption" color="text.secondary" display="block">
+                  <strong>High Noise</strong>
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  CFG: {props.highNoiseCfg} ·
+                  Steps: {props.highNoiseSteps} ·
+                  Start–End: {props.highNoiseStartStep}–{props.highNoiseEndStep}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  Shift: {props.highNoiseShift} ·
+                  Strength: {props.highNoiseModelStrength}
+                </Typography>
+
+                {/* Low Noise */}
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                  <strong>Low Noise</strong>
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  CFG: {props.lowNoiseCfg} ·
+                  Steps: {props.lowNoiseSteps} ·
+                  Start–End: {props.lowNoiseStartStep}–{props.lowNoiseEndStep}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  Shift: {props.lowNoiseShift} ·
+                  Strength: {props.lowNoiseModelStrength}
+                </Typography>
+              </>
              
              
                 
               
-            ) : (props.videoUrl ? (
+            )  : (
+            props.videoUrl ? (
               <>
                 <video
                   src={props.videoUrl}
@@ -239,7 +284,18 @@ export function ParamNode(props: NodeProps<any>) {
         isRoot={false}
         selected={props.selected}
         prompt={props.data.prompt}
-
+        highNoiseCfg={props.data?.highNoiseCfg}
+        lowNoiseCfg={props.data?.lowNoiseCfg}
+        highNoiseModelStrength={props.data?.highNoiseModelStrength}
+        lowNoiseModelStrength={props.data?.lowNoiseModelStrength}
+        highNoiseShift={props.data?.highNoiseShift}
+        lowNoiseShift={props.data?.lowNoiseShift}
+        highNoiseSteps={props.data?.highNoiseSteps}
+        lowNoiseSteps={props.data?.lowNoiseSteps}
+        highNoiseStartStep={props.data?.highNoiseStartStep}
+        lowNoiseStartStep={props.data?.lowNoiseStartStep}
+        highNoiseEndStep={props.data?.highNoiseEndStep}
+        lowNoiseEndStep={props.data?.lowNoiseEndStep}
       >
         <Typography variant="body2">{props.data?.label}</Typography>
         <Chip size="small" label={props.data?.mode ?? "ai"} sx={{ mt: 0.5 }} />

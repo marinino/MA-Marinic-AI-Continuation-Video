@@ -108,7 +108,23 @@ export function comfyFindVideoFromHistory(history: ComfyHistory, promptId: strin
 }
 
 
-export async function comfyStartV2V(args: { text: string; seed?: number; videoFile: StoredMediaFile }) {
+export async function comfyStartV2V(args: { 
+  text: string; 
+  seed?: number; 
+  videoFile: StoredMediaFile;
+  highNoiseCfg: number;
+  lowNoiseCfg: number;
+  highNoiseModelStrength: number;
+  lowNoiseModelStrength: number;
+  highNoiseShift: number;
+  lowNoiseShift: number;
+  highNoiseSteps: number;
+  lowNoiseSteps: number;
+  highNoiseStartStep: number;
+  lowNoiseStartStep: number;
+  highNoiseEndStep: number;
+  lowNoiseEndStep: number
+}) {
   const r = await fetch("/api/comfy/v2v", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
