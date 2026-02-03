@@ -5,6 +5,7 @@ import { ProjectSchema, type Project } from "@ma/shared";
 import { listProjects, loadProject, saveProject } from "./storage";
 import { comfyRoutes } from "./routes/comfy";
 import websocket from "@fastify/websocket";
+import multipart from "@fastify/multipart";
 
 
 const app = Fastify({ logger: true });
@@ -14,6 +15,12 @@ await app.register(cors, {
 });
 
 app.get("/health", async () => ({ ok: true }));
+
+await app.register(multipart, {
+  limits: {
+    fileSize: 1024 * 1024 * 200, // 200MB
+  },
+});
 
 await app.register(websocket);
 

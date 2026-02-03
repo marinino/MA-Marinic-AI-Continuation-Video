@@ -118,4 +118,21 @@ export async function comfyStartV2V(args: { text: string; seed?: number; videoFi
   return (await r.json()) as { prompt_id: string; client_id: string };
 }
 
+export async function comfyUploadVideo(file: File): Promise<StoredMediaFile> {
+  const form = new FormData();
+  form.append("file", file);
+
+  const r = await fetch("/api/comfy/upload", {
+    method: "POST",
+    body: form,
+  });
+
+  if (!r.ok) {
+    const details = await r.text();
+    throw new Error(`upload_failed: ${details}`);
+  }
+  return (await r.json()) as StoredMediaFile;
+}
+
+
 

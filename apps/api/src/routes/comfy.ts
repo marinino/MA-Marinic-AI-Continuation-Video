@@ -6,6 +6,7 @@ import v2vWorkflow from "./../../../../workflows/Extend_Video.json" assert { typ
 import { StoredMediaFile } from "@ma/shared";
 import path from "node:path";
 import fs from "node:fs/promises";
+import { pipeline } from "node:stream/promises";
 
 const COMFY_URL = process.env.COMFY_URL ?? "http://127.0.0.1:8188";
 const COMFY_WS = COMFY_URL.replace(/^http/, "ws");
@@ -22,6 +23,13 @@ function deepClone<T>(obj: T): T {
 function safeBasename(name: string) {
   // verhindert ../ path traversal
   return path.basename(name);
+}
+
+function safeExt(filename: string) {
+  const ext = path.extname(filename).toLowerCase();
+  // optional: nur erlaubte video-formate
+  const allowed = new Set([".mp4", ".mov", ".webm", ".mkv"]);
+  return allowed.has(ext) ? ext : "";
 }
 
 async function ensureCopiedToInput(file: { filename: string; subfolder?: string; type?: string }) {
@@ -195,6 +203,33 @@ export async function comfyRoutes(app: FastifyInstance) {
 
     const data = (await r.json()) as { prompt_id: string };
     return { prompt_id: data.prompt_id, client_id };
+  });
+
+  app.post("/comfy/upload", async (req, reply) => {
+    // erwartet multipart/form-data mit field name "file"
+    const file = await (req as any).file();
+    if (!file) return reply.code(400).send({ error: "missing_file" });
+
+    const orig = safeBasename(file.filename);
+    const ext = safeExt(orig);
+    if (!ext) return reply.code(400).send({ error: "unsupported_filetype" });
+
+    const unique = `${Date.now()}_${nanoid()}${ext}`;
+    const dstPath = path.join(COMFY_INPUT_DIR, unique);
+
+    await fs.mkdir(COMFY_INPUT_DIR, { recursive: true });
+
+    // file.file ist ein stream
+    await pipeline(file.file, (await import("node:fs")).createWriteStream(dstPath));
+
+    // gib ein StoredMediaFile zurück, das "input" markiert
+    const stored = {
+      filename: unique,
+      subfolder: "",      // input hat i.d.R. keinen subfolder
+      type: "input",      // wichtig!
+    };
+
+    return reply.send(stored);
   });
 
 }

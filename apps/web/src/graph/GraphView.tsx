@@ -22,8 +22,8 @@ import type { ReactFlowInstance } from "reactflow";
 
 
 // MUI
-import { Button, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Stack, Typography, LinearProgress, TextField } from "@mui/material";
-import { comfyBuildVideoUrl, comfyFindVideoFromHistory, comfyGetHistory, comfyStartV2V, comfyStartVideo } from "../api";
+import { Button, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Stack, Typography, LinearProgress, TextField, Tabs, Tab } from "@mui/material";
+import { comfyBuildVideoUrl, comfyFindVideoFromHistory, comfyGetHistory, comfyStartV2V, comfyStartVideo, comfyUploadVideo } from "../api";
 
 const edgeTypes = { labeled: LabeledEdge };
 
@@ -155,6 +155,11 @@ export function GraphView(props: {
 
   const [v2vParentClipId, setV2vParentClipId] = useState<string | null>(null);
   const [v2vPrompt, setV2vPrompt] = useState("");
+
+  const [rootMode, setRootMode] = useState<"generate" | "upload">("generate");
+  const [rootUploadFile, setRootUploadFile] = useState<File | null>(null);
+  const [rootUploadStatus, setRootUploadStatus] = useState("");
+  const [rootUploading, setRootUploading] = useState(false);
 
 
 
@@ -329,6 +334,54 @@ export function GraphView(props: {
       type: candidate.type ?? "output",
     };
   }
+
+  async function handleUploadRootVideo() {
+    if (!rootUploadFile) return;
+
+    setRootUploading(true);
+    setRootUploadStatus("Uploading…");
+
+    try {
+      const stored = await comfyUploadVideo(rootUploadFile);
+
+      // preview URL: entweder lokal oder über comfy/view
+      // lokal (sofort): 
+      const localUrl = URL.createObjectURL(rootUploadFile);
+      setCreatedVideoUrl(localUrl);
+      setCreateStatus("Uploaded ✅");
+
+      // Root Node erzeugen (ohne Comfy job)
+      const id = nanoid();
+      const rootClip: RFNode = {
+        id,
+        type: "clip",
+        position: pendingRootPos,
+        data: {
+          label: "Root Clip",
+          videoFile: stored,
+          videoStatus: "done",
+        } as any,
+        draggable: true,
+      };
+
+      setRfNodes((prevNodes) => {
+        const nextNodes = [...prevNodes, rootClip];
+        setRfEdges((prevEdges) => {
+          commit(nextNodes, prevEdges);
+          return prevEdges;
+        });
+        return nextNodes;
+      });
+
+      setPendingFocusId(id);
+      setRootUploading(false);
+      setRootDialogOpen(false);
+    } catch (e: any) {
+      setRootUploadStatus(`Error: ${e?.message ?? String(e)}`);
+      setRootUploading(false);
+    }
+  }
+
 
 
   async function handleCreateRootVideo() {
@@ -922,68 +975,108 @@ export function GraphView(props: {
       </Dialog>
 
       <Dialog open={rootDialogOpen} onClose={() => !creatingVideo && setRootDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Create Root – Positive Prompt</DialogTitle>
+        <DialogTitle>Create Root</DialogTitle>
 
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label="Positive prompt"
-              value={rootPrompt}
-              onChange={(e) => setRootPrompt(e.target.value)}
-              multiline
-              minRows={4}
-              fullWidth
-              placeholder="Describe the video you want…"
-              disabled={creatingVideo}
-            />
+          <Tabs
+            value={rootMode}
+            onChange={(_, v) => setRootMode(v)}
+            sx={{ mb: 2 }}
+          >
+            <Tab value="generate" label="Generate" />
+            <Tab value="upload" label="Upload video" />
+          </Tabs>
 
-            {creatingVideo && <LinearProgress />}
-
-            {createStatus && (
-              <Typography variant="body2" color="text.secondary">
-                {createStatus}
-              </Typography>
-            )}
-
-            {createdVideoUrl && (
-              <video
-                src={createdVideoUrl}
-                controls
-                style={{ width: "100%", borderRadius: 8 }}
+          {rootMode === "generate" && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField
+                label="Positive prompt"
+                value={rootPrompt}
+                onChange={(e) => setRootPrompt(e.target.value)}
+                multiline
+                minRows={4}
+                fullWidth
+                placeholder="Describe the video you want…"
+                disabled={creatingVideo}
               />
-            )}
-          </Stack>
+
+              {creatingVideo && <LinearProgress />}
+              {createStatus && <Typography variant="body2" color="text.secondary">{createStatus}</Typography>}
+
+              {createdVideoUrl && <video src={createdVideoUrl} controls style={{ width: "100%", borderRadius: 8 }} />}
+            </Stack>
+          )}
+
+          {rootMode === "upload" && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <Button variant="outlined" component="label" disabled={rootUploading}>
+                Choose video…
+                <input
+                  hidden
+                  type="file"
+                  accept="video/*"
+                  onChange={(e) => setRootUploadFile(e.target.files?.[0] ?? null)}
+                />
+              </Button>
+
+              {rootUploadFile && (
+                <Typography variant="body2" color="text.secondary">
+                  Selected: {rootUploadFile.name}
+                </Typography>
+              )}
+
+              {rootUploading && <LinearProgress />}
+              {rootUploadStatus && (
+                <Typography variant="body2" color="text.secondary">
+                  {rootUploadStatus}
+                </Typography>
+              )}
+            </Stack>
+          )}
         </DialogContent>
 
         <DialogActions>
           <Button
             onClick={() => {
+              // dein cleanup wie gehabt + zusätzlich upload state resetten
               wsRef.current?.close();
               wsRef.current = null;
-
               if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
               timeoutRef.current = null;
-
               promptIdRef.current = null;
 
               setCreatingVideo(false);
+              setRootUploading(false);
+              setRootUploadStatus("");
+              setRootUploadFile(null);
+
               setCreateStatus("Cancelled");
               setRootDialogOpen(false);
             }}
-            disabled={creatingVideo}
+            disabled={creatingVideo || rootUploading}
           >
             Close
           </Button>
 
-
-          <Button
-            variant="contained"
-            onClick={handleCreateRootVideo}
-            disabled={creatingVideo || !rootPrompt.trim()}
-          >
-            {creatingVideo ? "Working…" : "Create Video"}
-          </Button>
+          {rootMode === "generate" ? (
+            <Button
+              variant="contained"
+              onClick={handleCreateRootVideo}
+              disabled={creatingVideo || !rootPrompt.trim()}
+            >
+              {creatingVideo ? "Working…" : "Create Video"}
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleUploadRootVideo}
+              disabled={rootUploading || !rootUploadFile}
+            >
+              {rootUploading ? "Uploading…" : "Use Uploaded Video"}
+            </Button>
+          )}
         </DialogActions>
+
       </Dialog>
 
       <Dialog
