@@ -23,7 +23,7 @@ import type { ReactFlowInstance } from "reactflow";
 
 // MUI
 import { Button, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Stack, Typography, LinearProgress, TextField, Tabs, Tab } from "@mui/material";
-import { comfyBuildVideoUrl, comfyFindVideoFromHistory, comfyGetHistory, comfyStartV2V, comfyStartVideo, comfyUploadVideo } from "../api";
+import { comfyBuildVideoUrl, comfyFindVideoFromHistory, comfyGetHistory, comfyStartV2V, comfyStartVideo, comfyUploadVideo, openInResolve, resolveExportTimeline } from "../api";
 
 const edgeTypes = { labeled: LabeledEdge };
 
@@ -160,6 +160,14 @@ export function GraphView(props: {
   const [rootUploadFile, setRootUploadFile] = useState<File | null>(null);
   const [rootUploadStatus, setRootUploadStatus] = useState("");
   const [rootUploading, setRootUploading] = useState(false);
+
+  const [namingConventionInfoOpen, setNamingConventionInfoOpen] = useState(false)
+  const [ namingConventionName, setNamingConventionName ] = useState("")
+
+  const [lastEditNodeId, setLastEditNodeId] = useState<string | null>(null);
+
+  const rfEdgesRef = useRef<RFEdge[]>([]);
+  useEffect(() => { rfEdgesRef.current = rfEdges; }, [rfEdges]);
 
 
 
@@ -382,6 +390,38 @@ export function GraphView(props: {
     }
   }
 
+  async function importResolveMetaIntoEdit(editNodeId: string) {
+    
+    const timelineJson = await resolveExportTimeline();
+
+    setRfNodes((prevNodes) => {
+      const nextNodes = prevNodes.map((n) => {
+        if (n.id !== editNodeId) return n;
+
+        const oldData = (n.data as any) ?? {};
+        return {
+          ...n,
+          data: {
+            ...oldData,
+            meta: {
+              ...(oldData.meta ?? {}),
+              resolveTimeline: timelineJson,
+              importedAt: new Date().toISOString(),
+              error: null,
+            },
+            export: { ...(oldData.export ?? {}), status: "imported" },
+          },
+        };
+      });
+
+      props.onChange((prevProject) =>
+        fromRF(prevProject, nextNodes as any, rfEdgesRef.current as any)
+      );
+      return nextNodes;
+    });
+  }
+
+
 
 
   async function handleCreateRootVideo() {
@@ -578,21 +618,43 @@ export function GraphView(props: {
     const desiredClipPos = { x: baseX + 520, y: editPos.y };
     const clipPos = findFreePosition(desiredClipPos, rfNodes);
 
+    const expectedBasename = `${newClipId}.mp4`; // oder .mov
+
     const editNode: RFNode = {
       id: editId,
       type: "edit",
       position: editPos,
-      data: { label: "Edit (dummy)", tool: "manual", notes: ""} as any,
-      draggable: true
+      data: {
+        label: "Manual edit",
+        tool: "resolve",
+        parentClipId: fromClipId,
+        outClipId: newClipId,
+        export: {
+          expectedBasename,
+          status: "waiting",      // waiting | imported | error
+          // exportDir kannst du optional serverseitig kennen (ENV), musst du nicht im Node speichern
+          foundPath: null,
+        },
+        meta: null,               // später ffprobe result
+        notes: `Export as: ${expectedBasename}`,
+      } as any,
+      draggable: true,
     };
+
 
     const newClipNode: RFNode = {
       id: newClipId,
       type: "clip",
       position: clipPos,
-      data: { label: "New Clip (dummy)"} as any,
-      draggable: true
+      data: {
+        label: "Edited Clip",
+        videoStatus: "pending",   // pending | done | error
+        videoFile: null,
+        producedByEditId: editId, // optional, hilft beim späteren Mapping/Debug
+      } as any,
+      draggable: true,
     };
+
 
     // Keep your edge semantics:
     const e1 = { id: nanoid(), type: "edit_in" as const, source: fromClipId, target: editId };
@@ -632,6 +694,8 @@ export function GraphView(props: {
 
     
     setPendingFocusId(newClipId);
+
+    return { expectedBasename, newClipId, editId };
 
   };
 
@@ -953,8 +1017,17 @@ export function GraphView(props: {
             <Button
               variant="outlined"
               onClick={() => {
-                if (clickedNodeId) addManualEdit(clickedNodeId);
+                if (clickedNodeId){
+                  const r = addManualEdit(clickedNodeId);
+                  const file = getNodeVideoFile(clickedNodeId);
+                  if (file?.filename) openInResolve(file.filename);
+
+                  setLastEditNodeId(r.editId)
+                  setNamingConventionName(r.expectedBasename);
+                  setNamingConventionInfoOpen(true);
+                } 
                 setActionDialogOpen(false);
+               
               }}
             >
               Manual edit
@@ -1141,6 +1214,76 @@ export function GraphView(props: {
           </Button>
         </DialogActions>
       </Dialog>
+
+       <Dialog
+        open={namingConventionInfoOpen}
+        onClose={() => setNamingConventionInfoOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>IMPORTANT: Name your Video as follows - Only close the button when the editing is done</DialogTitle>
+        <DialogContent>
+            Name: { namingConventionName }
+        </DialogContent>
+
+        <DialogActions>
+          <Button
+            onClick={() => {
+             setNamingConventionInfoOpen(false)
+            }}
+          >
+            Close
+          </Button>
+
+          <Button onClick={() => navigator.clipboard.writeText(namingConventionName)}>
+            Copy name
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={async () => {
+              if (!lastEditNodeId) return;
+
+              try {
+                 await importResolveMetaIntoEdit(lastEditNodeId);
+              } catch (e: any) {
+                console.error(e);
+
+                // optional: error auch in meta speichern
+                setRfNodes((prevNodes) => {
+                  const nextNodes = prevNodes.map((n) => {
+                    if (n.id !== lastEditNodeId) return n;
+                    const oldData = (n.data as any) ?? {};
+                    return {
+                      ...n,
+                      data: {
+                        ...oldData,
+                        meta: { ...(oldData.meta ?? {}), error: e?.message ?? String(e) },
+                      },
+                    };
+                  });
+
+                  props.onChange((prevProject) =>
+                    fromRF(prevProject, nextNodes as any, rfEdgesRef.current as any)
+                  );
+                  return nextNodes;
+                });
+
+                alert("Import changes failed: " + (e?.message ?? String(e)));
+              }
+            }}
+          >
+            Import changes
+          </Button>
+
+
+
+
+         
+        </DialogActions>
+      </Dialog>
+
+
 
 
     </div>

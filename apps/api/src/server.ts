@@ -6,7 +6,18 @@ import { listProjects, loadProject, saveProject } from "./storage";
 import { comfyRoutes } from "./routes/comfy";
 import websocket from "@fastify/websocket";
 import multipart from "@fastify/multipart";
+import { editorRoutes } from "./routes/editor";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import dotenv from "dotenv";
 
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({
+  path: path.resolve(__dirname, "../../..", ".env"),
+});
 
 const app = Fastify({ logger: true });
 
@@ -25,6 +36,8 @@ await app.register(multipart, {
 await app.register(websocket);
 
 await app.register(comfyRoutes);
+
+await app.register(editorRoutes); 
 
 app.get("/projects", async () => {
   return await listProjects();

@@ -36,6 +36,8 @@ function NodeCard(props: {
   videoFile?: StoredMediaFile | null;
   videoStatus?: string;
   prompt?: string
+  metaSummary?: React.ReactNode;
+
 }) {
   const theme = useTheme();
   const [infoOpen, setInfoOpen] = useState(false);
@@ -126,13 +128,25 @@ function NodeCard(props: {
               </>
             )}
 
-            {props.type === "params" ? (
-             
+            {props.type === "edit" ? (
+              props.metaSummary ? (
+                <Box sx={{ mt: 1 }}>{props.metaSummary}</Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No changes imported yet.
+                </Typography>
+              )
+            ) : props.type === "params" ? (
+
+              
                 <Typography variant="body2" color="text.secondary">
                   Prompt: {props.prompt?.trim()
                     ? `${props.prompt.slice(0, 120)}${props.prompt.length > 120 ? "…" : ""}`
                     : "No prompt set yet."}
                 </Typography>
+             
+             
+                
               
             ) : (props.videoUrl ? (
               <>
@@ -225,6 +239,7 @@ export function ParamNode(props: NodeProps<any>) {
         isRoot={false}
         selected={props.selected}
         prompt={props.data.prompt}
+
       >
         <Typography variant="body2">{props.data?.label}</Typography>
         <Chip size="small" label={props.data?.mode ?? "ai"} sx={{ mt: 0.5 }} />
@@ -234,20 +249,64 @@ export function ParamNode(props: NodeProps<any>) {
 }
 
 export function EditNode(props: NodeProps<any>) {
+  const exportInfo = props.data?.export;
+  const meta = props.data?.meta;
+  const importedAt = meta?.importedAt;
+  const timeline = meta?.resolveTimeline;
+
+  const timelineName = timeline?.timeline?.name ?? timeline?.timeline?.Name ?? null;
+  const summary = timeline?.summary ?? null;
+
   return (
     <div style={{ position: "relative" }}>
       <Handle id="in" type="target" position={Position.Left} />
       <Handle id="out" type="source" position={Position.Right} />
 
-      <NodeCard
+       <NodeCard
         nodeId={props.id}
         icon={<ContentCutIcon fontSize="small" />}
         title="Edit"
         type="edit"
         isRoot={false}
         selected={props.selected}
+        metaSummary={
+          <Stack spacing={0.5}>
+            <Typography variant="body2" color="text.secondary">
+              Tool: {props.data?.tool ?? "resolve"}
+            </Typography>
+
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip
+                size="small"
+                label={exportInfo?.status ?? "waiting"}
+              />
+              {importedAt && (
+                <Typography variant="caption" color="text.secondary">
+                  {new Date(importedAt).toLocaleString()}
+                </Typography>
+              )}
+            </Stack>
+
+            {timelineName && (
+              <Typography variant="body2" color="text.secondary">
+                Timeline: {timelineName}
+              </Typography>
+            )}
+
+            {summary && (
+              <Typography variant="body2" color="text.secondary">
+                Items: {summary.videoItems ?? "?"} · Markers: {summary.timelineMarkers ?? "?"}
+              </Typography>
+            )}
+          </Stack>
+        }
       >
         <Typography variant="body2">{props.data?.label}</Typography>
+
+        <Stack direction="row" spacing={1} sx={{ mt: 0.75 }} alignItems="center">
+          <Chip size="small" label={`export: ${exportInfo?.expectedBasename ?? "-"}`} />
+          <Chip size="small" label={exportInfo?.status ?? "waiting"} />
+        </Stack>
       </NodeCard>
     </div>
   );

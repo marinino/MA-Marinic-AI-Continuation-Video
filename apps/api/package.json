@@ -11,6 +11,7 @@
     "@fastify/multipart": "7",
     "@fastify/websocket": "8",
     "@ma/shared": "workspace:*",
+    "dotenv": "^17.2.3",
     "fastify": "^4.28.1",
     "nanoid": "^5.0.7",
     "ws": "^8.19.0"

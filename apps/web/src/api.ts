@@ -134,5 +134,27 @@ export async function comfyUploadVideo(file: File): Promise<StoredMediaFile> {
   return (await r.json()) as StoredMediaFile;
 }
 
+export async function openInResolve(filename: string) {
+  const res = await fetch("/api/editor/open/resolve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename }),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(txt);
+  }
+}
+
+export async function resolveExportTimeline() {
+  const r = await fetch("/api/editor/resolve/export-timeline", { method: "POST" });
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json();
+}
+
+
+
+
 
 
