@@ -47,6 +47,9 @@ export default function App({
   const [newProjectName, setNewProjectName] = useState("New Project");
   const [creating, setCreating] = useState(false);
 
+  const dirtyRef = useRef(false);
+  const projectRef = useRef<Project | null>(null);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +101,7 @@ export default function App({
     }
   }, [project?.id]);
 
+
   const title = useMemo(() => project?.name ?? "Loading...", [project]);
 
   function withTimeout<T>(p: Promise<T>, ms = 1500): Promise<T> {
@@ -117,11 +121,24 @@ export default function App({
   }
 
   const onChange = (upd: Project | ((prev: Project) => Project)) => {
+    dirtyRef.current = true;
     setProject((prev) => {
       if (!prev) return typeof upd === "function" ? prev : upd;
       return typeof upd === "function" ? (upd as any)(prev) : upd;
     });
   };
+
+  useEffect(() => {
+    if (!project) return;
+    if (!dirtyRef.current) return; // ✅ nur speichern wenn geändert
+    const t = window.setTimeout(() => {
+      saveProject(project);
+      dirtyRef.current = false; // ✅ wieder “clean”
+    }, 500);
+    return () => window.clearTimeout(t);
+  }, [project]);
+
+  useEffect(() => { projectRef.current = project; }, [project]);
 
 
   const newProject = async (name: string) => {
@@ -185,7 +202,13 @@ export default function App({
             <Box sx={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
               <Tooltip title={"Save"}>
                 <IconButton
-                  onClick={() => saveProject(project)}
+                  onClick={() => {
+                    if (projectRef.current) {
+                      saveProject(projectRef.current);
+                      dirtyRef.current = false;
+                    }
+                  }}
+
                   sx={{ mr: 1 }}
                   aria-label="save project"
                 >

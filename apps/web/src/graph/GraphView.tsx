@@ -26,6 +26,8 @@ import { Button, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Stack
 import { comfyBuildVideoUrl, comfyFindVideoFromHistory, comfyGetHistory, comfyStartV2V, comfyStartVideo, comfyUploadVideo, openInResolve, resolveExportTimeline } from "../api";
 
 
+import { Job } from "../jobs/types";
+
 const edgeTypes = { labeled: LabeledEdge };
 
 /* ---------- Project ↔ ReactFlow ---------- */
@@ -181,15 +183,35 @@ export function GraphView(props: {
 
   const rfEdgesRef = useRef<RFEdge[]>([]);
   useEffect(() => { rfEdgesRef.current = rfEdges; }, [rfEdges]);
+  const [jobsOpen, setJobsOpen] = useState(false);
 
 
   type GenState = "idle" | "running" | "error";
 
+
+
+
   const [genState, setGenState] = useState<GenState>("idle");
 
-  // optional: für Tooltip/Text
-  const genLabel =
-    genState === "idle" ? "Ready" : genState === "running" ? "Generating…" : "Error";
+  const [jobs, setJobs] = useState<Job[]>([]);
+
+  const jobsRef = useRef<Job[]>([]);
+  useEffect(() => { jobsRef.current = jobs; }, [jobs]);
+
+  const wsMapRef = useRef(new Map<string, WebSocket>());
+  const activeJobId = useMemo(
+    () => jobs.find(j => j.status === "connecting" || j.status === "running" || j.status === "finalizing")?.id ?? null,
+    [jobs]
+  );
+
+  const anyBusy = useMemo(
+    () => jobs.some(j => j.status === "queued" || j.status === "connecting" || j.status === "running" || j.status === "finalizing"),
+    [jobs]
+  );
+
+  const state: GenState =
+    jobs.some(j => j.status === "error") ? "error" :
+    anyBusy ? "running" : "idle";
 
 
   function StatusDot({ state }: { state: "idle" | "running" | "error" }) {
@@ -237,6 +259,140 @@ export function GraphView(props: {
       saveViewport();
     }, 150);
   };
+
+  useEffect(() => {
+    if (activeJobId) return;
+
+    const next = jobs.find(j => j.status === "queued");
+    if (!next) return;
+
+    startJob(next.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs, activeJobId]);
+
+  async function startJob(jobId: string) {
+    // mark connecting
+    setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: "connecting", progressText: "Starting…" } : j));
+
+    const job = jobsRef.current.find(j => j.id === jobId);
+    if (!job) return;
+
+    try {
+      const { prompt_id, client_id } = await job.startPayload();
+
+      // store prompt+client
+      setJobs(prev => prev.map(j => j.id === jobId ? {
+        ...j,
+        promptId: prompt_id,
+        clientId: client_id,
+        status: "running",
+        progressText: "Generating…",
+      } : j));
+
+      const proto = window.location.protocol === "https:" ? "wss" : "ws";
+      const ws = new WebSocket(`${proto}://${window.location.host}/api/comfy/ws?clientId=${client_id}`);
+
+      wsMapRef.current.set(jobId, ws);
+
+      const timeout = window.setTimeout(() => {
+        ws.close();
+        wsMapRef.current.delete(jobId);
+        setJobs(prev => prev.map(j => j.id === jobId ? {
+          ...j,
+          status: "error",
+          progressText: "Timeout waiting for websocket events.",
+        } : j));
+      }, 100 * 60 * 100000);
+
+      const finalizeSuccess = (file: StoredMediaFile) => {
+        window.clearTimeout(timeout);
+
+        const previewUrl = comfyBuildVideoUrl(file);
+
+        setJobs(prev => prev.map(j => j.id === jobId ? {
+          ...j,
+          status: "done",
+          progressText: "Done ✅",
+          file,
+          previewUrl,
+        } : j));
+
+        ws.close();
+        wsMapRef.current.delete(jobId);
+
+        // callback: create nodes, commit, focus etc.
+        const latest = jobsRef.current.find(j => j.id === jobId);
+        latest?.onSuccess?.(file);
+      };
+
+      ws.onmessage = async (evt) => {
+        let msg: any;
+        try { msg = JSON.parse(evt.data); } catch { return; }
+
+        // optional: set progress text if comfy sends it
+        // setJobs(prev => prev.map(j => j.id === jobId ? { ...j, progressText: msg?.type ?? j.progressText } : j));
+
+        if (msg?.type === "executed") {
+          // IMPORTANT: filter to this job's prompt_id
+          if (msg?.data?.prompt_id && msg.data.prompt_id !== prompt_id) return;
+
+          if (String(msg?.data?.node ?? msg?.data?.display_node) === "123") {
+            const file = pickMediaFile(msg?.data?.output);
+            if (file) finalizeSuccess(file);
+          }
+        }
+
+        if (msg?.type === "execution_error") {
+          window.clearTimeout(timeout);
+          ws.close();
+          wsMapRef.current.delete(jobId);
+
+          setJobs(prev => prev.map(j => j.id === jobId ? {
+            ...j,
+            status: "error",
+            progressText: "Execution error (see console).",
+          } : j));
+          console.error(msg);
+          job.onError?.(msg);
+        }
+
+        if (msg?.type === "execution_success") {
+          setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: "finalizing", progressText: "Finalizing…" } : j));
+
+          try {
+            const history = await comfyGetHistory(prompt_id);
+            const file = comfyFindVideoFromHistory(history, prompt_id);
+            if (file) finalizeSuccess(file);
+            else {
+              window.clearTimeout(timeout);
+              ws.close();
+              wsMapRef.current.delete(jobId);
+              setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: "done", progressText: "Done ✅ (no output found in history)" } : j));
+            }
+          } catch (e) {
+            window.clearTimeout(timeout);
+            ws.close();
+            wsMapRef.current.delete(jobId);
+            setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: "done", progressText: "Done ✅ (history lookup failed)" } : j));
+          }
+        }
+      };
+
+      ws.onerror = (e) => {
+        window.clearTimeout(timeout);
+        ws.close();
+        wsMapRef.current.delete(jobId);
+        setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: "error", progressText: "WebSocket error." } : j));
+        console.error(e);
+      };
+
+    } catch (e) {
+      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: "error", progressText: `Error: ${String((e as any)?.message ?? e)}` } : j));
+      job.onError?.(e);
+    }
+  }
+
+
 
   const restoreViewport = () => {
     const raw = localStorage.getItem(viewportKey);
@@ -479,46 +635,20 @@ export function GraphView(props: {
 
 
 
-  async function handleCreateRootVideo() {
+  function enqueueRootJob() {
     if (!rootPrompt.trim()) return;
 
-    promptIdRef.current = null;
+    const jobId = nanoid();
+    const prompt = rootPrompt;
 
-    setCreatingVideo(true);
-    setCreateStatus("Starting workflow…");
-    setCreatedVideoUrl(null);
-
-    setGenState("running");
-
-
-    try {
-      // ✅ Start Comfy job (noch KEIN Node!)
-      const { prompt_id, client_id } = await comfyStartVideo({ text: rootPrompt });
-      promptIdRef.current = prompt_id;
-
-      setCreateStatus("Generating…");
-
-      const proto = window.location.protocol === "https:" ? "wss" : "ws";
-      const ws = new WebSocket(`${proto}://${window.location.host}/api/comfy/ws?clientId=${client_id}`);
-      wsRef.current = ws;
-
-      const timeout = window.setTimeout(() => {
-        ws.close();
-        wsRef.current = null;
-        timeoutRef.current = null;
-        setCreateStatus("Timeout waiting for websocket events.");
-        setCreatingVideo(false);
-        promptIdRef.current = null;
-        setGenState("error");
-      }, 100 * 60 * 1000);
-      timeoutRef.current = timeout;
-
-      const finalizeSuccess = (file: StoredMediaFile) => {
-        const url = comfyBuildVideoUrl(file);
-        setCreatedVideoUrl(url);
-        setCreateStatus("Done ✅");
-
-        // ✅ JETZT Node erzeugen und persistieren
+    setJobs(prev => [{
+      id: jobId,
+      kind: "t2v_root",
+      createdAt: Date.now(),
+      status: prev.some(j => ["connecting","running","finalizing"].includes(j.status)) ? "queued" : "queued",
+      label: `Root: ${prompt.slice(0, 30)}${prompt.length > 30 ? "…" : ""}`,
+      startPayload: () => comfyStartVideo({ text: prompt }),
+      onSuccess: (file) => {
         const id = nanoid();
         const rootClip: RFNode = {
           id,
@@ -532,105 +662,164 @@ export function GraphView(props: {
           draggable: true,
         };
 
-        setRfNodes((prevNodes) => {
+        setRfNodes(prevNodes => {
           const nextNodes = [...prevNodes, rootClip];
 
-          setRfEdges((prevEdges) => {
-            commit(nextNodes, prevEdges); // ✅ benutzt exakt zusammengehörige nodes+edges
+          setRfEdges(prevEdges => {
+            commit(nextNodes, prevEdges);
             return prevEdges;
           });
 
           return nextNodes;
         });
 
-
         setPendingFocusId(id);
-
-
-        clearTimeout(timeout);
-        promptIdRef.current = null;
-        ws.close();
-        setCreatingVideo(false);
         setRootDialogOpen(false);
-        setGenState("idle");
+      }
 
-      };
-
-      ws.onmessage = async (evt) => {
-        let msg: any;
-        try { msg = JSON.parse(evt.data); } catch { return; }
-
-        if (msg?.type === "executed") {
-          if (promptIdRef.current && msg?.data?.prompt_id && msg.data.prompt_id !== promptIdRef.current) return;
-
-          if (String(msg?.data?.node ?? msg?.data?.display_node) === "123") {
-            const file = pickMediaFile(msg?.data?.output);
-            if (!file) {
-              setCreateStatus("Done, but no output file found.");
-              clearTimeout(timeout)
-              promptIdRef.current = null;
-              ws.close();
-              setCreatingVideo(false);
-              return;
-            }
-            finalizeSuccess(file);
-          }
-        }
-
-        if (msg?.type === "execution_error") {
-          clearTimeout(timeout);
-          promptIdRef.current = null;
-          ws.close();
-          setCreateStatus("Execution error (see console).");
-          console.error(msg);
-          setCreatingVideo(false);
-          setGenState("error");
-
-        }
-
-        if (msg?.type === "execution_success") {
-          // fallback history
-          setCreateStatus("Finalizing…");
-          try {
-            const history = await comfyGetHistory(prompt_id);
-            const file = comfyFindVideoFromHistory(history, prompt_id);
-            if (file) finalizeSuccess(file);
-            else {
-              setCreateStatus("Done ✅ (but no output found in history)");
-              clearTimeout(timeout);
-              promptIdRef.current = null;
-              ws.close();
-              setCreatingVideo(false);
-            }
-          } catch (e) {
-            console.error(e);
-            setCreateStatus("Done ✅ (but history lookup failed)");
-            clearTimeout(timeout);
-            promptIdRef.current = null;
-            ws.close();
-            setCreatingVideo(false);
-          }
-        }
-      };
-
-      ws.onerror = (e) => {
-        clearTimeout(timeout);
-        promptIdRef.current = null;
-        ws.close();
-        wsRef.current = null;
-        setCreateStatus("WebSocket error.");
-        console.error(e);
-        setCreatingVideo(false);
-        setGenState("error");
-
-      };
-    } catch (e: any) {
-      setCreateStatus(`Error: ${e?.message ?? String(e)}`);
-      setCreatingVideo(false);
-      setGenState("error");
-    }
+    }, ...prev]);
   }
 
+
+  function enqueueExtendJob() {
+    if (!v2vParentClipId) return;
+    if (!v2vPrompt.trim()) return;
+
+    const parentFile = getNodeVideoFile(v2vParentClipId);
+    if (!parentFile) {
+      setClipStatus("Parent clip has no video yet.");
+      return;
+    }
+
+    const jobId = nanoid();
+    const prompt = v2vPrompt;
+
+    // capture all params NOW (wichtig, falls user danach slider ändert)
+    const payload = {
+      text: prompt,
+      videoFile: parentFile,
+      highNoiseCfg,
+      lowNoiseCfg,
+      highNoiseModelStrength,
+      lowNoiseModelStrength,
+      highNoiseShift,
+      lowNoiseShift,
+      highNoiseSteps,
+      lowNoiseSteps,
+      highNoiseStartStep,
+      lowNoiseStartStep,
+      highNoiseEndStep,
+      lowNoiseEndStep,
+    };
+
+    const { videoFile: _parentVideoFile, ...paramsOnly } = payload;
+
+    setJobs((prev) => [
+      {
+        id: jobId,
+        kind: "v2v_clip", // <- passend zu JobKind
+        createdAt: Date.now(),
+        status: "queued",
+        label: `V2V: ${prompt.slice(0, 30)}${prompt.length > 30 ? "…" : ""}`,
+        startPayload: () => comfyStartV2V(payload),
+        onSuccess: (file) => {
+          // === das ist dein finalizeSuccess-Block, nur ohne WS-Kram ===
+
+          const newClipId = nanoid();
+          const paramId = nanoid();
+
+          const e1 = { id: nanoid(), type: "input" as const, source: v2vParentClipId, target: paramId };
+          const e2 = { id: nanoid(), type: "output" as const, source: paramId, target: newClipId };
+
+          setRfEdges((prevEdges) => {
+            const edge1: RFEdge = {
+              id: e1.id,
+              source: e1.source,
+              target: e1.target,
+              type: "labeled",
+              data: { label: e1.type, showLabel: props.showEdgeLabels },
+              sourceHandle: "out",
+              targetHandle: "in",
+            };
+
+            const edge2: RFEdge = {
+              id: e2.id,
+              source: e2.source,
+              target: e2.target,
+              type: "labeled",
+              data: { label: e2.type, showLabel: props.showEdgeLabels },
+              sourceHandle: "out",
+              targetHandle: "in",
+            };
+
+            const nextEdgesRF = [...prevEdges, edge1, edge2];
+
+            setRfNodes((prevNodes) => {
+              const fromNode = prevNodes.find((n) => n.id === v2vParentClipId);
+              const baseX = fromNode?.position.x ?? 50;
+              const baseY = fromNode?.position.y ?? 80;
+
+              const branchIndex = countBranches(prevEdges as any, v2vParentClipId);
+              const yOffset = branchIndex * 180;
+
+              const paramPos = findFreePosition({ x: baseX + 260, y: baseY + yOffset }, prevNodes);
+              const clipPos = findFreePosition({ x: baseX + 520, y: paramPos.y }, prevNodes);
+
+              const paramNode: RFNode = {
+                id: paramId,
+                type: "params",
+                position: paramPos,
+                data: {
+                  label: "V2V Params",
+                  prompt,
+                  mode: "v2v",
+                  parentClipId: v2vParentClipId,
+                  ...paramsOnly, // enthält cfg/steps/shift/strength etc.
+                } as any,
+                draggable: true,
+              };
+
+              const clipNode: RFNode = {
+                id: newClipId,
+                type: "clip",
+                position: clipPos,
+                data: {
+                  label: "Generated Clip",
+                  videoFile: file,
+                  videoStatus: "done",
+                } as any,
+                draggable: true,
+              };
+
+              const nextNodes = [...prevNodes, paramNode, clipNode];
+
+              props.onChange((prevProject) => {
+                const base = fromRF(prevProject, nextNodes, nextEdgesRF);
+                return {
+                  ...base,
+                  uiState: { ...prevProject.uiState, selectedNodeId: newClipId },
+                };
+              });
+
+              return nextNodes;
+            });
+
+            return nextEdgesRF;
+          });
+
+          setPendingFocusId(newClipId);
+        },
+        onError: (err) => {
+          console.error("V2V job failed", err);
+        },
+      },
+      ...prev,
+    ]);
+
+    // optional: Dialog zu + Status resetten
+    setClipStatus("");
+    setClipPreviewUrl(null);
+  }
 
 
 
@@ -727,7 +916,6 @@ export function GraphView(props: {
     const e2 = { id: nanoid(), type: "edit_out" as const, source: editId, target: newClipId };
 
     const nextNodes = [...rfNodes, editNode, newClipNode];
-    const nextEdgesProject = [...props.project.edges, e1 as any, e2 as any];
     const nextEdgesRF: RFEdge[] = [
       ...rfEdges,
       {
@@ -753,9 +941,8 @@ export function GraphView(props: {
     setRfNodes(nextNodes);
     setRfEdges(nextEdgesRF);
     props.onChange((prevProject) => {
-      const edgesProject = [...prevProject.edges, e1 as any, e2 as any];
       const base = fromRF(prevProject, nextNodes, nextEdgesRF);
-      return { ...base, edges: edgesProject, uiState: {...prevProject.uiState, selectedNodeId: newClipId}};
+      return { ...base, uiState: {...prevProject.uiState, selectedNodeId: newClipId}};
     });
 
     
@@ -810,285 +997,48 @@ export function GraphView(props: {
 
 
 
-  async function handleGenerateClipVideo() {
-    if (!v2vParentClipId) return;
-
-    promptIdRef.current = null;
-
-    const parentFile = getNodeVideoFile(v2vParentClipId);
-    if (!parentFile) {
-      setClipStatus("Parent clip has no video yet.");
-      return;
-    }
-    if (!v2vPrompt.trim()) return;
-
-    setClipGenerating(true);
-    setClipStatus("Starting workflow…");
-    setClipPreviewUrl(null);
-
-    setGenState("running");
-
-    try {
-      const { prompt_id, client_id } = await comfyStartV2V({
-        text: v2vPrompt,
-        videoFile: parentFile,
-        highNoiseCfg,
-        lowNoiseCfg,
-        highNoiseModelStrength,
-        lowNoiseModelStrength,
-        highNoiseShift,
-        lowNoiseShift,
-        highNoiseSteps,
-        lowNoiseSteps,
-        highNoiseStartStep,
-        lowNoiseStartStep,
-        highNoiseEndStep,
-        lowNoiseEndStep
-
-      });
-      promptIdRef.current = prompt_id;
-
-      setClipStatus("Generating…");
-
-      const proto = window.location.protocol === "https:" ? "wss" : "ws";
-      const ws = new WebSocket(`${proto}://${window.location.host}/api/comfy/ws?clientId=${client_id}`);
-      wsRef.current = ws;
-
-      const timeout = window.setTimeout(() => {
-        ws.close();
-        wsRef.current = null;
-        timeoutRef.current = null;
-        setClipStatus("Timeout waiting for websocket events.");
-        setClipGenerating(false);
-        promptIdRef.current = null;
-        setGenState("error");
-      }, 100 * 60 * 1000);
-      timeoutRef.current = timeout;
-
-      const finalizeSuccess = (file: StoredMediaFile) => {
-        const url = comfyBuildVideoUrl(file);
-        setClipPreviewUrl(url);
-        setClipStatus("Done ✅");
-
-        // ✅ JETZT param+clip erzeugen
-        
-
-        
-        const newClipId = nanoid();
-        const paramId = nanoid();
-
-        const e1 = { id: nanoid(), type: "input" as const, source: v2vParentClipId, target: paramId };
-        const e2 = { id: nanoid(), type: "output" as const, source: paramId, target: newClipId };
-
-        setRfEdges((prevEdges) => {
-          // 1) Edges als erstes berechnen (damit branchIndex NICHT stale ist)
-          const edge1: RFEdge = {
-            id: e1.id,
-            source: e1.source,
-            target: e1.target,
-            type: "labeled",
-            data: { label: e1.type, showLabel: props.showEdgeLabels },
-            sourceHandle: "out",
-            targetHandle: "in",
-          };
-
-          const edge2: RFEdge = {
-            id: e2.id,
-            source: e2.source,
-            target: e2.target,
-            type: "labeled",
-            data: { label: e2.type, showLabel: props.showEdgeLabels },
-            sourceHandle: "out",
-            targetHandle: "in",
-          };
-
-          const nextEdgesRF = [...prevEdges, edge1, edge2];
-
-          // 2) Jetzt Nodes updaten, basierend auf *aktuellen* prevEdges + prevNodes
-          setRfNodes((prevNodes) => {
-            const fromNode = prevNodes.find((n) => n.id === v2vParentClipId);
-            const baseX = fromNode?.position.x ?? 50;
-            const baseY = fromNode?.position.y ?? 80;
-
-            const branchIndex = countBranches(prevEdges as any, v2vParentClipId);
-            const yOffset = branchIndex * 180;
-
-            const paramPos = findFreePosition({ x: baseX + 260, y: baseY + yOffset }, prevNodes);
-            const clipPos = findFreePosition({ x: baseX + 520, y: paramPos.y }, prevNodes);
-
-            const paramNode: RFNode = {
-              id: paramId,
-              type: "params",
-              position: paramPos,
-              data: {
-                label: "V2V Params",
-                prompt: v2vPrompt,
-                mode: "v2v",
-                parentClipId: v2vParentClipId,
-                highNoiseCfg: highNoiseCfg,
-                lowNoiseCfg: lowNoiseCfg,
-                highNoiseModelStrength: highNoiseModelStrength,
-                lowNoiseModelStrength: lowNoiseModelStrength,
-                highNoiseShift: highNoiseShift,
-                lowNoiseShift: lowNoiseShift,
-                highNoiseSteps: highNoiseSteps,
-                lowNoiseSteps: lowNoiseSteps,
-                highNoiseStartStep: highNoiseStartStep,
-                lowNoiseStartStep: lowNoiseStartStep,
-                highNoiseEndStep: highNoiseEndStep,
-                lowNoiseEndStep: lowNoiseEndStep
-              } as any,
-              draggable: true,
-            };
-
-            const clipNode: RFNode = {
-              id: newClipId,
-              type: "clip",
-              position: clipPos,
-              data: {
-                label: "Generated Clip",
-                videoFile: file,
-                videoStatus: "done",
-              } as any,
-              draggable: true,
-            };
-
-            const nextNodes = [...prevNodes, paramNode, clipNode];
-
-            // 3) Persist *mit genau den gleichen* nextNodes + nextEdgesRF
-            props.onChange((prevProject) => {
-              const base = fromRF(prevProject, nextNodes, nextEdgesRF);
-              return {
-                ...base,
-                edges: [...prevProject.edges, e1 as any, e2 as any],
-                uiState: { ...prevProject.uiState, selectedNodeId: newClipId },
-              };
-            });
-
-            return nextNodes; // ✅ wichtig: hier wirklich nextNodes zurückgeben
-          });
-
-          return nextEdgesRF;
-        });
-
-        // ✅ focus richtig setzen
-        setPendingFocusId(newClipId);
-
-
-
-        
-
-        clearTimeout(timeout);
-        promptIdRef.current = null;
-        ws.close();
-        setClipGenerating(false);
-        setClipDialogOpen(false);
-        setGenState("idle");
-
-      };
-
-      ws.onmessage = async (evt) => {
-        let msg: any;
-        try { msg = JSON.parse(evt.data); } catch { return; }
-
-        if (msg?.type === "executed") {
-          if (promptIdRef.current && msg?.data?.prompt_id && msg.data.prompt_id !== promptIdRef.current) return;
-          if (String(msg?.data?.node ?? msg?.data?.display_node) === "123") {
-            const file = pickMediaFile(msg?.data?.output);
-            if (!file) {
-              setClipStatus("Done, but no output file found.");
-              clearTimeout(timeout);
-              promptIdRef.current = null;
-              ws.close();
-              setClipGenerating(false);
-              return;
-            }
-            finalizeSuccess(file);
-          }
-        }
-
-        if (msg?.type === "execution_error") {
-          clearTimeout(timeout);
-          promptIdRef.current = null;
-          ws.close();
-          setClipStatus("Execution error (see console).");
-          console.error(msg);
-          setClipGenerating(false);
-          setGenState("error");
-        }
-
-        if (msg?.type === "execution_success") {
-          setClipStatus("Finalizing…");
-          try {
-            const history = await comfyGetHistory(prompt_id);
-            const file = comfyFindVideoFromHistory(history, prompt_id);
-            if (file) {
-              finalizeSuccess(file);
-              return
-            } 
-            else {
-              setClipStatus("Done ✅ (but no output found in history)");
-              clearTimeout(timeout);
-              ws.close();
-              promptIdRef.current = null;
-              setClipGenerating(false);
-              
-            }
-          } catch {
-            setClipStatus("Done ✅ (but history lookup failed)");
-            clearTimeout(timeout);
-            promptIdRef.current = null;
-            ws.close();
-            setClipGenerating(false);
-          }
-        }
-      };
-
-      ws.onerror = (e) => {
-        clearTimeout(timeout);
-        promptIdRef.current = null;
-        ws.close();
-        setClipStatus("WebSocket error.");
-        console.error(e);
-        setClipGenerating(false);
-        setGenState("error");
-      };
-    } catch (e: any) {
-      setClipStatus(`Error: ${e?.message ?? String(e)}`);
-      setClipGenerating(false);
-      setGenState("error");
-    }
-  }
-
-
-
-
 
   return (
     <div style={{ height: "100%", position: "relative" }}>
 
-      <Paper
-        elevation={2}
-        style={{
-          position: "absolute",
-          zIndex: 10,
-          top: 12,
-          right: 12,
-          padding: 8,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <Typography variant="body2" color="text.secondary">
-          State:
-        </Typography>
+    <Paper elevation={2} sx={{ position:"absolute", zIndex:10, top:12, right:12, p:1 }}>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <StatusDot state={state} />
+        <Button size="small" onClick={() => setJobsOpen(v => !v)}>
+          Jobs ({jobs.length})
+        </Button>
+      </Stack>
 
-        <Stack direction="row" spacing={1} alignItems="center">
-          <StatusDot state={genState} />
-          <Typography variant="body2">{genLabel}</Typography>
-        </Stack>
-      </Paper>
+      {jobsOpen && (
+        <Box sx={{ mt: 1, minWidth: 320, maxHeight: 280, overflow: "auto" }}>
+          <Stack spacing={1}>
+            {jobs.map(j => (
+              <Paper key={j.id} variant="outlined" sx={{ p: 1 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {j.label}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {j.status}
+                  </Typography>
+                </Stack>
+
+                {j.progressText && (
+                  <Typography variant="caption" color="text.secondary">
+                    {j.progressText}
+                  </Typography>
+                )}
+
+                {j.previewUrl && (
+                  <video src={j.previewUrl} controls style={{ width: "100%", borderRadius: 8, marginTop: 6 }} />
+                )}
+              </Paper>
+            ))}
+          </Stack>
+        </Box>
+      )}
+    </Paper>
+
 
 
       <Paper
@@ -1270,8 +1220,7 @@ export function GraphView(props: {
           {rootMode === "generate" ? (
             <Button
               variant="contained"
-              onClick={handleCreateRootVideo}
-              disabled={creatingVideo || !rootPrompt.trim()}
+              onClick={enqueueRootJob}
             >
               {creatingVideo ? "Working…" : "Create Video"}
             </Button>
@@ -1284,6 +1233,8 @@ export function GraphView(props: {
               {rootUploading ? "Uploading…" : "Use Uploaded Video"}
             </Button>
           )}
+
+          
         </DialogActions>
 
       </Dialog>
@@ -1381,7 +1332,7 @@ export function GraphView(props: {
               type="number"
               label="High Noise Start Step"
               value={highNoiseStartStep}
-              onChange={(e) => setHighNoiseSteps(Number(e.target.value))}
+              onChange={(e) => setHighNoiseStartStep(Number(e.target.value))}
 
               fullWidth
             />
@@ -1433,7 +1384,7 @@ export function GraphView(props: {
 
           <Button
             variant="contained"
-            onClick={handleGenerateClipVideo}
+            onClick={enqueueExtendJob}
             disabled={!v2vPrompt.trim()}
           >
             Start COMFYUI Genration

@@ -73,7 +73,7 @@ function NodeCard(props: {
           backgroundColor: bg,
           outline: "none",
           minWidth: 180,
-          boxShadow: props.selected ? `0 0 0 2px ${borderColor}` : undefined,
+          boxShadow: props.selected ? `0 0 0 5px ${borderColor}` : undefined,
         }}
       >
         <CardContent>
@@ -156,7 +156,7 @@ function NodeCard(props: {
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                   <strong>Prompt:</strong>{" "}
                   {props.prompt?.trim()
-                    ? `${props.prompt.slice(0, 300)}${props.prompt.length > 300 ? "…" : ""}`
+                    ? `${props.prompt.slice(0, 3000)}${props.prompt.length > 3000 ? "…" : ""}`
                     : "No prompt set yet."}
                 </Typography>
 
@@ -298,7 +298,6 @@ export function ParamNode(props: NodeProps<any>) {
         lowNoiseEndStep={props.data?.lowNoiseEndStep}
       >
         <Typography variant="body2">{props.data?.label}</Typography>
-        <Chip size="small" label={props.data?.mode ?? "ai"} sx={{ mt: 0.5 }} />
       </NodeCard>
     </div>
   );
