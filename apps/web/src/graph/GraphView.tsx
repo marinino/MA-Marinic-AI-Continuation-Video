@@ -903,8 +903,7 @@ export function GraphView(props: {
       position: clipPos,
       data: {
         label: "Edited Clip",
-        videoStatus: "pending",   // pending | done | error
-        videoFile: null,
+        videoStatus: "idle",   // pending | done | error
         producedByEditId: editId, // optional, hilft beim späteren Mapping/Debug
       } as any,
       draggable: true,
