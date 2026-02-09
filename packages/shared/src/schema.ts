@@ -5,41 +5,50 @@ export const NodeTypeSchema = z.enum(["clip", "params", "edit"]);
 export const BaseNodeSchema = z.object({
   id: z.string(),
   type: NodeTypeSchema,
-  position: z.object({ x: z.number(), y: z.number() })
+  position: z.object({ x: z.number(), y: z.number() }),
 });
 
+export const ParamNodeDataSchema = z
+  .object({
+    label: z.string(),
+    prompt: z.string().optional(),
+    strength: z.number().min(0).max(1).optional(),
+    mode: z.enum(["continuation", "variation", "extension", "v2v"]).optional(),
 
+    parentClipId: z.string().optional(),
 
+    negativePrompt: z.string().optional(),
+    seed: z.number().optional(),
+    steps: z.number().optional(),
+    cfg: z.number().optional(),
+    fps: z.number().optional(),
+    length: z.number().optional(),
 
-export const ParamNodeDataSchema = z.object({
-  label: z.string(),
-  prompt: z.string().optional(),
-  strength: z.number().min(0).max(1).optional(),
-  mode: z.enum(["continuation", "variation", "extension", "v2v"]).optional(),
+    // Job-Meta (optional, aber sehr nützlich)
+    status: z.enum(["idle", "queued", "running", "done", "error"]).optional(),
+    promptId: z.string().optional(),
+    error: z.string().optional(),
+  })
+  .passthrough();
 
-  parentClipId: z.string().optional(),
+export const EditNodeDataSchema = z
+  .object({
+    label: z.string(),
+    tool: z.string().optional(),
+    notes: z.string().optional(),
 
-  negativePrompt: z.string().optional(),
-  seed: z.number().optional(),
-  steps: z.number().optional(),
-  cfg: z.number().optional(),
-  fps: z.number().optional(),
-  length: z.number().optional(),
-
-  // Job-Meta (optional, aber sehr nützlich)
-  status: z.enum(["idle", "queued", "running", "done", "error"]).optional(),
-  promptId: z.string().optional(),
-  error: z.string().optional(),
-}).passthrough();
-
-
-export const EditNodeDataSchema = z.object({
-  label: z.string(),
-  tool: z.string().optional(),         // "davinci", "blender", ...
-  notes: z.string().optional()
-});
-
-
+    // optional: strukturierter Platz für Timeline-Import
+    timeline: z
+      .object({
+        snapshot: z.any().optional(),
+        changelog: z.any().optional(),
+        importedAt: z.string().optional(),
+        fileName: z.string().optional(),
+        version: z.string().optional(),
+      })
+      .optional(),
+  })
+  .passthrough();
 
 export const EdgeTypeSchema = z.enum(["input", "output", "edit_in", "edit_out"]);
 
@@ -47,10 +56,8 @@ export const EdgeSchema = z.object({
   id: z.string(),
   type: EdgeTypeSchema,
   source: z.string(),
-  target: z.string()
+  target: z.string(),
 });
-
-
 
 export const StoredMediaFileSchema = z.object({
   filename: z.string(),
@@ -72,7 +79,7 @@ export const ClipNodeDataSchema = z.object({
 export const NodeSchema = z.discriminatedUnion("type", [
   BaseNodeSchema.extend({ type: z.literal("clip"), data: ClipNodeDataSchema }),
   BaseNodeSchema.extend({ type: z.literal("params"), data: ParamNodeDataSchema }),
-  BaseNodeSchema.extend({ type: z.literal("edit"), data: EditNodeDataSchema })
+  BaseNodeSchema.extend({ type: z.literal("edit"), data: EditNodeDataSchema }),
 ]);
 
 export const ProjectSchema = z.object({
@@ -86,9 +93,9 @@ export const ProjectSchema = z.object({
     layerVisibility: z.object({
       clip: z.boolean().default(true),
       params: z.boolean().default(true),
-      edit: z.boolean().default(true)
-    })
-  })
+      edit: z.boolean().default(true),
+    }),
+  }),
 });
 
 export type StoredMediaFile = z.infer<typeof StoredMediaFileSchema>;
@@ -124,5 +131,3 @@ export type ComfyHistory = Record<
     >;
   }
 >;
-
-

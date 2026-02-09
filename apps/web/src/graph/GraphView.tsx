@@ -20,11 +20,34 @@ import { LabeledEdge } from "./edges/edges";
 import { useReactFlow } from "reactflow";
 import type { ReactFlowInstance } from "reactflow";
 
-
 // MUI
-import { Button, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Stack, Typography, LinearProgress, TextField, Tabs, Tab,  Box, Tooltip } from "@mui/material";
-import { comfyBuildVideoUrl, comfyFindVideoFromHistory, comfyGetHistory, comfyStartV2V, comfyStartVideo, comfyUploadVideo, openInResolve, resolveExportTimeline } from "../api";
-
+import {
+  Button,
+  Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Stack,
+  Typography,
+  LinearProgress,
+  TextField,
+  Tabs,
+  Tab,
+  Box,
+  Tooltip,
+} from "@mui/material";
+import {
+  comfyBuildVideoUrl,
+  comfyFindVideoFromHistory,
+  comfyGetHistory,
+  comfyStartV2V,
+  comfyStartVideo,
+  comfyUploadVideo,
+  openInResolve,
+  resolveExportTimeline,
+  uploadTimelineFile,
+} from "../api";
 
 import { Job } from "../jobs/types";
 
@@ -53,7 +76,6 @@ function toRF(project: Project, showEdgeLabels: boolean): { nodes: RFNode[]; edg
   };
 }
 
-
 function fromRF(project: Project, nodes: RFNode[], edges: RFEdge[]): Project {
   return {
     ...project,
@@ -71,13 +93,11 @@ function fromRF(project: Project, nodes: RFNode[], edges: RFEdge[]): Project {
   };
 }
 
-
-
-
 /* ---------- Layout helpers ---------- */
 
 function countBranches(edges: { source: string; type?: string }[], clipId: string) {
-  return edges.filter((e) => e.source === clipId && (e.type === "input" || e.type === "edit_in")).length;
+  return edges.filter((e) => e.source === clipId && (e.type === "input" || e.type === "edit_in"))
+    .length;
 }
 
 type XY = { x: number; y: number };
@@ -107,11 +127,6 @@ function findFreePosition(
   return pos;
 }
 
-
-
-
-
-
 /* =========================
    GraphView
    ========================= */
@@ -121,7 +136,6 @@ export function GraphView(props: {
   onChange: (updater: Project | ((prev: Project) => Project)) => void;
   showEdgeLabels: boolean;
 }) {
-
   const rf = useReactFlow();
 
   // ✅ local ReactFlow state (the key fix)
@@ -152,78 +166,86 @@ export function GraphView(props: {
   const [clipStatus, setClipStatus] = useState("");
   const [clipPreviewUrl, setClipPreviewUrl] = useState<string | null>(null);
 
-
-
   const [pendingRootPos] = useState({ x: 50, y: 80 }); // oder dynamisch
 
   const [v2vParentClipId, setV2vParentClipId] = useState<string | null>(null);
   const [v2vPrompt, setV2vPrompt] = useState("");
-  const [highNoiseCfg, setHighNoiseCfg] = useState(1)
-  const [lowNoiseCfg, setLowNoiseCfg] = useState(1)
-  const [highNoiseModelStrength, setHighNoiseModelStrength] = useState(1)
-  const [lowNoiseModelStrength, setLowNoiseModelStrength] = useState(1)
-  const [highNoiseShift, setHighNoiseShift] = useState(5)
-  const [lowNoiseShift, setLowNoiseShift] = useState(5)
-  const [highNoiseSteps, setHighNoiseSteps] = useState(4)
-  const [lowNoiseSteps, setLowNoiseSteps] = useState(4)
-  const [highNoiseStartStep, setHighNoiseStartStep] = useState(0)
-  const [lowNoiseStartStep, setLowNoiseStartStep] = useState(2)
-  const [highNoiseEndStep, setHighNoiseEndStep] = useState(2)
-  const [lowNoiseEndStep, setLowNoiseEndStep] = useState(4)
+  const [highNoiseCfg, setHighNoiseCfg] = useState(1);
+  const [lowNoiseCfg, setLowNoiseCfg] = useState(1);
+  const [highNoiseModelStrength, setHighNoiseModelStrength] = useState(1);
+  const [lowNoiseModelStrength, setLowNoiseModelStrength] = useState(1);
+  const [highNoiseShift, setHighNoiseShift] = useState(5);
+  const [lowNoiseShift, setLowNoiseShift] = useState(5);
+  const [highNoiseSteps, setHighNoiseSteps] = useState(4);
+  const [lowNoiseSteps, setLowNoiseSteps] = useState(4);
+  const [highNoiseStartStep, setHighNoiseStartStep] = useState(0);
+  const [lowNoiseStartStep, setLowNoiseStartStep] = useState(2);
+  const [highNoiseEndStep, setHighNoiseEndStep] = useState(2);
+  const [lowNoiseEndStep, setLowNoiseEndStep] = useState(4);
 
   const [rootMode, setRootMode] = useState<"generate" | "upload">("generate");
   const [rootUploadFile, setRootUploadFile] = useState<File | null>(null);
   const [rootUploadStatus, setRootUploadStatus] = useState("");
   const [rootUploading, setRootUploading] = useState(false);
 
-  const [namingConventionInfoOpen, setNamingConventionInfoOpen] = useState(false)
-  const [ namingConventionName, setNamingConventionName ] = useState("")
+  const [namingConventionInfoOpen, setNamingConventionInfoOpen] = useState(false);
+  const [namingConventionName, setNamingConventionName] = useState("");
 
   const [lastEditNodeId, setLastEditNodeId] = useState<string | null>(null);
 
   const rfEdgesRef = useRef<RFEdge[]>([]);
-  useEffect(() => { rfEdgesRef.current = rfEdges; }, [rfEdges]);
+  useEffect(() => {
+    rfEdgesRef.current = rfEdges;
+  }, [rfEdges]);
   const [jobsOpen, setJobsOpen] = useState(false);
 
-
   type GenState = "idle" | "running" | "error";
-
-
-
 
   const [genState, setGenState] = useState<GenState>("idle");
 
   const [jobs, setJobs] = useState<Job[]>([]);
 
+  const [timeLineUploadOpen, setTimeLineImportOpen] = useState(false);
+  const [uploadedTimeLineFile, setUploadedTimeLineFile] = useState<File | null>(null);
+  const [editedVideoUploadFile, setEditedVideoUploadFile] = useState<File | null>(null);
+
   const jobsRef = useRef<Job[]>([]);
-  useEffect(() => { jobsRef.current = jobs; }, [jobs]);
+  useEffect(() => {
+    jobsRef.current = jobs;
+  }, [jobs]);
 
   const wsMapRef = useRef(new Map<string, WebSocket>());
   const activeJobId = useMemo(
-    () => jobs.find(j => j.status === "connecting" || j.status === "running" || j.status === "finalizing")?.id ?? null,
+    () =>
+      jobs.find(
+        (j) => j.status === "connecting" || j.status === "running" || j.status === "finalizing"
+      )?.id ?? null,
     [jobs]
   );
 
   const anyBusy = useMemo(
-    () => jobs.some(j => j.status === "queued" || j.status === "connecting" || j.status === "running" || j.status === "finalizing"),
+    () =>
+      jobs.some(
+        (j) =>
+          j.status === "queued" ||
+          j.status === "connecting" ||
+          j.status === "running" ||
+          j.status === "finalizing"
+      ),
     [jobs]
   );
 
-  const state: GenState =
-    jobs.some(j => j.status === "error") ? "error" :
-    anyBusy ? "running" : "idle";
-
+  const state: GenState = jobs.some((j) => j.status === "error")
+    ? "error"
+    : anyBusy
+      ? "running"
+      : "idle";
 
   function StatusDot({ state }: { state: "idle" | "running" | "error" }) {
     const color =
-      state === "idle"
-        ? "success.main"
-        : state === "running"
-          ? "warning.main"
-          : "error.main";
+      state === "idle" ? "success.main" : state === "running" ? "warning.main" : "error.main";
 
-    const label =
-      state === "idle" ? "Ready" : state === "running" ? "Generating…" : "Error";
+    const label = state === "idle" ? "Ready" : state === "running" ? "Generating…" : "Error";
 
     return (
       <Tooltip title={label} arrow>
@@ -251,7 +273,6 @@ export function GraphView(props: {
     );
   }
 
-
   const scheduleSaveViewport = () => {
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => {
@@ -263,7 +284,7 @@ export function GraphView(props: {
   useEffect(() => {
     if (activeJobId) return;
 
-    const next = jobs.find(j => j.status === "queued");
+    const next = jobs.find((j) => j.status === "queued");
     if (!next) return;
 
     startJob(next.id);
@@ -272,62 +293,93 @@ export function GraphView(props: {
 
   async function startJob(jobId: string) {
     // mark connecting
-    setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: "connecting", progressText: "Starting…" } : j));
+    setJobs((prev) =>
+      prev.map((j) =>
+        j.id === jobId ? { ...j, status: "connecting", progressText: "Starting…" } : j
+      )
+    );
 
-    const job = jobsRef.current.find(j => j.id === jobId);
+    const job = jobsRef.current.find((j) => j.id === jobId);
     if (!job) return;
 
     try {
       const { prompt_id, client_id } = await job.startPayload();
 
       // store prompt+client
-      setJobs(prev => prev.map(j => j.id === jobId ? {
-        ...j,
-        promptId: prompt_id,
-        clientId: client_id,
-        status: "running",
-        progressText: "Generating…",
-      } : j));
+      setJobs((prev) =>
+        prev.map((j) =>
+          j.id === jobId
+            ? {
+                ...j,
+                promptId: prompt_id,
+                clientId: client_id,
+                status: "running",
+                progressText: "Generating…",
+              }
+            : j
+        )
+      );
 
       const proto = window.location.protocol === "https:" ? "wss" : "ws";
-      const ws = new WebSocket(`${proto}://${window.location.host}/api/comfy/ws?clientId=${client_id}`);
+      const ws = new WebSocket(
+        `${proto}://${window.location.host}/api/comfy/ws?clientId=${client_id}`
+      );
 
       wsMapRef.current.set(jobId, ws);
 
-      const timeout = window.setTimeout(() => {
-        ws.close();
-        wsMapRef.current.delete(jobId);
-        setJobs(prev => prev.map(j => j.id === jobId ? {
-          ...j,
-          status: "error",
-          progressText: "Timeout waiting for websocket events.",
-        } : j));
-      }, 100 * 60 * 100000);
+      const timeout = window.setTimeout(
+        () => {
+          ws.close();
+          wsMapRef.current.delete(jobId);
+          setJobs((prev) =>
+            prev.map((j) =>
+              j.id === jobId
+                ? {
+                    ...j,
+                    status: "error",
+                    progressText: "Timeout waiting for websocket events.",
+                  }
+                : j
+            )
+          );
+        },
+        100 * 60 * 100000
+      );
 
       const finalizeSuccess = (file: StoredMediaFile) => {
         window.clearTimeout(timeout);
 
         const previewUrl = comfyBuildVideoUrl(file);
 
-        setJobs(prev => prev.map(j => j.id === jobId ? {
-          ...j,
-          status: "done",
-          progressText: "Done ✅",
-          file,
-          previewUrl,
-        } : j));
+        setJobs((prev) =>
+          prev.map((j) =>
+            j.id === jobId
+              ? {
+                  ...j,
+                  status: "done",
+                  progressText: "Done ✅",
+                  file,
+                  previewUrl,
+                }
+              : j
+          )
+        );
 
         ws.close();
         wsMapRef.current.delete(jobId);
 
         // callback: create nodes, commit, focus etc.
-        const latest = jobsRef.current.find(j => j.id === jobId);
+        const latest = jobsRef.current.find((j) => j.id === jobId);
         latest?.onSuccess?.(file);
       };
 
       ws.onmessage = async (evt) => {
         let msg: any;
-        try { msg = JSON.parse(evt.data); } catch { return; }
+        try {
+          msg = JSON.parse(evt.data);
+        } catch {
+          return;
+        }
 
         // optional: set progress text if comfy sends it
         // setJobs(prev => prev.map(j => j.id === jobId ? { ...j, progressText: msg?.type ?? j.progressText } : j));
@@ -347,17 +399,27 @@ export function GraphView(props: {
           ws.close();
           wsMapRef.current.delete(jobId);
 
-          setJobs(prev => prev.map(j => j.id === jobId ? {
-            ...j,
-            status: "error",
-            progressText: "Execution error (see console).",
-          } : j));
+          setJobs((prev) =>
+            prev.map((j) =>
+              j.id === jobId
+                ? {
+                    ...j,
+                    status: "error",
+                    progressText: "Execution error (see console).",
+                  }
+                : j
+            )
+          );
           console.error(msg);
           job.onError?.(msg);
         }
 
         if (msg?.type === "execution_success") {
-          setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: "finalizing", progressText: "Finalizing…" } : j));
+          setJobs((prev) =>
+            prev.map((j) =>
+              j.id === jobId ? { ...j, status: "finalizing", progressText: "Finalizing…" } : j
+            )
+          );
 
           try {
             const history = await comfyGetHistory(prompt_id);
@@ -367,13 +429,25 @@ export function GraphView(props: {
               window.clearTimeout(timeout);
               ws.close();
               wsMapRef.current.delete(jobId);
-              setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: "done", progressText: "Done ✅ (no output found in history)" } : j));
+              setJobs((prev) =>
+                prev.map((j) =>
+                  j.id === jobId
+                    ? { ...j, status: "done", progressText: "Done ✅ (no output found in history)" }
+                    : j
+                )
+              );
             }
           } catch (e) {
             window.clearTimeout(timeout);
             ws.close();
             wsMapRef.current.delete(jobId);
-            setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: "done", progressText: "Done ✅ (history lookup failed)" } : j));
+            setJobs((prev) =>
+              prev.map((j) =>
+                j.id === jobId
+                  ? { ...j, status: "done", progressText: "Done ✅ (history lookup failed)" }
+                  : j
+              )
+            );
           }
         }
       };
@@ -382,17 +456,31 @@ export function GraphView(props: {
         window.clearTimeout(timeout);
         ws.close();
         wsMapRef.current.delete(jobId);
-        setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: "error", progressText: "WebSocket error." } : j));
+        setJobs((prev) =>
+          prev.map((j) =>
+            j.id === jobId ? { ...j, status: "error", progressText: "WebSocket error." } : j
+          )
+        );
         console.error(e);
       };
-
     } catch (e) {
-      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: "error", progressText: `Error: ${String((e as any)?.message ?? e)}` } : j));
+      setJobs((prev) =>
+        prev.map((j) =>
+          j.id === jobId
+            ? { ...j, status: "error", progressText: `Error: ${String((e as any)?.message ?? e)}` }
+            : j
+        )
+      );
       job.onError?.(e);
     }
   }
 
-
+  function findOutClipIdForEdit(editId: string, edges: RFEdge[]): string | null {
+    const out = edges.find((e) => e.source === editId && (e.data as any)?.label === "edit_out");
+    // falls du dich nicht auf data.label verlassen willst:
+    // const out = edges.find((e) => e.source === editId && (project/edgeType?) ... );
+    return out?.target ?? null;
+  }
 
   const restoreViewport = () => {
     const raw = localStorage.getItem(viewportKey);
@@ -412,7 +500,6 @@ export function GraphView(props: {
     console.log("SAVE", viewportKey, vp);
     localStorage.setItem(viewportKey, JSON.stringify(vp));
   };
-
 
   // Project → RF sync
   useEffect(() => {
@@ -459,7 +546,6 @@ export function GraphView(props: {
     return () => cancelAnimationFrame(raf);
   }, [pendingFocusId, rfNodes.length]); // rfNodes.length triggert wenn Node dazu kommt
 
-
   useEffect(() => {
     if (!rfInstance) return;
 
@@ -474,7 +560,6 @@ export function GraphView(props: {
       }
     });
   }, [rfInstance, props.project.id, rfNodes.length]); // rfNodes.length damit es nach Node-Update nochmal greift
-
 
   // show/hide edge labels without recreating edges
   useEffect(() => {
@@ -501,15 +586,10 @@ export function GraphView(props: {
     setClipDialogOpen(false);
   }, [props.project.id]);
 
-
-
-
-
   // commit local RF → project
   const commit = (nodes = rfNodes, edges = rfEdges) => {
     props.onChange((prev) => fromRF(prev, nodes, edges));
   };
-
 
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const [clickedNodeId, setClickedNodeId] = useState<string | null>(null);
@@ -519,8 +599,6 @@ export function GraphView(props: {
     return rfNodes.find((n) => n.id === clickedNodeId) ?? null;
   }, [clickedNodeId, rfNodes]);
 
-
-
   const createRoot = () => {
     const hasRoot = rfNodes.some((n) => {
       if (n.type !== "clip") return false;
@@ -529,7 +607,9 @@ export function GraphView(props: {
     });
 
     if (hasRoot) {
-      alert("There is already a root node for this project. Create a new project if you want to start with a new root.");
+      alert(
+        "There is already a root node for this project. Create a new project if you want to start with a new root."
+      );
       return;
     }
 
@@ -540,10 +620,7 @@ export function GraphView(props: {
   };
 
   function pickMediaFile(output: any) {
-    const candidate =
-      output?.images?.[0] ??
-      output?.videos?.[0] ??
-      output?.gifs?.[0];
+    const candidate = output?.images?.[0] ?? output?.videos?.[0] ?? output?.gifs?.[0];
 
     if (!candidate?.filename) return null;
 
@@ -564,7 +641,7 @@ export function GraphView(props: {
       const stored = await comfyUploadVideo(rootUploadFile);
 
       // preview URL: entweder lokal oder über comfy/view
-      // lokal (sofort): 
+      // lokal (sofort):
       const localUrl = URL.createObjectURL(rootUploadFile);
       setCreatedVideoUrl(localUrl);
       setCreateStatus("Uploaded ✅");
@@ -602,7 +679,6 @@ export function GraphView(props: {
   }
 
   async function importResolveMetaIntoEdit(editNodeId: string) {
-    
     const timelineJson = await resolveExportTimeline();
 
     setRfNodes((prevNodes) => {
@@ -632,54 +708,54 @@ export function GraphView(props: {
     });
   }
 
-
-
-
   function enqueueRootJob() {
     if (!rootPrompt.trim()) return;
 
     const jobId = nanoid();
     const prompt = rootPrompt;
 
-    setJobs(prev => [{
-      id: jobId,
-      kind: "t2v_root",
-      createdAt: Date.now(),
-      status: prev.some(j => ["connecting","running","finalizing"].includes(j.status)) ? "queued" : "queued",
-      label: `Root: ${prompt.slice(0, 30)}${prompt.length > 30 ? "…" : ""}`,
-      startPayload: () => comfyStartVideo({ text: prompt }),
-      onSuccess: (file) => {
-        const id = nanoid();
-        const rootClip: RFNode = {
-          id,
-          type: "clip",
-          position: pendingRootPos,
-          data: {
-            label: "Root Clip",
-            videoFile: file,
-            videoStatus: "done",
-          } as any,
-          draggable: true,
-        };
+    setJobs((prev) => [
+      {
+        id: jobId,
+        kind: "t2v_root",
+        createdAt: Date.now(),
+        status: prev.some((j) => ["connecting", "running", "finalizing"].includes(j.status))
+          ? "queued"
+          : "queued",
+        label: `Root: ${prompt.slice(0, 30)}${prompt.length > 30 ? "…" : ""}`,
+        startPayload: () => comfyStartVideo({ text: prompt }),
+        onSuccess: (file) => {
+          const id = nanoid();
+          const rootClip: RFNode = {
+            id,
+            type: "clip",
+            position: pendingRootPos,
+            data: {
+              label: "Root Clip",
+              videoFile: file,
+              videoStatus: "done",
+            } as any,
+            draggable: true,
+          };
 
-        setRfNodes(prevNodes => {
-          const nextNodes = [...prevNodes, rootClip];
+          setRfNodes((prevNodes) => {
+            const nextNodes = [...prevNodes, rootClip];
 
-          setRfEdges(prevEdges => {
-            commit(nextNodes, prevEdges);
-            return prevEdges;
+            setRfEdges((prevEdges) => {
+              commit(nextNodes, prevEdges);
+              return prevEdges;
+            });
+
+            return nextNodes;
           });
 
-          return nextNodes;
-        });
-
-        setPendingFocusId(id);
-        setRootDialogOpen(false);
-      }
-
-    }, ...prev]);
+          setPendingFocusId(id);
+          setRootDialogOpen(false);
+        },
+      },
+      ...prev,
+    ]);
   }
-
 
   function enqueueExtendJob() {
     if (!v2vParentClipId) return;
@@ -728,7 +804,12 @@ export function GraphView(props: {
           const newClipId = nanoid();
           const paramId = nanoid();
 
-          const e1 = { id: nanoid(), type: "input" as const, source: v2vParentClipId, target: paramId };
+          const e1 = {
+            id: nanoid(),
+            type: "input" as const,
+            source: v2vParentClipId,
+            target: paramId,
+          };
           const e2 = { id: nanoid(), type: "output" as const, source: paramId, target: newClipId };
 
           setRfEdges((prevEdges) => {
@@ -821,9 +902,6 @@ export function GraphView(props: {
     setClipPreviewUrl(null);
   }
 
-
-
-
   const nodesWithRootFlag = useMemo(() => {
     const incomingTargets = new Set(rfEdges.map((e) => e.target));
     return rfNodes.map((n) => {
@@ -843,8 +921,6 @@ export function GraphView(props: {
     });
   }, [rfNodes, rfEdges, setClickedNodeId, setActionDialogOpen]);
 
-
-
   const onNodeClick: NodeMouseHandler = (evt, node) => {
     // falls Klick aus einem Button/Icon/Dialog kommt -> ignorieren
     const target = evt.target as HTMLElement | null;
@@ -854,7 +930,6 @@ export function GraphView(props: {
     setClickedNodeId(node.id);
     setActionDialogOpen(true);
   };
-
 
   const addManualEdit = (fromClipId: string) => {
     const editId = nanoid();
@@ -886,16 +961,15 @@ export function GraphView(props: {
         outClipId: newClipId,
         export: {
           expectedBasename,
-          status: "waiting",      // waiting | imported | error
+          status: "waiting", // waiting | imported | error
           // exportDir kannst du optional serverseitig kennen (ENV), musst du nicht im Node speichern
           foundPath: null,
         },
-        meta: null,               // später ffprobe result
+        meta: null, // später ffprobe result
         notes: `Export as: ${expectedBasename}`,
       } as any,
       draggable: true,
     };
-
 
     const newClipNode: RFNode = {
       id: newClipId,
@@ -903,12 +977,11 @@ export function GraphView(props: {
       position: clipPos,
       data: {
         label: "Edited Clip",
-        videoStatus: "idle",   // pending | done | error
+        videoStatus: "idle", // pending | done | error
         producedByEditId: editId, // optional, hilft beim späteren Mapping/Debug
       } as any,
       draggable: true,
     };
-
 
     // Keep your edge semantics:
     const e1 = { id: nanoid(), type: "edit_in" as const, source: fromClipId, target: editId };
@@ -941,14 +1014,12 @@ export function GraphView(props: {
     setRfEdges(nextEdgesRF);
     props.onChange((prevProject) => {
       const base = fromRF(prevProject, nextNodes, nextEdgesRF);
-      return { ...base, uiState: {...prevProject.uiState, selectedNodeId: newClipId}};
+      return { ...base, uiState: { ...prevProject.uiState, selectedNodeId: newClipId } };
     });
 
-    
     setPendingFocusId(newClipId);
 
     return { expectedBasename, newClipId, editId };
-
   };
 
   // ✅ Let ReactFlow update local state; commit to project on drag stop
@@ -968,81 +1039,86 @@ export function GraphView(props: {
     };
   }, []);
 
-
   function getNodeVideoFile(nodeId: string): StoredMediaFile | null {
     const n = rfNodes.find((x) => x.id === nodeId);
     return ((n?.data as any)?.videoFile as StoredMediaFile | null) ?? null;
   }
-  
+
   const addAIGenerateFromParent = (fromClipId: string) => {
     setV2vParentClipId(fromClipId);
     setV2vPrompt("");
-    setHighNoiseCfg(1)
-    setHighNoiseEndStep(2)
-    setHighNoiseModelStrength(1)
-    setHighNoiseShift(5)
-    setHighNoiseStartStep(0)
-    setHighNoiseSteps(4)
-    setLowNoiseCfg(1)
-    setLowNoiseEndStep(4)
-    setLowNoiseModelStrength(1)
-    setLowNoiseShift(5)
-    setLowNoiseStartStep(2)
-    setLowNoiseSteps(4)
+    setHighNoiseCfg(1);
+    setHighNoiseEndStep(2);
+    setHighNoiseModelStrength(1);
+    setHighNoiseShift(5);
+    setHighNoiseStartStep(0);
+    setHighNoiseSteps(4);
+    setLowNoiseCfg(1);
+    setLowNoiseEndStep(4);
+    setLowNoiseModelStrength(1);
+    setLowNoiseShift(5);
+    setLowNoiseStartStep(2);
+    setLowNoiseSteps(4);
     setClipStatus("");
     setClipPreviewUrl(null);
     setClipDialogOpen(true);
   };
 
-
-
-
   return (
     <div style={{ height: "100%", position: "relative" }}>
+      <Paper elevation={2} sx={{ position: "absolute", zIndex: 10, top: 12, right: 12, p: 1 }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <StatusDot state={state} />
+          <Button size="small" onClick={() => setJobsOpen((v) => !v)}>
+            Jobs ({jobs.length})
+          </Button>
+        </Stack>
 
-    <Paper elevation={2} sx={{ position:"absolute", zIndex:10, top:12, right:12, p:1 }}>
-      <Stack direction="row" spacing={1} alignItems="center">
-        <StatusDot state={state} />
-        <Button size="small" onClick={() => setJobsOpen(v => !v)}>
-          Jobs ({jobs.length})
-        </Button>
-      </Stack>
+        {jobsOpen && (
+          <Box sx={{ mt: 1, minWidth: 320, maxHeight: 280, overflow: "auto" }}>
+            <Stack spacing={1}>
+              {jobs.map((j) => (
+                <Paper key={j.id} variant="outlined" sx={{ p: 1 }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {j.label}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {j.status}
+                    </Typography>
+                  </Stack>
 
-      {jobsOpen && (
-        <Box sx={{ mt: 1, minWidth: 320, maxHeight: 280, overflow: "auto" }}>
-          <Stack spacing={1}>
-            {jobs.map(j => (
-              <Paper key={j.id} variant="outlined" sx={{ p: 1 }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {j.label}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {j.status}
-                  </Typography>
-                </Stack>
+                  {j.progressText && (
+                    <Typography variant="caption" color="text.secondary">
+                      {j.progressText}
+                    </Typography>
+                  )}
 
-                {j.progressText && (
-                  <Typography variant="caption" color="text.secondary">
-                    {j.progressText}
-                  </Typography>
-                )}
-
-                {j.previewUrl && (
-                  <video src={j.previewUrl} controls style={{ width: "100%", borderRadius: 8, marginTop: 6 }} />
-                )}
-              </Paper>
-            ))}
-          </Stack>
-        </Box>
-      )}
-    </Paper>
-
-
+                  {j.previewUrl && (
+                    <video
+                      src={j.previewUrl}
+                      controls
+                      style={{ width: "100%", borderRadius: 8, marginTop: 6 }}
+                    />
+                  )}
+                </Paper>
+              ))}
+            </Stack>
+          </Box>
+        )}
+      </Paper>
 
       <Paper
         elevation={2}
-        style={{ position: "absolute", zIndex: 10, top: 12, left: 12, padding: 8, display: "flex", gap: 8 }}
+        style={{
+          position: "absolute",
+          zIndex: 10,
+          top: 12,
+          left: 12,
+          padding: 8,
+          display: "flex",
+          gap: 8,
+        }}
       >
         <Button variant="contained" onClick={createRoot}>
           Start Root
@@ -1080,8 +1156,12 @@ export function GraphView(props: {
         <Controls />
       </ReactFlow>
 
-
-      <Dialog open={actionDialogOpen} onClose={() => setActionDialogOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog
+        open={actionDialogOpen}
+        onClose={() => setActionDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>Next step</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
@@ -1102,17 +1182,16 @@ export function GraphView(props: {
             <Button
               variant="outlined"
               onClick={() => {
-                if (clickedNodeId){
+                if (clickedNodeId) {
                   const r = addManualEdit(clickedNodeId);
                   const file = getNodeVideoFile(clickedNodeId);
                   if (file?.filename) openInResolve(file.filename);
 
-                  setLastEditNodeId(r.editId)
+                  setLastEditNodeId(r.editId);
                   setNamingConventionName(r.expectedBasename);
                   setNamingConventionInfoOpen(true);
-                } 
+                }
                 setActionDialogOpen(false);
-               
               }}
             >
               Manual edit
@@ -1127,20 +1206,20 @@ export function GraphView(props: {
             >
               Generate Clip (V2V)
             </Button>
-
           </Stack>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={rootDialogOpen} onClose={() => !creatingVideo && setRootDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={rootDialogOpen}
+        onClose={() => !creatingVideo && setRootDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Create Root</DialogTitle>
 
         <DialogContent>
-          <Tabs
-            value={rootMode}
-            onChange={(_, v) => setRootMode(v)}
-            sx={{ mb: 2 }}
-          >
+          <Tabs value={rootMode} onChange={(_, v) => setRootMode(v)} sx={{ mb: 2 }}>
             <Tab value="generate" label="Generate" />
             <Tab value="upload" label="Upload video" />
           </Tabs>
@@ -1159,9 +1238,15 @@ export function GraphView(props: {
               />
 
               {creatingVideo && <LinearProgress />}
-              {createStatus && <Typography variant="body2" color="text.secondary">{createStatus}</Typography>}
+              {createStatus && (
+                <Typography variant="body2" color="text.secondary">
+                  {createStatus}
+                </Typography>
+              )}
 
-              {createdVideoUrl && <video src={createdVideoUrl} controls style={{ width: "100%", borderRadius: 8 }} />}
+              {createdVideoUrl && (
+                <video src={createdVideoUrl} controls style={{ width: "100%", borderRadius: 8 }} />
+              )}
             </Stack>
           )}
 
@@ -1217,10 +1302,7 @@ export function GraphView(props: {
           </Button>
 
           {rootMode === "generate" ? (
-            <Button
-              variant="contained"
-              onClick={enqueueRootJob}
-            >
+            <Button variant="contained" onClick={enqueueRootJob}>
               {creatingVideo ? "Working…" : "Create Video"}
             </Button>
           ) : (
@@ -1232,10 +1314,7 @@ export function GraphView(props: {
               {rootUploading ? "Uploading…" : "Use Uploaded Video"}
             </Button>
           )}
-
-          
         </DialogActions>
-
       </Dialog>
 
       <Dialog
@@ -1261,7 +1340,6 @@ export function GraphView(props: {
               label="Low Noise CFG"
               value={lowNoiseCfg}
               onChange={(e) => setLowNoiseCfg(Number(e.target.value))}
-
               fullWidth
             />
             <TextField
@@ -1276,7 +1354,6 @@ export function GraphView(props: {
               label="Low Noise Model Strength"
               value={lowNoiseModelStrength}
               onChange={(e) => setLowNoiseModelStrength(Number(e.target.value))}
-
               fullWidth
             />
             <TextField
@@ -1284,7 +1361,6 @@ export function GraphView(props: {
               label="High Noise Model Strength"
               value={highNoiseModelStrength}
               onChange={(e) => setHighNoiseModelStrength(Number(e.target.value))}
-
               fullWidth
             />
             <TextField
@@ -1292,7 +1368,6 @@ export function GraphView(props: {
               label="Low Noise Shift"
               value={lowNoiseShift}
               onChange={(e) => setLowNoiseShift(Number(e.target.value))}
-
               fullWidth
             />
             <TextField
@@ -1300,7 +1375,6 @@ export function GraphView(props: {
               label="High Noise Shift"
               value={highNoiseShift}
               onChange={(e) => setHighNoiseShift(Number(e.target.value))}
-
               fullWidth
             />
             <TextField
@@ -1308,7 +1382,6 @@ export function GraphView(props: {
               label="Low Noise Steps"
               value={lowNoiseSteps}
               onChange={(e) => setLowNoiseSteps(Number(e.target.value))}
-
               fullWidth
             />
             <TextField
@@ -1316,7 +1389,6 @@ export function GraphView(props: {
               label="High Noise Steps"
               value={highNoiseSteps}
               onChange={(e) => setHighNoiseSteps(Number(e.target.value))}
-
               fullWidth
             />
             <TextField
@@ -1324,7 +1396,6 @@ export function GraphView(props: {
               label="Low Noise Start Step"
               value={lowNoiseStartStep}
               onChange={(e) => setLowNoiseStartStep(Number(e.target.value))}
-
               fullWidth
             />
             <TextField
@@ -1332,7 +1403,6 @@ export function GraphView(props: {
               label="High Noise Start Step"
               value={highNoiseStartStep}
               onChange={(e) => setHighNoiseStartStep(Number(e.target.value))}
-
               fullWidth
             />
             <TextField
@@ -1340,7 +1410,6 @@ export function GraphView(props: {
               label="Low Noise End Step"
               value={lowNoiseEndStep}
               onChange={(e) => setLowNoiseEndStep(Number(e.target.value))}
-
               fullWidth
             />
             <TextField
@@ -1348,7 +1417,6 @@ export function GraphView(props: {
               label="High Noise End Step"
               value={highNoiseEndStep}
               onChange={(e) => setHighNoiseEndStep(Number(e.target.value))}
-
               fullWidth
             />
 
@@ -1369,43 +1437,33 @@ export function GraphView(props: {
         <DialogActions>
           <Button
             onClick={() => {
-              
-
-             
-
-             
               setClipDialogOpen(false);
-           
             }}
           >
             Close
           </Button>
 
-          <Button
-            variant="contained"
-            onClick={enqueueExtendJob}
-            disabled={!v2vPrompt.trim()}
-          >
+          <Button variant="contained" onClick={enqueueExtendJob} disabled={!v2vPrompt.trim()}>
             Start COMFYUI Genration
           </Button>
         </DialogActions>
       </Dialog>
 
-       <Dialog
+      <Dialog
         open={namingConventionInfoOpen}
         onClose={() => setNamingConventionInfoOpen(false)}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>IMPORTANT: Name your Video as follows - Only close the button when the editing is done</DialogTitle>
-        <DialogContent>
-            Name: { namingConventionName }
-        </DialogContent>
+        <DialogTitle>
+          IMPORTANT: Name your Video as follows - Only close the button when the editing is done
+        </DialogTitle>
+        <DialogContent>Name: {namingConventionName}</DialogContent>
 
         <DialogActions>
           <Button
             onClick={() => {
-             setNamingConventionInfoOpen(false)
+              setNamingConventionInfoOpen(false);
             }}
           >
             Close
@@ -1421,7 +1479,7 @@ export function GraphView(props: {
               if (!lastEditNodeId) return;
 
               try {
-                 await importResolveMetaIntoEdit(lastEditNodeId);
+                await importResolveMetaIntoEdit(lastEditNodeId);
               } catch (e: any) {
                 console.error(e);
 
@@ -1452,16 +1510,147 @@ export function GraphView(props: {
             Import changes
           </Button>
 
-
-
-
-         
+          <Button
+            variant="contained"
+            onClick={() => {
+              setTimeLineImportOpen(true);
+            }}
+          >
+            Import timeline file
+          </Button>
         </DialogActions>
       </Dialog>
 
+      <Dialog
+        open={timeLineUploadOpen}
+        onClose={() => setTimeLineImportOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Upload Timeline from Da Vinci Resolve</DialogTitle>
 
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Button variant="outlined" component="label">
+              Upload exported timeline...
+              <input
+                hidden
+                type="file"
+                accept=".drt,application/xml,text/xml"
+                onChange={(e) => setUploadedTimeLineFile(e.target.files?.[0] ?? null)}
+              />
+            </Button>
 
+            {uploadedTimeLineFile && (
+              <Typography variant="body2" color="text.secondary">
+                Selected: {uploadedTimeLineFile.name}
+              </Typography>
+            )}
 
+            <Button variant="outlined" component="label">
+              Upload edited video...
+              <input
+                hidden
+                type="file"
+                accept="video/*"
+                onChange={(e) => setEditedVideoUploadFile(e.target.files?.[0] ?? null)}
+              />
+            </Button>
+
+            {editedVideoUploadFile && (
+              <Typography variant="body2" color="text.secondary">
+                Selected: {editedVideoUploadFile.name}
+              </Typography>
+            )}
+          </Stack>
+        </DialogContent>
+
+        <DialogActions>
+          <Button
+            onClick={async () => {
+              if (!uploadedTimeLineFile) return;
+              if (!editedVideoUploadFile) return;
+              if (!lastEditNodeId) {
+                alert("No edit node selected/found to attach timeline data to.");
+                return;
+              }
+
+              try {
+                const storedVideo = await comfyUploadVideo(editedVideoUploadFile);
+
+                // 2) Determine the clip node that should receive the edited video
+                const outClipId = findOutClipIdForEdit(lastEditNodeId, rfEdgesRef.current);
+                if (!outClipId) {
+                  alert(
+                    "Could not find the output clip node (edit_out) for the selected edit node."
+                  );
+                  return;
+                }
+                console.log(uploadedTimeLineFile);
+                const res = await uploadTimelineFile(props.project.id, uploadedTimeLineFile);
+
+                setRfNodes((prevNodes) => {
+                  const nextNodes = prevNodes.map((n) => {
+                    // update edit node with timeline info
+                    if (n.id === lastEditNodeId) {
+                      const old = (n.data as any) ?? {};
+                      return {
+                        ...n,
+                        data: {
+                          ...old,
+                          timeline: {
+                            snapshot: res.snapshot,
+                            changelog: res.changelog,
+                            importedAt: new Date().toISOString(),
+                            fileName: uploadedTimeLineFile.name,
+                            version: "latest",
+                          },
+                          // optional: mark export as done / store uploaded file reference
+                          export: {
+                            ...(old.export ?? {}),
+                            status: "imported",
+                          },
+                        },
+                      };
+                    }
+
+                    // update the next clip node with the edited video
+                    if (n.id === outClipId) {
+                      const old = (n.data as any) ?? {};
+                      return {
+                        ...n,
+                        data: {
+                          ...old,
+                          label: old.label ?? "Edited Clip",
+                          videoFile: storedVideo,
+                          videoStatus: "done",
+                        },
+                      };
+                    }
+
+                    return n;
+                  });
+
+                  props.onChange((prevProject) =>
+                    fromRF(prevProject, nextNodes as any, rfEdgesRef.current as any)
+                  );
+                  return nextNodes;
+                });
+
+                setTimeLineImportOpen(false);
+                setUploadedTimeLineFile(null);
+                setEditedVideoUploadFile(null);
+              } catch (e: any) {
+                console.error(e);
+                alert("Timeline upload failed: " + (e?.message ?? String(e)));
+              }
+            }}
+            disabled={!uploadedTimeLineFile || !editedVideoUploadFile}
+          >
+            Finish
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }

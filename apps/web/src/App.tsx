@@ -50,7 +50,6 @@ export default function App({
   const dirtyRef = useRef(false);
   const projectRef = useRef<Project | null>(null);
 
-
   useEffect(() => {
     let cancelled = false;
 
@@ -93,14 +92,12 @@ export default function App({
     };
   }, []);
 
-
   // ✅ whenever project changes, persist active id
   useEffect(() => {
     if (project?.id) {
       localStorage.setItem(STORAGE_ACTIVE_PROJECT, project.id);
     }
   }, [project?.id]);
-
 
   const title = useMemo(() => project?.name ?? "Loading...", [project]);
 
@@ -138,8 +135,9 @@ export default function App({
     return () => window.clearTimeout(t);
   }, [project]);
 
-  useEffect(() => { projectRef.current = project; }, [project]);
-
+  useEffect(() => {
+    projectRef.current = project;
+  }, [project]);
 
   const newProject = async (name: string) => {
     const trimmed = name.trim();
@@ -157,9 +155,6 @@ export default function App({
       setCreating(false);
     }
   };
-
-
-
 
   if (!project) return <div style={{ padding: 16 }}>{title}</div>;
 
@@ -208,7 +203,6 @@ export default function App({
                       dirtyRef.current = false;
                     }
                   }}
-
                   sx={{ mr: 1 }}
                   aria-label="save project"
                 >
@@ -217,11 +211,7 @@ export default function App({
               </Tooltip>
 
               <Tooltip title={"Open folder"}>
-                <IconButton
-                  onClick={() => setLoadOpen(true)}
-                  sx={{ mr: 1 }}
-                  aria-label="open file"
-                >
+                <IconButton onClick={() => setLoadOpen(true)} sx={{ mr: 1 }} aria-label="open file">
                   <FolderOpenIcon />
                 </IconButton>
               </Tooltip>
@@ -237,11 +227,7 @@ export default function App({
               </Tooltip>
 
               <Tooltip title={mode === "dark" ? "Light Mode" : "Dark Mode"}>
-                <IconButton
-                  onClick={toggleColorMode}
-                  sx={{ mr: 1 }}
-                  aria-label="toggle dark mode"
-                >
+                <IconButton onClick={toggleColorMode} sx={{ mr: 1 }} aria-label="toggle dark mode">
                   {mode === "dark" ? <LightModeIcon /> : <DarkModeIcon />}
                 </IconButton>
               </Tooltip>
@@ -257,7 +243,6 @@ export default function App({
               </Tooltip>
             </Box>
           </Toolbar>
-
         </AppBar>
 
         <Box sx={{ flexGrow: 1 }}>
@@ -320,7 +305,6 @@ export default function App({
           </Button>
         </DialogActions>
       </Dialog>
-
     </>
   );
 }

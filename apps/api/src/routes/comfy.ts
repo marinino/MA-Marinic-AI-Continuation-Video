@@ -11,7 +11,6 @@ import { pipeline } from "node:stream/promises";
 const COMFY_URL = process.env.COMFY_URL ?? "http://127.0.0.1:8188";
 const COMFY_WS = COMFY_URL.replace(/^http/, "ws");
 
-
 const COMFY_DIR = process.env.COMFY_DIR ?? path.resolve(process.cwd(), "tools/comfyui");
 const COMFY_INPUT_DIR = path.join(COMFY_DIR, "input");
 const COMFY_OUTPUT_DIR = path.join(COMFY_DIR, "output");
@@ -49,7 +48,6 @@ async function ensureCopiedToInput(file: { filename: string; subfolder?: string;
   await fs.copyFile(src, dst);
   return unique;
 }
-
 
 export async function comfyRoutes(app: FastifyInstance) {
   app.post("/comfy/video", async (req, reply) => {
@@ -105,47 +103,47 @@ export async function comfyRoutes(app: FastifyInstance) {
   app.get("/comfy/ws", { websocket: true }, (connection, req) => {
     const { clientId } = req.query as any;
     if (!clientId) {
-        connection.socket.close();
-        return;
+      connection.socket.close();
+      return;
     }
 
     app.log.info({ clientId }, "CLIENT WS CONNECT");
 
     const upstreamUrl =
-        `${COMFY_WS}/ws?clientId=${encodeURIComponent(clientId)}` +
-        `&client_id=${encodeURIComponent(clientId)}`;
+      `${COMFY_WS}/ws?clientId=${encodeURIComponent(clientId)}` +
+      `&client_id=${encodeURIComponent(clientId)}`;
 
     app.log.info({ upstreamUrl }, "CONNECTING UPSTREAM WS");
 
     const upstream = new WebSocket(upstreamUrl);
 
     upstream.on("open", () => {
-        app.log.info("UPSTREAM WS OPEN");
+      app.log.info("UPSTREAM WS OPEN");
     });
 
     upstream.on("message", (data) => {
-        app.log.info({ bytes: (data as any)?.length ?? 0 }, "UPSTREAM WS MESSAGE");
-        connection.socket.send(typeof data === "string" ? data : data.toString());
+      app.log.info({ bytes: (data as any)?.length ?? 0 }, "UPSTREAM WS MESSAGE");
+      connection.socket.send(typeof data === "string" ? data : data.toString());
     });
 
     upstream.on("close", (code, reason) => {
-        app.log.info({ code, reason: reason?.toString() }, "UPSTREAM WS CLOSED");
-        connection.socket.close();
+      app.log.info({ code, reason: reason?.toString() }, "UPSTREAM WS CLOSED");
+      connection.socket.close();
     });
 
     upstream.on("error", (err) => {
-        app.log.error({ err }, "UPSTREAM WS ERROR");
-        connection.socket.close();
+      app.log.error({ err }, "UPSTREAM WS ERROR");
+      connection.socket.close();
     });
 
     connection.socket.on("close", () => {
-        app.log.info("CLIENT WS CLOSED");
-        upstream.close();
+      app.log.info("CLIENT WS CLOSED");
+      upstream.close();
     });
 
     // optional keepalive (hilft bei Proxies)
     const ping = setInterval(() => {
-        if (upstream.readyState === WebSocket.OPEN) upstream.ping();
+      if (upstream.readyState === WebSocket.OPEN) upstream.ping();
     }, 20000);
 
     connection.socket.on("close", () => clearInterval(ping));
@@ -192,7 +190,6 @@ export async function comfyRoutes(app: FastifyInstance) {
     const seed = typeof body.seed === "number" ? body.seed : Math.floor(Math.random() * 1e15);
     wf["122:86"].inputs.noise_seed = seed;
     wf["122:85"].inputs.noise_seed = seed + 1;
-    
 
     wf["150"].inputs.value = inputFilename;
     wf["151"].inputs.file = inputFilename;
@@ -260,11 +257,10 @@ export async function comfyRoutes(app: FastifyInstance) {
     // gib ein StoredMediaFile zurück, das "input" markiert
     const stored = {
       filename: unique,
-      subfolder: "",      // input hat i.d.R. keinen subfolder
-      type: "input",      // wichtig!
+      subfolder: "", // input hat i.d.R. keinen subfolder
+      type: "input", // wichtig!
     };
 
     return reply.send(stored);
   });
-
 }

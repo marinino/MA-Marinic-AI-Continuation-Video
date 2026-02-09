@@ -10,7 +10,7 @@ import { editorRoutes } from "./routes/editor";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import dotenv from "dotenv";
-
+import { timelineRoutes } from "./routes/timline";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,7 +22,7 @@ dotenv.config({
 const app = Fastify({ logger: true });
 
 await app.register(cors, {
-  origin: true
+  origin: true,
 });
 
 app.get("/health", async () => ({ ok: true }));
@@ -37,7 +37,8 @@ await app.register(websocket);
 
 await app.register(comfyRoutes);
 
-await app.register(editorRoutes); 
+await app.register(editorRoutes);
+await app.register(timelineRoutes, { prefix: "/timeline" });
 
 app.get("/projects", async () => {
   return await listProjects();
@@ -53,8 +54,8 @@ app.post("/projects", async (req, reply) => {
     uiState: {
       selectedNodeId: undefined,
       activePath: [],
-      layerVisibility: { clip: true, params: true, edit: true }
-    }
+      layerVisibility: { clip: true, params: true, edit: true },
+    },
   });
   await saveProject(project);
   reply.code(201);
@@ -69,10 +70,10 @@ app.get("/projects/:id", async (req, reply) => {
 });
 
 app.put("/projects/:id", async (req, reply) => {
-  console.log("RAW BODY", JSON.stringify(req.body, null, 2));  // <- check
+  console.log("RAW BODY", JSON.stringify(req.body, null, 2)); // <- check
   const { id } = req.params as { id: string };
   const incoming = ProjectSchema.parse(req.body);
-  console.log("PARSED", JSON.stringify(incoming, null, 2));    // <- check
+  console.log("PARSED", JSON.stringify(incoming, null, 2)); // <- check
   if (incoming.id !== id) return reply.code(400).send({ error: "id_mismatch" });
   await saveProject(incoming);
   return { ok: true };

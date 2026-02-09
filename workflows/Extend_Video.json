@@ -4,10 +4,7 @@
       "filename_prefix": "video/Wan2.2_image_to_video",
       "format": "auto",
       "codec": "auto",
-      "video": [
-        "151",
-        0
-      ]
+      "video": ["151", 0]
     },
     "class_type": "SaveVideo",
     "_meta": {
@@ -19,10 +16,7 @@
       "filename_prefix": "video/Wan2.2_image_to_video",
       "format": "auto",
       "codec": "auto",
-      "video": [
-        "122:94",
-        0
-      ]
+      "video": ["122:94", 0]
     },
     "class_type": "SaveVideo",
     "_meta": {
@@ -65,10 +59,7 @@
   },
   "157": {
     "inputs": {
-      "video_info": [
-        "155",
-        3
-      ]
+      "video_info": ["155", 3]
     },
     "class_type": "VHS_VideoInfoLoaded",
     "_meta": {
@@ -77,10 +68,7 @@
   },
   "145:145": {
     "inputs": {
-      "video": [
-        "150",
-        0
-      ]
+      "video": ["150", 0]
     },
     "class_type": "VideoFirstLastFrame",
     "_meta": {
@@ -89,10 +77,7 @@
   },
   "145:142": {
     "inputs": {
-      "images": [
-        "155",
-        0
-      ]
+      "images": ["155", 0]
     },
     "class_type": "PreviewImage",
     "_meta": {
@@ -102,10 +87,7 @@
   "122:103": {
     "inputs": {
       "shift": 5.000000000000001,
-      "model": [
-        "122:102",
-        0
-      ]
+      "model": ["122:102", 0]
     },
     "class_type": "ModelSamplingSD3",
     "_meta": {
@@ -116,10 +98,7 @@
     "inputs": {
       "lora_name": "wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors",
       "strength_model": 1.0000000000000002,
-      "model": [
-        "122:95",
-        0
-      ]
+      "model": ["122:95", 0]
     },
     "class_type": "LoraLoaderModelOnly",
     "_meta": {
@@ -130,10 +109,7 @@
     "inputs": {
       "lora_name": "wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors",
       "strength_model": 1.0000000000000002,
-      "model": [
-        "122:96",
-        0
-      ]
+      "model": ["122:96", 0]
     },
     "class_type": "LoraLoaderModelOnly",
     "_meta": {
@@ -143,10 +119,7 @@
   "122:104": {
     "inputs": {
       "shift": 5.000000000000001,
-      "model": [
-        "122:101",
-        0
-      ]
+      "model": ["122:101", 0]
     },
     "class_type": "ModelSamplingSD3",
     "_meta": {
@@ -155,14 +128,8 @@
   },
   "122:94": {
     "inputs": {
-      "fps": [
-        "157",
-        0
-      ],
-      "images": [
-        "122:120",
-        0
-      ]
+      "fps": ["157", 0],
+      "images": ["122:120", 0]
     },
     "class_type": "CreateVideo",
     "_meta": {
@@ -172,10 +139,7 @@
   "122:93": {
     "inputs": {
       "text": "Woman in the video noding head up an down. Natural vertical motion",
-      "clip": [
-        "122:84",
-        0
-      ]
+      "clip": ["122:84", 0]
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
@@ -185,10 +149,7 @@
   "122:89": {
     "inputs": {
       "text": "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走",
-      "clip": [
-        "122:84",
-        0
-      ]
+      "clip": ["122:84", 0]
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
@@ -206,22 +167,10 @@
       "start_at_step": 2,
       "end_at_step": 4,
       "return_with_leftover_noise": "disable",
-      "model": [
-        "122:103",
-        0
-      ],
-      "positive": [
-        "122:98",
-        0
-      ],
-      "negative": [
-        "122:98",
-        1
-      ],
-      "latent_image": [
-        "122:86",
-        0
-      ]
+      "model": ["122:103", 0],
+      "positive": ["122:98", 0],
+      "negative": ["122:98", 1],
+      "latent_image": ["122:86", 0]
     },
     "class_type": "KSamplerAdvanced",
     "_meta": {
@@ -230,10 +179,7 @@
   },
   "122:118": {
     "inputs": {
-      "images": [
-        "122:117",
-        0
-      ]
+      "images": ["122:117", 0]
     },
     "class_type": "PreviewImage",
     "_meta": {
@@ -242,10 +188,7 @@
   },
   "122:121": {
     "inputs": {
-      "image": [
-        "145:145",
-        1
-      ]
+      "image": ["145:145", 1]
     },
     "class_type": "GetImageSize+",
     "_meta": {
@@ -254,32 +197,14 @@
   },
   "122:98": {
     "inputs": {
-      "width": [
-        "122:121",
-        0
-      ],
-      "height": [
-        "122:121",
-        1
-      ],
+      "width": ["122:121", 0],
+      "height": ["122:121", 1],
       "length": 162,
       "batch_size": 1,
-      "positive": [
-        "122:93",
-        0
-      ],
-      "negative": [
-        "122:89",
-        0
-      ],
-      "vae": [
-        "122:90",
-        0
-      ],
-      "start_image": [
-        "145:145",
-        1
-      ]
+      "positive": ["122:93", 0],
+      "negative": ["122:89", 0],
+      "vae": ["122:90", 0],
+      "start_image": ["145:145", 1]
     },
     "class_type": "WanImageToVideo",
     "_meta": {
@@ -290,10 +215,7 @@
     "inputs": {
       "batch_index": 4095,
       "length": 1,
-      "image": [
-        "122:120",
-        0
-      ]
+      "image": ["122:120", 0]
     },
     "class_type": "ImageFromBatch",
     "_meta": {
@@ -302,14 +224,8 @@
   },
   "122:87": {
     "inputs": {
-      "samples": [
-        "122:85",
-        0
-      ],
-      "vae": [
-        "122:90",
-        0
-      ]
+      "samples": ["122:85", 0],
+      "vae": ["122:90", 0]
     },
     "class_type": "VAEDecode",
     "_meta": {
@@ -318,14 +234,8 @@
   },
   "122:120": {
     "inputs": {
-      "image1": [
-        "155",
-        0
-      ],
-      "image2": [
-        "122:87",
-        0
-      ]
+      "image1": ["155", 0],
+      "image2": ["122:87", 0]
     },
     "class_type": "ImageBatch",
     "_meta": {
@@ -352,22 +262,10 @@
       "start_at_step": 0,
       "end_at_step": 2,
       "return_with_leftover_noise": "enable",
-      "model": [
-        "122:104",
-        0
-      ],
-      "positive": [
-        "122:98",
-        0
-      ],
-      "negative": [
-        "122:98",
-        1
-      ],
-      "latent_image": [
-        "122:98",
-        2
-      ]
+      "model": ["122:104", 0],
+      "positive": ["122:98", 0],
+      "negative": ["122:98", 1],
+      "latent_image": ["122:98", 2]
     },
     "class_type": "KSamplerAdvanced",
     "_meta": {
@@ -376,10 +274,7 @@
   },
   "122:119": {
     "inputs": {
-      "images": [
-        "122:87",
-        0
-      ]
+      "images": ["122:87", 0]
     },
     "class_type": "PreviewImage",
     "_meta": {

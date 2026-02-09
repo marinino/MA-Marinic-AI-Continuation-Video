@@ -1,4 +1,19 @@
-import { Card, CardContent, Typography, Chip, Stack, useTheme, Box, IconButton, DialogTitle, Dialog, Button, DialogContent, DialogActions, LinearProgress } from "@mui/material";
+import {
+  Card,
+  CardContent,
+  Typography,
+  Chip,
+  Stack,
+  useTheme,
+  Box,
+  IconButton,
+  DialogTitle,
+  Dialog,
+  Button,
+  DialogContent,
+  DialogActions,
+  LinearProgress,
+} from "@mui/material";
 import MovieIcon from "@mui/icons-material/Movie";
 import TuneIcon from "@mui/icons-material/Tune";
 import ContentCutIcon from "@mui/icons-material/ContentCut";
@@ -35,28 +50,29 @@ function NodeCard(props: {
   videoUrl?: string | null;
   videoFile?: StoredMediaFile | null;
   videoStatus?: string;
-  prompt?: string
+  prompt?: string;
   metaSummary?: React.ReactNode;
 
-  highNoiseCfg?: number,
-  lowNoiseCfg?: number,
-  highNoiseModelStrength?: number,
-  lowNoiseModelStrength?: number,
-  highNoiseShift?: number,
-  lowNoiseShift?: number,
-  highNoiseSteps?: number,
-  lowNoiseSteps?: number,
-  highNoiseStartStep?: number,
-  lowNoiseStartStep?: number,
-  highNoiseEndStep?: number,
-  lowNoiseEndStep?: number
+  highNoiseCfg?: number;
+  lowNoiseCfg?: number;
+  highNoiseModelStrength?: number;
+  lowNoiseModelStrength?: number;
+  highNoiseShift?: number;
+  lowNoiseShift?: number;
+  highNoiseSteps?: number;
+  lowNoiseSteps?: number;
+  highNoiseStartStep?: number;
+  lowNoiseStartStep?: number;
+  highNoiseEndStep?: number;
+  lowNoiseEndStep?: number;
 }) {
   const theme = useTheme();
   const [infoOpen, setInfoOpen] = useState(false);
 
   const base = getNodeColors(props.type, props.isRoot);
 
-  const infoText = props.infoText ?? "Dummy Info: Hier kommt später eine Erklärung zu diesem Node-Typ rein.";
+  const infoText =
+    props.infoText ?? "Dummy Info: Hier kommt später eine Erklärung zu diesem Node-Typ rein.";
 
   const bg = theme.palette.mode === "dark" ? theme.palette.background.paper : base.bg;
   const borderColor = base.border;
@@ -78,23 +94,24 @@ function NodeCard(props: {
       >
         <CardContent>
           <Stack direction="row" spacing={1} alignItems="center">
-              {/* Icon: öffnet Info */}
+            {/* Icon: öffnet Info */}
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setInfoOpen(true);
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
+              {props.icon}
+            </IconButton>
+            <Typography variant="subtitle2">{props.title}</Typography>
+            {props.type === "clip" && (
               <IconButton
-                size="small"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setInfoOpen(true);
-                }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-              >
-                {props.icon}
-              </IconButton>
-              <Typography variant="subtitle2">{props.title}</Typography>
-              {props.type === "clip" && <IconButton
                 size="small"
                 onClick={(e) => {
                   e.preventDefault();
@@ -107,9 +124,9 @@ function NodeCard(props: {
                 }}
               >
                 <AddIcon fontSize="small" />
-              </IconButton>}
-
-            </Stack>
+              </IconButton>
+            )}
+          </Stack>
           <Box sx={{ mt: 0.5 }}>{props.children}</Box>
         </CardContent>
       </Card>
@@ -127,7 +144,6 @@ function NodeCard(props: {
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
       >
-
         <DialogTitle>{props.title} – Info</DialogTitle>
         <DialogContent>
           <Stack spacing={1} sx={{ mt: 2 }}>
@@ -149,9 +165,7 @@ function NodeCard(props: {
                 </Typography>
               )
             ) : props.type === "params" ? (
-
-              
-                <>
+              <>
                 {/* Prompt */}
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                   <strong>Prompt:</strong>{" "}
@@ -165,41 +179,33 @@ function NodeCard(props: {
                   <strong>High Noise</strong>
                 </Typography>
                 <Typography variant="caption" color="text.secondary" display="block">
-                  CFG: {props.highNoiseCfg} ·
-                  Steps: {props.highNoiseSteps} ·
-                  Start–End: {props.highNoiseStartStep}–{props.highNoiseEndStep}
+                  CFG: {props.highNoiseCfg} · Steps: {props.highNoiseSteps} · Start–End:{" "}
+                  {props.highNoiseStartStep}–{props.highNoiseEndStep}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" display="block">
-                  Shift: {props.highNoiseShift} ·
-                  Strength: {props.highNoiseModelStrength}
+                  Shift: {props.highNoiseShift} · Strength: {props.highNoiseModelStrength}
                 </Typography>
 
                 {/* Low Noise */}
-                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  sx={{ mt: 0.5 }}
+                >
                   <strong>Low Noise</strong>
                 </Typography>
                 <Typography variant="caption" color="text.secondary" display="block">
-                  CFG: {props.lowNoiseCfg} ·
-                  Steps: {props.lowNoiseSteps} ·
-                  Start–End: {props.lowNoiseStartStep}–{props.lowNoiseEndStep}
+                  CFG: {props.lowNoiseCfg} · Steps: {props.lowNoiseSteps} · Start–End:{" "}
+                  {props.lowNoiseStartStep}–{props.lowNoiseEndStep}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" display="block">
-                  Shift: {props.lowNoiseShift} ·
-                  Strength: {props.lowNoiseModelStrength}
+                  Shift: {props.lowNoiseShift} · Strength: {props.lowNoiseModelStrength}
                 </Typography>
               </>
-             
-             
-                
-              
-            )  : (
-            props.videoUrl ? (
+            ) : props.videoUrl ? (
               <>
-                <video
-                  src={props.videoUrl}
-                  controls
-                  style={{ width: "100%", borderRadius: 8 }}
-                />
+                <video src={props.videoUrl} controls style={{ width: "100%", borderRadius: 8 }} />
                 {props.videoFile?.filename && (
                   <Typography variant="caption" color="text.secondary">
                     {props.videoFile.filename}
@@ -210,9 +216,8 @@ function NodeCard(props: {
               <Typography variant="body2" color="text.secondary">
                 No video attached to this clip yet.
               </Typography>
-            ))}
+            )}
           </Stack>
-
         </DialogContent>
         <DialogActions>
           <Button
@@ -228,22 +233,17 @@ function NodeCard(props: {
           >
             Close
           </Button>
-
         </DialogActions>
       </Dialog>
-
     </>
   );
 }
 
 export function ClipNode(props: NodeProps<any>) {
-
   const videoFile = (props.data?.videoFile as StoredMediaFile | null) ?? null;
   const videoStatus = props.data?.videoStatus as string | undefined;
 
-  const videoUrl =
-    props.data?.videoUrl ??
-    (videoFile ? comfyBuildVideoUrl(videoFile) : null);
+  const videoUrl = props.data?.videoUrl ?? (videoFile ? comfyBuildVideoUrl(videoFile) : null);
 
   return (
     <div style={{ position: "relative" }}>
@@ -258,7 +258,6 @@ export function ClipNode(props: NodeProps<any>) {
         type="clip"
         isRoot={Boolean(props.data?.isRoot)}
         selected={props.selected}
-
         // ✅ gib die infos in NodeCard rein, damit das Popup sie nutzen kann
         videoUrl={videoUrl}
         videoFile={videoFile}
@@ -305,19 +304,27 @@ export function ParamNode(props: NodeProps<any>) {
 
 export function EditNode(props: NodeProps<any>) {
   const exportInfo = props.data?.export;
-  const meta = props.data?.meta;
-  const importedAt = meta?.importedAt;
-  const timeline = meta?.resolveTimeline;
 
-  const timelineName = timeline?.timeline?.name ?? timeline?.timeline?.Name ?? null;
-  const summary = timeline?.summary ?? null;
+  // ✅ NEU: timeline aus data.timeline
+  const timeline = props.data?.timeline;
+  const importedAt = timeline?.importedAt;
+  const changelog = (timeline?.changelog as any[]) ?? [];
+
+  // kleines Summary
+  const counts = changelog.reduce(
+    (acc, c) => {
+      acc[c.type] = (acc[c.type] ?? 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
   return (
     <div style={{ position: "relative" }}>
       <Handle id="in" type="target" position={Position.Left} />
       <Handle id="out" type="source" position={Position.Right} />
 
-       <NodeCard
+      <NodeCard
         nodeId={props.id}
         icon={<ContentCutIcon fontSize="small" />}
         title="Edit"
@@ -325,16 +332,13 @@ export function EditNode(props: NodeProps<any>) {
         isRoot={false}
         selected={props.selected}
         metaSummary={
-          <Stack spacing={0.5}>
+          <Stack spacing={0.75}>
             <Typography variant="body2" color="text.secondary">
               Tool: {props.data?.tool ?? "resolve"}
             </Typography>
 
             <Stack direction="row" spacing={1} alignItems="center">
-              <Chip
-                size="small"
-                label={exportInfo?.status ?? "waiting"}
-              />
+              <Chip size="small" label={exportInfo?.status ?? "waiting"} />
               {importedAt && (
                 <Typography variant="caption" color="text.secondary">
                   {new Date(importedAt).toLocaleString()}
@@ -342,26 +346,36 @@ export function EditNode(props: NodeProps<any>) {
               )}
             </Stack>
 
-            {timelineName && (
-              <Typography variant="body2" color="text.secondary">
-                Timeline: {timelineName}
-              </Typography>
-            )}
+            {/* ✅ Timeline import status */}
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip
+                size="small"
+                color={changelog.length ? "success" : "default"}
+                label={changelog.length ? `changes: ${changelog.length}` : "no timeline diff"}
+              />
+              {Object.keys(counts).length > 0 && (
+                <Typography variant="caption" color="text.secondary">
+                  {Object.entries(counts)
+                    .map(([k, v]) => `${k}:${v}`)
+                    .join(" · ")}
+                </Typography>
+              )}
+            </Stack>
 
-            {summary && (
-              <Typography variant="body2" color="text.secondary">
-                Items: {summary.videoItems ?? "?"} · Markers: {summary.timelineMarkers ?? "?"}
-              </Typography>
+            {/* ✅ Optional: list first 5 */}
+            {changelog.length > 0 && (
+              <Box sx={{ mt: 0.5 }}>
+                {changelog.slice(0, 5).map((c, i) => (
+                  <Typography key={i} variant="caption" color="text.secondary" display="block">
+                    • {c.type} ({String(c.key ?? "").slice(0, 40)}…)
+                  </Typography>
+                ))}
+              </Box>
             )}
           </Stack>
         }
       >
         <Typography variant="body2">{props.data?.label}</Typography>
-
-        <Stack direction="row" spacing={1} sx={{ mt: 0.75 }} alignItems="center">
-          <Chip size="small" label={`export: ${exportInfo?.expectedBasename ?? "-"}`} />
-          <Chip size="small" label={exportInfo?.status ?? "waiting"} />
-        </Stack>
       </NodeCard>
     </div>
   );

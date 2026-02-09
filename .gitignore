@@ -15,6 +15,7 @@ dist/
 build/
 .out/
 coverage/
+data/
 
 # ======================================================
 # TypeScript
@@ -87,3 +88,5 @@ venv/
 *.swp
 *.swo
 *.bak
+
+

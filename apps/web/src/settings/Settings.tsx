@@ -23,7 +23,13 @@ export function Settings({
   setShowEdgeLabels,
 }: SettingsProps) {
   return (
-    <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} maxWidth="xs" fullWidth sx={{borderRadius: 2}}>
+    <Dialog
+      open={settingsOpen}
+      onClose={() => setSettingsOpen(false)}
+      maxWidth="xs"
+      fullWidth
+      sx={{ borderRadius: 2 }}
+    >
       <DialogTitle>Settings</DialogTitle>
 
       <DialogContent>

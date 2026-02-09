@@ -1,4 +1,10 @@
-import type { ComfyHistory, ComfyStartVideoInput, ComfyStartVideoResult, Project, StoredMediaFile } from "@ma/shared";
+import type {
+  ComfyHistory,
+  ComfyStartVideoInput,
+  ComfyStartVideoResult,
+  Project,
+  StoredMediaFile,
+} from "@ma/shared";
 
 const API = "/api";
 
@@ -6,7 +12,7 @@ export async function createProject(name?: string): Promise<Project> {
   const res = await fetch(`${API}/projects`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name })
+    body: JSON.stringify({ name }),
   });
   if (!res.ok) throw new Error("createProject failed");
   return await res.json();
@@ -22,12 +28,11 @@ export async function loadProject(id: string): Promise<Project> {
   return await res.json();
 }
 
-
 export async function saveProject(p: Project): Promise<void> {
   const res = await fetch(`${API}/projects/${p.id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(p)
+    body: JSON.stringify(p),
   });
   if (!res.ok) throw new Error("saveProject failed");
 }
@@ -38,10 +43,7 @@ export async function listProjects(): Promise<Array<{ id: string; name: string }
   return await res.json();
 }
 
-
-export async function comfyStartVideo(
-  input: ComfyStartVideoInput
-): Promise<ComfyStartVideoResult> {
+export async function comfyStartVideo(input: ComfyStartVideoInput): Promise<ComfyStartVideoResult> {
   const res = await fetch(`${API}/comfy/video`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -91,10 +93,7 @@ export function comfyFindVideoFromHistory(history: ComfyHistory, promptId: strin
 
   // ✅ bevorzugt: final SaveVideo node 123
   const preferred = (entry.outputs as any)["123"];
-  const cand =
-    preferred?.videos?.[0] ??
-    preferred?.gifs?.[0] ??
-    preferred?.images?.[0];
+  const cand = preferred?.videos?.[0] ?? preferred?.gifs?.[0] ?? preferred?.images?.[0];
 
   if (cand?.filename) return cand;
 
@@ -107,10 +106,9 @@ export function comfyFindVideoFromHistory(history: ComfyHistory, promptId: strin
   return null;
 }
 
-
-export async function comfyStartV2V(args: { 
-  text: string; 
-  seed?: number; 
+export async function comfyStartV2V(args: {
+  text: string;
+  seed?: number;
   videoFile: StoredMediaFile;
   highNoiseCfg: number;
   lowNoiseCfg: number;
@@ -123,7 +121,7 @@ export async function comfyStartV2V(args: {
   highNoiseStartStep: number;
   lowNoiseStartStep: number;
   highNoiseEndStep: number;
-  lowNoiseEndStep: number
+  lowNoiseEndStep: number;
 }) {
   const r = await fetch("/api/comfy/v2v", {
     method: "POST",
@@ -169,8 +167,18 @@ export async function resolveExportTimeline() {
   return await r.json();
 }
 
+export async function uploadTimelineFile(projectId: string, file: File, expectedBasename?: string) {
+  const fd = new FormData();
+  fd.append("file", file);
 
+  const qs = new URLSearchParams({ projectId });
+  if (expectedBasename) qs.set("expectedBasename", expectedBasename);
 
+  const res = await fetch(`/api/timeline/upload?${qs.toString()}`, {
+    method: "POST",
+    body: fd,
+  });
 
-
-
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}

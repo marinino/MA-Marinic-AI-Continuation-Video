@@ -24,22 +24,22 @@ npm i -g pnpm
 
 ## Projektstruktur
 
-apps/web        – React UI (Port 5173)
-apps/api        – Backend API (Port 3001)
+apps/web – React UI (Port 5173)
+apps/api – Backend API (Port 3001)
 packages/shared – gemeinsame Typen & Schemas
-storage/        – lokale Projektdateien
+storage/ – lokale Projektdateien
 
 ---
 
 ## Setup (einmalig)
 
-1) Dependencies installieren (Repo-Root):
-pnpm install
-pnpm -r build
+1. Dependencies installieren (Repo-Root):
+   pnpm install
+   pnpm -r build
 
-2) Storage Ordner anlegen:
-mkdir storage
-mkdir storage/projects
+2. Storage Ordner anlegen:
+   mkdir storage
+   mkdir storage/projects
 
 ---
 
@@ -91,6 +91,7 @@ http://localhost:5173/
 Ursache: Backend läuft nicht.
 
 Lösung:
+
 - Prüfen: http://localhost:3001/health
 - Falls nicht erreichbar:
   pnpm -C apps/api dev
@@ -155,7 +156,7 @@ pnpm -C packages/shared dev
 ## Ports
 
 Frontend: http://localhost:5173
-Backend:  http://localhost:3001
+Backend: http://localhost:3001
 
 ---
 

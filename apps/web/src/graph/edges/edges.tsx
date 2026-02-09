@@ -1,21 +1,22 @@
 import { Box } from "@mui/material";
 import { memo } from "react";
-import {
-  BaseEdge,
-  EdgeLabelRenderer,
-  getBezierPath,
-  type EdgeProps,
-} from "reactflow";
+import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from "reactflow";
 import { useTheme } from "@mui/material/styles";
 
 type EdgeKind = "input" | "output" | "edit_in" | "edit_out";
 
 export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
-  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd } = props;
+  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd } =
+    props;
   const theme = useTheme();
 
   const [edgePath, labelX, labelY] = getBezierPath({
-    sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
   });
 
   const text = (data as any)?.label ?? "";

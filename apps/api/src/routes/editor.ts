@@ -14,11 +14,7 @@ function defaultResolvePaths() {
       "C:\\Program Files (x86)\\Blackmagic Design\\DaVinci Resolve\\Resolve.exe",
       "C:\\Program Files\\Blackmagic Design\\DaVinci Resolve\\Resolve.exe",
     ],
-    linux: [
-      "/opt/resolve/bin/resolve",
-      "/usr/bin/resolve",
-      "/usr/local/bin/resolve",
-    ],
+    linux: ["/opt/resolve/bin/resolve", "/usr/bin/resolve", "/usr/local/bin/resolve"],
   } as const;
 }
 
@@ -45,7 +41,6 @@ function revealInFileManager(filePath: string) {
     return;
   }
 }
-
 
 function openResolve() {
   const plat = process.platform;
@@ -80,49 +75,46 @@ function openResolve() {
   throw new Error(`Unsupported platform: ${plat}`);
 }
 
-
 export async function editorRoutes(app: FastifyInstance) {
-    app.post("/editor/open/resolve", async (req, reply) => {
+  app.post("/editor/open/resolve", async (req, reply) => {
     const body = (req.body ?? {}) as { filename?: string };
 
     try {
-        openResolve();
+      openResolve();
 
-        if (body.filename) {
+      if (body.filename) {
         const absPath = path.join(COMFY_INPUT_DIR, body.filename);
 
         app.log.info({ absPath }, "Reveal file in explorer");
 
         if (!fs.existsSync(absPath)) {
-            throw new Error(`File not found: ${absPath}`);
+          throw new Error(`File not found: ${absPath}`);
         }
 
         revealInFileManager(absPath);
-        }
+      }
 
-        return reply.code(204).send();
+      return reply.code(204).send();
     } catch (e: any) {
-        req.log.error(e);
-        return reply.code(500).send({ error: String(e?.message ?? e) });
+      req.log.error(e);
+      return reply.code(500).send({ error: String(e?.message ?? e) });
     }
-    });
+  });
 
-    app.log.info(
-        { RESOLVE_SCRIPT_LIB_DIR: process.env.RESOLVE_SCRIPT_LIB_DIR, py: process.env.PYTHON_BIN },
-        "Resolve export env"
-        );
+  app.log.info(
+    { RESOLVE_SCRIPT_LIB_DIR: process.env.RESOLVE_SCRIPT_LIB_DIR, py: process.env.PYTHON_BIN },
+    "Resolve export env"
+  );
 
-
-    app.post("/editor/resolve/export-timeline", async (req, reply) => {
-        try {
-        const json = await runPythonExport();
-        return reply.send(json);
-        } catch (e: any) {
-        req.log.error(e);
-        return reply.code(500).send({ error: String(e?.message ?? e) });
-        }
-    });
-
+  app.post("/editor/resolve/export-timeline", async (req, reply) => {
+    try {
+      const json = await runPythonExport();
+      return reply.send(json);
+    } catch (e: any) {
+      req.log.error(e);
+      return reply.code(500).send({ error: String(e?.message ?? e) });
+    }
+  });
 }
 
 function runPythonExport(): Promise<any> {
@@ -131,7 +123,8 @@ function runPythonExport(): Promise<any> {
 
     const py = process.env.PYTHON_BIN ?? "python";
 
-    const resolveDir = process.env.RESOLVE_DIR ?? "C:\\Program Files\\Blackmagic Design\\DaVinci Resolve";
+    const resolveDir =
+      process.env.RESOLVE_DIR ?? "C:\\Program Files\\Blackmagic Design\\DaVinci Resolve";
     const resolveScriptLib = process.env.RESOLVE_SCRIPT_LIB_DIR ?? "";
 
     const proc = spawn(py, [scriptPath], {
@@ -161,4 +154,3 @@ function runPythonExport(): Promise<any> {
     });
   });
 }
-
