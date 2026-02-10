@@ -1572,9 +1572,9 @@ const addManualEdit = (fromClipId: string) => {
         fullWidth
       >
         <DialogTitle>
-          IMPORTANT: Name your Video as follows - Only close the button when the editing is done
+          DaVinci Resolve Edit
         </DialogTitle>
-        <DialogContent>Name: {namingConventionName}</DialogContent>
+        <DialogContent>Choose which version of DaVinci you have. With the studio version changes can be imported automatically. The free version necessitates more work.</DialogContent>
 
         <DialogActions>
           <Button
@@ -1584,10 +1584,6 @@ const addManualEdit = (fromClipId: string) => {
             }}
           >
             Close
-          </Button>
-
-          <Button onClick={() => navigator.clipboard.writeText(namingConventionName)}>
-            Copy name
           </Button>
 
           <Button
@@ -1601,6 +1597,7 @@ const addManualEdit = (fromClipId: string) => {
 
               try {
                 await importResolveMetaIntoEdit(editId);
+                setNamingConventionInfoOpen(false)
               } catch (e: any) {
                 console.error(e);
 
@@ -1628,7 +1625,7 @@ const addManualEdit = (fromClipId: string) => {
               }
             }}
           >
-            Import changes
+            DaVinci Resolve Studio
           </Button>
 
           <Button
@@ -1640,10 +1637,11 @@ const addManualEdit = (fromClipId: string) => {
                 return;
               }
               setDaVinciActionDalogOpen(true);
+              setNamingConventionInfoOpen(false)
             }}
 
           >
-            Choose Davinci option
+            DaVinci Resolve free version
           </Button>
 
         </DialogActions>
@@ -1651,14 +1649,25 @@ const addManualEdit = (fromClipId: string) => {
 
       <Dialog
         open={timeLineUploadOpen}
-        onClose={() => setTimeLineImportOpen(false)}
+        onClose={(event, reason) => {
+          // verhindert Schließen durch Klick aufs Backdrop
+          if (reason === "backdropClick") return;
+          // verhindert Schließen durch ESC
+          if (reason === "escapeKeyDown") return;
+
+          setTimeLineImportOpen(false);
+        }}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Upload Timeline from Da Vinci Resolve</DialogTitle>
+        <DialogTitle>Upload new timeline file from DaVinci Resolve</DialogTitle>
+
 
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
+
+            <Typography>Please do not close this window until you are finished editing. When you are finished export the timeline from Davinci Resolve and export the video you have cut and upload it aswell.</Typography>
+
             <Button variant="outlined" component="label">
               Upload exported timeline...
               <input
@@ -1694,6 +1703,9 @@ const addManualEdit = (fromClipId: string) => {
         </DialogContent>
 
         <DialogActions>
+          <Button
+            onClick={() => setTimeLineImportOpen(false)}
+          >Cancel</Button>
           <Button
 onClick={async () => {
   if (!uploadedTimeLineFile) return;
@@ -1844,7 +1856,7 @@ onClick={async () => {
         <DialogTitle>
           Choose how you want to open the timeline file
         </DialogTitle>
-        <DialogContent>There are three options</DialogContent>
+        <DialogContent>The previous edit node contains a timeline file from DaVinci Resolve you can use. You can copy the link to the file, download it or open it directly in Davinci Resolve.</DialogContent>
 
         <DialogActions>
           <Button
