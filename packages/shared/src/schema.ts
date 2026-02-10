@@ -44,6 +44,7 @@ export const EditNodeDataSchema = z
         changelog: z.any().optional(),
         importedAt: z.string().optional(),
         fileName: z.string().optional(),
+        storedTimelineFilename: z.string(),
         version: z.string().optional(),
       })
       .optional(),

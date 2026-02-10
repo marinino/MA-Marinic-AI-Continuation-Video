@@ -7,9 +7,12 @@ import JSZip from "jszip";
 import fs from "node:fs/promises";
 import { nanoid } from "nanoid";
 import { StoredMediaFile } from "@ma/shared";
+import { execFile } from "node:child_process";
 
 type ClipSnap = {
+  id: string
   key: string;
+  kind?: "clip" | "effect"
   name?: string;
   lane?: number;
   offset?: number;
@@ -25,16 +28,11 @@ type TimelineSnapshot = {
 };
 
 type Change =
-  | { type: "clip_added"; key: string; clip: ClipSnap }
-  | { type: "clip_removed"; key: string; clip: ClipSnap }
-  | { type: "clip_moved"; key: string; from?: number; to?: number }
-  | {
-      type: "clip_trimmed";
-      key: string;
-      from?: { start?: number; duration?: number };
-      to?: { start?: number; duration?: number };
-    }
-  | { type: "clip_renamed"; key: string; from?: string; to?: string };
+  | { type: "clip_added"; id: string; clip: ClipSnap }
+  | { type: "clip_removed"; id: string; clip: ClipSnap }
+  | { type: "clip_moved"; id: string; from?: { offset?: number; lane?: number }; to?: { offset?: number; lane?: number } }
+  | { type: "clip_trimmed"; id: string; from?: { start?: number; duration?: number }; to?: { start?: number; duration?: number } }
+  | { type: "clip_renamed"; id: string; from?: string; to?: string };
 
 const COMFY_DIR = process.env.COMFY_DIR ?? path.resolve(process.cwd(), "tools/comfyui");
 const COMFY_INPUT_DIR = path.join(COMFY_DIR, "input");
@@ -43,24 +41,41 @@ function safeNum(x: any): number | undefined {
   if (x == null) return undefined;
   if (typeof x === "number") return x;
   if (typeof x === "string") {
+    const n = Number(x);
+    if (Number.isFinite(n)) return n;
     const m = x.match(/-?\d+(\.\d+)?/);
     return m ? Number(m[0]) : undefined;
   }
   return undefined;
 }
 
+function buildKey(parts: Array<string | number | undefined | null>): string {
+  return parts.map((p) => (p == null || p === "" ? "∅" : String(p))).join("|");
+}
+
 function safeStr(x: any): string | undefined {
   return typeof x === "string" ? x : undefined;
 }
 
-function buildKey(parts: Array<string | number | undefined | null>): string {
-  return parts.map((p) => (p == null || p === "" ? "∅" : String(p))).join("|");
+function quantize(n: number | undefined, step = 1 / 1000): number | undefined {
+  if (n == null) return undefined;
+  return Math.round(n / step) * step;
 }
 
 function isZip(buf: Buffer) {
   return (
     buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4b && buf[2] === 0x03 && buf[3] === 0x04
   );
+}
+
+function stableIdFromParts(parts: Array<string | undefined | null>): string {
+  return buildKey(parts.map((p) => (p == null || p === "" ? "∅" : String(p))));
+}
+
+function dedupeByIdKeepLast(clips: ClipSnap[]): ClipSnap[] {
+  const map = new Map<string, ClipSnap>();
+  for (const c of clips) map.set(c.id, c); // last wins
+  return Array.from(map.values());
 }
 
 /* -------------------------
@@ -121,6 +136,30 @@ async function extractXmlTextFromDrtZip(
   return { xmlText, pickedName: picked, candidates: scored.slice(0, 10) };
 }
 
+function parseTimeSec(x: any): number | undefined {
+  if (x == null) return undefined;
+  if (typeof x === "number") return x;
+
+  if (typeof x !== "string") return undefined;
+  const s = x.trim();
+
+  // strip trailing unit if present
+  const noUnit = s.endsWith("s") ? s.slice(0, -1) : s;
+
+  // fraction a/b
+  const frac = noUnit.match(/^(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)$/);
+  if (frac) {
+    const a = Number(frac[1]);
+    const b = Number(frac[2]);
+    if (!Number.isFinite(a) || !Number.isFinite(b) || b === 0) return undefined;
+    return a / b;
+  }
+
+  // plain number
+  const num = Number(noUnit);
+  return Number.isFinite(num) ? num : undefined;
+}
+
 function detectFormat(filename: string, buf: Buffer, xmlObjMaybe: any): "fcpxml" | "drt" {
   const lower = filename.toLowerCase();
   if (lower.endsWith(".fcpxml")) return "fcpxml";
@@ -134,34 +173,54 @@ function detectFormat(filename: string, buf: Buffer, xmlObjMaybe: any): "fcpxml"
 function extractClipsFromFcpxml(obj: any): TimelineSnapshot {
   const clips: ClipSnap[] = [];
 
-  const visit = (node: any) => {
+  const visit = (node: any, laneFallback = 0) => {
     if (!node || typeof node !== "object") return;
 
     for (const [k, v] of Object.entries(node)) {
       if (k === "asset-clip" || k === "clip" || k === "video" || k === "title") {
         const arr = Array.isArray(v) ? v : [v];
         for (const it of arr) {
+          const name = safeStr(it?.["@_name"]);
+          const ref = safeStr(it?.["@_ref"]);
+          const lane = safeNum(it?.["@_lane"]) ?? laneFallback;
+
+          const offset = quantize(parseTimeSec(it?.["@_offset"]));
+          const start = quantize(parseTimeSec(it?.["@_start"]));
+          const duration = quantize(parseTimeSec(it?.["@_duration"]));
+
+          // STABLE identity: prefer ref. If absent, fall back to name (not perfect, but better than start/duration)
+          const id = stableIdFromParts([
+            "FCP",
+            ref ?? name ?? "unknown",
+            String(lane),
+            offset == null ? undefined : String(offset),
+          ]);
+
+
+
           const clip: ClipSnap = {
-            name: it?.["@_name"],
-            ref: it?.["@_ref"],
-            lane: safeNum(it?.["@_lane"]),
-            offset: safeNum(it?.["@_offset"]),
-            start: safeNum(it?.["@_start"]),
-            duration: safeNum(it?.["@_duration"]),
-            key: "",
+            id,
+            key: buildKey(["FCP", id, name, lane]), // debug key
+            kind: "clip",
+            name,
+            ref,
+            lane,
+            offset,
+            start,
+            duration,
           };
-          clip.key = buildKey([clip.ref, clip.name, clip.start, clip.duration]);
+
           clips.push(clip);
-          visit(it);
+          visit(it, lane);
         }
       } else {
-        visit(v);
+        visit(v, laneFallback);
       }
     }
   };
 
-  visit(obj);
-  return { timelineName: undefined, clips };
+  visit(obj, 0);
+  return { timelineName: undefined, clips: clips };
 }
 
 /* ---------------- DRT (Resolve) ----------------
@@ -288,17 +347,24 @@ function extractFromDrt(obj: any): TimelineSnapshot {
       if (!vc) return;
 
       const name = safeStr(vc?.Name) ?? "unnamed";
-      const start = safeNum(vc?.Start);
-      const duration = safeNum(vc?.Duration);
-      const ref = safeStr(vc?.MediaRef) ?? safeStr(vc?.DbId);
-      const offset = safeNum(vc?.Start); // fallback: Resolve uses Start as timeline-pos
-      const mediaFilePath = safeStr(vc?.MediaFilePath);
-      const lane = trackIdx;
+      const start = quantize(safeNum(vc?.Start));
+      const duration = quantize(safeNum(vc?.Duration));
+      const mediaFilePath = safeStr(vc?.MediaFilePath)?.replace(/\//g, "\\").toLowerCase();
 
-      const clipKey = buildKey(["CLIP", vc?.DbId ?? ref ?? name, name, start, duration, lane]);
+      const lane = trackIdx;
+      const offset = start; // ok as fallback
+
+      // STABLE identity: DbId best, then MediaRef, then file path, then name
+      const clipDbId = safeStr(vc?.["@_DbId"]) ?? safeStr(vc?.DbId);
+      const ref = safeStr(vc?.MediaRef) ?? clipDbId;
+      const stableCore = clipDbId ?? safeStr(vc?.MediaRef) ?? mediaFilePath ?? name;
+      const id = stableIdFromParts(["DRT", stableCore]);
+
 
       clips.push({
-        key: clipKey,
+        id,
+        key: buildKey(["DRT", "CLIP", id, name, lane]),
+        kind: "clip",
         name,
         ref,
         start,
@@ -308,14 +374,18 @@ function extractFromDrt(obj: any): TimelineSnapshot {
         mediaFilePath,
       });
 
-      // Add “effects” as extra snapshot items (same time span as clip)
-      const fxNames = extractEffectNames(vc);
+      // Effects as separate entities tied to clip id
+      // IMPORTANT: effects should also have stable ids, otherwise they flap too
+      // fx-id = clip-id + fx-name
+      const fxNames = extractEffectNames(vc); // keep your function
       for (const fx of fxNames) {
-        const fxKey = buildKey(["EFFECT", vc?.DbId ?? ref ?? name, fx, start, duration, lane]);
+        const fxId = stableIdFromParts(["DRT", "EFFECT", stableCore, fx.trim().toLowerCase()]);
         clips.push({
-          key: fxKey,
+          id: fxId,
+          key: buildKey(["DRT", "EFFECT", fxId, lane]),
+          kind: "effect",
           name: `EFFECT: ${fx}`,
-          ref: vc?.DbId ?? ref,
+          ref: clipDbId ?? ref,
           start,
           duration,
           offset,
@@ -325,50 +395,53 @@ function extractFromDrt(obj: any): TimelineSnapshot {
     });
   });
 
-  // dedupe by key
-  const seen = new Set<string>();
-  const deduped: ClipSnap[] = [];
-  for (const c of clips) {
-    if (seen.has(c.key)) continue;
-    seen.add(c.key);
-    deduped.push(c);
-  }
-
-  return { timelineName: undefined, clips: deduped };
+  return { timelineName: undefined, clips: dedupeByIdKeepLast(clips) };
 }
 
 /* ---------------- Diff ---------------- */
-function diffSnapshots(prev: TimelineSnapshot | null, next: TimelineSnapshot): Change[] {
-  if (!prev) return next.clips.map((c) => ({ type: "clip_added", key: c.key, clip: c }));
 
-  const prevMap = new Map(prev.clips.map((c) => [c.key, c] as const));
-  const nextMap = new Map(next.clips.map((c) => [c.key, c] as const));
+function diffSnapshots(prev: TimelineSnapshot | null, next: TimelineSnapshot): Change[] {
+  if (!prev) return next.clips.map((c) => ({ type: "clip_added", id: c.id, clip: c }));
+
+  const prevMap = new Map(prev.clips.map((c) => [c.id, c] as const));
+  const nextMap = new Map(next.clips.map((c) => [c.id, c] as const));
+
   const changes: Change[] = [];
 
-  for (const [key, clip] of prevMap)
-    if (!nextMap.has(key)) changes.push({ type: "clip_removed", key, clip });
-  for (const [key, clip] of nextMap)
-    if (!prevMap.has(key)) changes.push({ type: "clip_added", key, clip });
+  for (const [id, clip] of prevMap) {
+    if (!nextMap.has(id)) changes.push({ type: "clip_removed", id, clip });
+  }
+  for (const [id, clip] of nextMap) {
+    if (!prevMap.has(id)) changes.push({ type: "clip_added", id, clip });
+  }
 
-  for (const [key, after] of nextMap) {
-    const before = prevMap.get(key);
+  for (const [id, after] of nextMap) {
+    const before = prevMap.get(id);
     if (!before) continue;
 
+    // moved = offset or lane changed
     if (before.offset !== after.offset || before.lane !== after.lane) {
-      changes.push({ type: "clip_moved", key, from: before.offset, to: after.offset });
+      changes.push({
+        type: "clip_moved",
+        id,
+        from: { offset: before.offset, lane: before.lane },
+        to: { offset: after.offset, lane: after.lane },
+      });
     }
 
+    // trimmed = start/duration changed
     if (before.start !== after.start || before.duration !== after.duration) {
       changes.push({
         type: "clip_trimmed",
-        key,
+        id,
         from: { start: before.start, duration: before.duration },
         to: { start: after.start, duration: after.duration },
       });
     }
 
+    // renamed
     if (before.name !== after.name) {
-      changes.push({ type: "clip_renamed", key, from: before.name, to: after.name });
+      changes.push({ type: "clip_renamed", id, from: before.name, to: after.name });
     }
   }
 
@@ -407,7 +480,7 @@ function safeExt(filename: string) {
 
 /* ---------------- Route ---------------- */
 export async function timelineRoutes(app: FastifyInstance) {
-  app.post("/upload", async (req, reply) => {
+  app.post("/timeline/upload", async (req, reply) => {
     const q = req.query as { projectId?: string; expectedBasename?: string };
 
     if (!q.projectId) return reply.code(400).send({ error: "missing_projectId" });
@@ -520,6 +593,8 @@ export async function timelineRoutes(app: FastifyInstance) {
       }
     }
 
+    const storedTimelineFilename = `${version}.${filename}`;
+
     return reply.send({
       ok: true,
       format,
@@ -529,6 +604,46 @@ export async function timelineRoutes(app: FastifyInstance) {
       changelog,
       finalClip,
       storedFromTimeline,
+      storedTimelineFilename,
+      storedTimelineRelPath: `data/projects/${q.projectId}/timelines/${storedTimelineFilename}`, // optional
     });
   });
+
+  app.post("/timeline/open-timeline", async (req, reply) => {
+    const body = req.body as { projectId: string; filename: string };
+
+    const safeName = path.basename(body.filename); // important!
+    const abs = path.resolve(process.cwd(), "data", "projects", body.projectId, "timelines", safeName);
+
+    await fs.access(abs);
+
+    // Windows: opens like double click
+    execFile("cmd", ["/c", "start", "", abs], { windowsHide: true });
+
+    return reply.send({ ok: true });
+  });
+
+  app.get("/projects/:projectId/timelines/:filename", async (req, reply) => {
+    const { projectId, filename } = req.params as any;
+
+    const safeName = path.basename(filename);
+    const abs = path.resolve(
+      process.cwd(),
+      "data",
+      "projects",
+      projectId,
+      "timelines",
+      safeName
+    );
+
+    await fs.access(abs);
+
+    reply.header("Content-Disposition", `attachment; filename="${safeName}"`);
+    reply.type("application/octet-stream");
+
+    return reply.send(await fs.readFile(abs));
+  });
+
+
+  
 }

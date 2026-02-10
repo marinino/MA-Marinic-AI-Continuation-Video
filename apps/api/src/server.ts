@@ -38,7 +38,7 @@ await app.register(websocket);
 await app.register(comfyRoutes);
 
 await app.register(editorRoutes);
-await app.register(timelineRoutes, { prefix: "/timeline" });
+await app.register(timelineRoutes);
 
 app.get("/projects", async () => {
   return await listProjects();
