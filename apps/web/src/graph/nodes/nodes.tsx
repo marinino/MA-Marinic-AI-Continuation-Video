@@ -24,6 +24,7 @@ import { NodeType, StoredMediaFile } from "@ma/shared";
 import { useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import { comfyBuildVideoUrl } from "../../api";
+import { parsedChangelogLines } from "../../utils/parseTimelineChangelog";
 
 function getNodeColors(kind: NodeType, isRoot: boolean) {
   if (isRoot) return { border: "#FFB300", bg: "#FFF8E1" }; // Root Clip
@@ -309,6 +310,9 @@ export function EditNode(props: NodeProps<any>) {
   const timeline = props.data?.timeline;
   const importedAt = timeline?.importedAt;
   const changelog = (timeline?.changelog as any[]) ?? [];
+  const prevEffectKeys: string[] = props.data?.prevEffectKeys ?? [];
+  console.log(changelog);
+  const { summaryLines, detailLines } = parsedChangelogLines(changelog, prevEffectKeys);
 
   // kleines Summary
   const counts = changelog.reduce(
@@ -318,6 +322,25 @@ export function EditNode(props: NodeProps<any>) {
     },
     {} as Record<string, number>
   );
+
+  function checkInSummary(
+    kind: "clip_added" | "clip_removed" | "effect_added",
+    summaryLines: string[]
+  ): boolean {
+    switch (kind) {
+      case "clip_added":
+        return summaryLines.some((line) => line.startsWith("Added ") && line.includes("frames"));
+
+      case "clip_removed":
+        return summaryLines.some((line) => line.startsWith("Cut "));
+
+      case "effect_added":
+        return summaryLines.some((line) => line.startsWith("Added effect"));
+
+      default:
+        return false;
+    }
+  }
 
   return (
     <div style={{ position: "relative" }}>
@@ -365,17 +388,46 @@ export function EditNode(props: NodeProps<any>) {
             {/* ✅ Optional: list first 5 */}
             {changelog.length > 0 && (
               <Box sx={{ mt: 0.5 }}>
-                {changelog.slice(0, 5).map((c, i) => (
-                  <Typography key={i} variant="caption" color="text.secondary" display="block">
-                    • {c.type} ({String(c.key ?? "").slice(0, 40)}…)
-                  </Typography>
-                ))}
+                <Stack spacing={1}>
+                  {summaryLines.map((line, i) => (
+                    <Typography key={i} variant="body2">
+                      {line}
+                    </Typography>
+                  ))}
+
+                  {detailLines.length > 0 && (
+                    <>
+                      <Typography variant="subtitle2" sx={{ mt: 1 }}>
+                        Details
+                      </Typography>
+
+                      <Stack spacing={0.5}>
+                        {detailLines.map((line, i) => (
+                          <Typography
+                            key={i}
+                            variant="caption"
+                            sx={{ opacity: 0.85, overflowWrap: "anywhere" }}
+                          >
+                            {line}
+                          </Typography>
+                        ))}
+                      </Stack>
+                    </>
+                  )}
+                </Stack>
               </Box>
             )}
           </Stack>
         }
       >
         <Typography variant="body2">{props.data?.label}</Typography>
+        <Stack gap={1} mt={1}>
+          {checkInSummary("clip_added", summaryLines) && <Chip label="Added clip" />}
+
+          {checkInSummary("clip_removed", summaryLines) && <Chip label="Cut clip" />}
+
+          {checkInSummary("effect_added", summaryLines) && <Chip label="Added effect" />}
+        </Stack>
       </NodeCard>
     </div>
   );

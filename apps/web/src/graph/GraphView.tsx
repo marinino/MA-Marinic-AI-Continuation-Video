@@ -51,6 +51,7 @@ import {
 } from "../api";
 
 import { Job } from "../jobs/types";
+import { parsedChangelogLines } from "../utils/parseTimelineChangelog";
 
 const edgeTypes = { labeled: LabeledEdge };
 
@@ -90,17 +91,12 @@ function fromRF(project: Project, nodes: RFNode[], edges: RFEdge[]): Project {
       const original = project.edges.find((x) => x.id === e.id);
 
       // ✅ HIER IST DER FIX:
-    const type =
-      ((e.data as any)?.label ??
-        original?.type ??
-        "input") as any;
-
+      const type = ((e.data as any)?.label ?? original?.type ?? "input") as any;
 
       return { id: e.id, type, source: e.source, target: e.target };
     }),
   };
 }
-
 
 /* ---------- Layout helpers ---------- */
 
@@ -200,22 +196,17 @@ export function GraphView(props: {
   const [namingConventionInfoOpen, setNamingConventionInfoOpen] = useState(false);
   const [namingConventionName, setNamingConventionName] = useState("");
 
-
-
-
-  const [daVinciActionDalogOpen, setDaVinciActionDalogOpen] = useState(false)
+  const [daVinciActionDalogOpen, setDaVinciActionDalogOpen] = useState(false);
 
   const rfEdgesRef = useRef<RFEdge[]>([]);
   useEffect(() => {
     rfEdgesRef.current = rfEdges;
   }, [rfEdges]);
 
-
   const rfNodesRef = useRef<RFNode[]>([]);
   useEffect(() => {
     rfNodesRef.current = rfNodes;
   }, [rfNodes]);
-
 
   const [jobsOpen, setJobsOpen] = useState(false);
 
@@ -229,10 +220,7 @@ export function GraphView(props: {
   const [uploadedTimeLineFile, setUploadedTimeLineFile] = useState<File | null>(null);
   const [editedVideoUploadFile, setEditedVideoUploadFile] = useState<File | null>(null);
 
-
-
   const davinciContextEditIdRef = useRef<string | null>(null);
-
 
   type ManualEditDraft = {
     fromClipId: string;
@@ -240,8 +228,6 @@ export function GraphView(props: {
   };
 
   const [manualEditDraft, setManualEditDraft] = useState<ManualEditDraft | null>(null);
-
-
 
   const jobsRef = useRef<Job[]>([]);
   useEffect(() => {
@@ -261,8 +247,6 @@ export function GraphView(props: {
     const sel = props.project.uiState?.selectedNodeId ?? null;
     setClickedNodeId(sel);
   }, [props.project.uiState?.selectedNodeId]);
-
-
 
   const anyBusy = useMemo(
     () =>
@@ -323,7 +307,9 @@ export function GraphView(props: {
   };
 
   function findEditNodeIdForClipProject(project: Project, clipId: string): string | null {
-    const incomingFromEdit = project.edges.find((e) => e.target === clipId && e.type === "edit_out");
+    const incomingFromEdit = project.edges.find(
+      (e) => e.target === clipId && e.type === "edit_out"
+    );
     if (incomingFromEdit) return incomingFromEdit.source;
 
     const outgoingToEdit = project.edges.find((e) => e.source === clipId && e.type === "edit_in");
@@ -347,7 +333,6 @@ export function GraphView(props: {
     return findEditNodeIdForClipProject(project, clipId);
   }
 
-
   function buildTimelineDownloadUrl(projectId: string, storedTimelineFilename: string) {
     // muss zu deinem Backend passen; Beispiel:
     // GET /api/projects/:projectId/timelines/:filename
@@ -355,7 +340,6 @@ export function GraphView(props: {
       storedTimelineFilename
     )}`;
   }
-
 
   useEffect(() => {
     if (activeJobId) return;
@@ -551,116 +535,114 @@ export function GraphView(props: {
     }
   }
 
+  function findPrevEditId(project: Project, currentEditId: string): string | null {
+    const editNode = project.nodes.find((n) => n.id === currentEditId) as any;
+    const parentClipId = editNode?.data?.parentClipId;
+    if (!parentClipId) return null;
 
+    const prevEdit = project.nodes.find(
+      (n) => n.type === "edit" && (n as any).data?.outClipId === parentClipId
+    ) as any;
 
- 
+    return prevEdit?.id ?? null;
+  }
 
+  function getPrevEffectKeysFromParentClip(project: Project, parentClipId: string): string[] {
+    const prevEdit = project.nodes.find(
+      (n) => n.type === "edit" && (n as any).data?.outClipId === parentClipId
+    ) as any;
 
-
-
-
-
+    return prevEdit?.data?.effectKeys ?? [];
+  }
 
   function resolveEditIdForClipId(clipId: string): string | null {
-  // 1) Best case: edited clip kennt seinen edit
-  const clip = props.project.nodes.find((n) => n.id === clipId) as any;
-  const direct = clip?.data?.producedByEditId ?? null;
-  if (direct) return direct;
+    // 1) Best case: edited clip kennt seinen edit
+    const clip = props.project.nodes.find((n) => n.id === clipId) as any;
+    const direct = clip?.data?.producedByEditId ?? null;
+    if (direct) return direct;
 
-  // 2) Fallback: über edges (reload-safe)
-  const inc = props.project.edges.find((e) => e.target === clipId && e.type === "edit_out");
-  if (inc) return inc.source;
+    // 2) Fallback: über edges (reload-safe)
+    const inc = props.project.edges.find((e) => e.target === clipId && e.type === "edit_out");
+    if (inc) return inc.source;
 
-  const out = props.project.edges.find((e) => e.source === clipId && e.type === "edit_in");
-  if (out) return out.target;
+    const out = props.project.edges.find((e) => e.source === clipId && e.type === "edit_in");
+    if (out) return out.target;
 
-  return null;
-}
-
-function timelineUrl(projectId: string, filename: string) {
-  return `/api/projects/${encodeURIComponent(projectId)}/timelines/${encodeURIComponent(filename)}`;
-}
-
-
-function requireTimelineFromContext(): { stored: string; url: string } | null {
-  const editId = getCurrentEditId();
-
-  if (!editId) {
-    alert("No edit context selected. Select an edited clip or the edit node first.");
     return null;
   }
 
-  const prNode = props.project.nodes.find((n) => n.id === editId) as any;
-
-  const stored =
-    prNode?.data?.timeline?.storedTimelineFilename ?? null;
-
-  if (!stored) {
-    alert("No timeline file found in this edit node. Upload a timeline first.");
-    return null;
+  function timelineUrl(projectId: string, filename: string) {
+    return `/api/projects/${encodeURIComponent(projectId)}/timelines/${encodeURIComponent(filename)}`;
   }
 
-  const url = `${window.location.origin}${timelineUrl(props.project.id, stored)}`;
-  return { stored, url };
-}
+  function requireTimelineFromContext(): { stored: string; url: string } | null {
+    const editId = getCurrentEditId();
 
-
-
-
-
-async function copyTimelineFileURL() {
-  const ctx = requireTimelineFromContext();
-  if (!ctx) return;
-  try {
-    await navigator.clipboard.writeText(ctx.url);
-  } catch {
-    window.prompt("Copy this URL:", ctx.url);
-  }
-}
-
-function downloadTImelineFile(projectId: string) {
-  const ctx = requireTimelineFromContext();
-  if (!ctx) return;
-  window.open(timelineUrl(projectId, ctx.stored), "_blank", "noopener,noreferrer");
-}
-
-async function openTimelineFileInDavinciBackend() {
-  const ctx = requireTimelineFromContext();
-  if (!ctx) return;
-
-  try {
-    const res = await openTimelineInResolve(props.project.id, ctx.stored);
-    if (res && "ok" in res && !res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`Open failed (${res.status}): ${txt || res.statusText}`);
+    if (!editId) {
+      alert("No edit context selected. Select an edited clip or the edit node first.");
+      return null;
     }
-  } catch (e: any) {
-    console.error(e);
-    alert("Could not open timeline in Resolve: " + (e?.message ?? String(e)));
-  }
-}
 
+    const prNode = props.project.nodes.find((n) => n.id === editId) as any;
 
-function getCurrentEditId(): string | null {
-  const sel = props.project.uiState?.selectedNodeId ?? null;
-  if (!sel) return null;
+    const stored = prNode?.data?.timeline?.storedTimelineFilename ?? null;
 
-  // Falls der selected Node selbst ein edit ist
-  const selNode = props.project.nodes.find((n) => n.id === sel) as any;
-  if (selNode?.type === "edit") return sel;
+    if (!stored) {
+      alert("No timeline file found in this edit node. Upload a timeline first.");
+      return null;
+    }
 
-  // Falls selected Node ein Clip ist: finde zugehörigen Edit über persisted Daten
-  if (selNode?.type === "clip") {
-    return resolveEditIdForClipId(sel);
+    const url = `${window.location.origin}${timelineUrl(props.project.id, stored)}`;
+    return { stored, url };
   }
 
-  return null;
-}
+  async function copyTimelineFileURL() {
+    const ctx = requireTimelineFromContext();
+    if (!ctx) return;
+    try {
+      await navigator.clipboard.writeText(ctx.url);
+    } catch {
+      window.prompt("Copy this URL:", ctx.url);
+    }
+  }
 
+  function downloadTImelineFile(projectId: string) {
+    const ctx = requireTimelineFromContext();
+    if (!ctx) return;
+    window.open(timelineUrl(projectId, ctx.stored), "_blank", "noopener,noreferrer");
+  }
 
+  async function openTimelineFileInDavinciBackend() {
+    const ctx = requireTimelineFromContext();
+    if (!ctx) return;
 
+    try {
+      const res = await openTimelineInResolve(props.project.id, ctx.stored);
+      if (res && "ok" in res && !res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Open failed (${res.status}): ${txt || res.statusText}`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert("Could not open timeline in Resolve: " + (e?.message ?? String(e)));
+    }
+  }
 
+  function getCurrentEditId(): string | null {
+    const sel = props.project.uiState?.selectedNodeId ?? null;
+    if (!sel) return null;
 
+    // Falls der selected Node selbst ein edit ist
+    const selNode = props.project.nodes.find((n) => n.id === sel) as any;
+    if (selNode?.type === "edit") return sel;
+
+    // Falls selected Node ein Clip ist: finde zugehörigen Edit über persisted Daten
+    if (selNode?.type === "clip") {
+      return resolveEditIdForClipId(sel);
+    }
+
+    return null;
+  }
 
   const restoreViewport = () => {
     const raw = localStorage.getItem(viewportKey);
@@ -686,7 +668,6 @@ function getCurrentEditId(): string | null {
     const next = toRF(props.project, props.showEdgeLabels);
     setRfNodes(next.nodes);
     setRfEdges(next.edges);
-
 
     setActionDialogOpen(false);
 
@@ -1103,7 +1084,6 @@ function getCurrentEditId(): string | null {
 
             setActionDialogOpen(true);
           },
-
         },
       };
     });
@@ -1125,25 +1105,23 @@ function getCurrentEditId(): string | null {
     setActionDialogOpen(true);
   };
 
+  const addManualEdit = (fromClipId: string) => {
+    // wir erzeugen jetzt NUR einen erwarteten Dateinamen (ohne Nodes)
+    const outClipId = nanoid();
+    const expectedBasename = `${outClipId}.mp4`;
+    console.log("DRAFT SET");
+    setManualEditDraft({ fromClipId, expectedBasename });
 
-const addManualEdit = (fromClipId: string) => {
-  // wir erzeugen jetzt NUR einen erwarteten Dateinamen (ohne Nodes)
-  const outClipId = nanoid();
-  const expectedBasename = `${outClipId}.mp4`;
-  console.log("DRAFT SET")
-  setManualEditDraft({ fromClipId, expectedBasename });
+    // Kontext "locked": wir benutzen später den Draft, nicht irgendeine ID
+    // (editId gibt es ja noch nicht)
+    const file = getNodeVideoFile(fromClipId);
+    if (file?.filename) openInResolve(file.filename);
 
-  // Kontext "locked": wir benutzen später den Draft, nicht irgendeine ID
-  // (editId gibt es ja noch nicht)
-  const file = getNodeVideoFile(fromClipId);
-  if (file?.filename) openInResolve(file.filename);
+    setNamingConventionName(expectedBasename);
+    setNamingConventionInfoOpen(true);
 
-  setNamingConventionName(expectedBasename);
-  setNamingConventionInfoOpen(true);
-
-  return { expectedBasename };
-};
-
+    return { expectedBasename };
+  };
 
   // ✅ Let ReactFlow update local state; commit to project on drag stop
   const onNodesChange = (changes: NodeChange[]) => {
@@ -1308,7 +1286,6 @@ const addManualEdit = (fromClipId: string) => {
                 if (clickedNodeId) addManualEdit(clickedNodeId);
                 setActionDialogOpen(false);
               }}
-
             >
               Manual edit
             </Button>
@@ -1571,15 +1548,16 @@ const addManualEdit = (fromClipId: string) => {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>
-          DaVinci Resolve Edit
-        </DialogTitle>
-        <DialogContent>Choose which version of DaVinci you have. With the studio version changes can be imported automatically. The free version necessitates more work.</DialogContent>
+        <DialogTitle>DaVinci Resolve Edit</DialogTitle>
+        <DialogContent>
+          Choose which version of DaVinci you have. With the studio version changes can be imported
+          automatically. The free version necessitates more work.
+        </DialogContent>
 
         <DialogActions>
           <Button
             onClick={() => {
-              setManualEditDraft(null)
+              setManualEditDraft(null);
               setNamingConventionInfoOpen(false);
             }}
           >
@@ -1597,7 +1575,7 @@ const addManualEdit = (fromClipId: string) => {
 
               try {
                 await importResolveMetaIntoEdit(editId);
-                setNamingConventionInfoOpen(false)
+                setNamingConventionInfoOpen(false);
               } catch (e: any) {
                 console.error(e);
 
@@ -1630,20 +1608,18 @@ const addManualEdit = (fromClipId: string) => {
 
           <Button
             variant="contained"
-           onClick={() => {
-            console.log(manualEditDraft)
+            onClick={() => {
+              console.log(manualEditDraft);
               if (!manualEditDraft) {
                 alert("No manual edit in progress.");
                 return;
               }
               setDaVinciActionDalogOpen(true);
-              setNamingConventionInfoOpen(false)
+              setNamingConventionInfoOpen(false);
             }}
-
           >
             DaVinci Resolve free version
           </Button>
-
         </DialogActions>
       </Dialog>
 
@@ -1662,11 +1638,13 @@ const addManualEdit = (fromClipId: string) => {
       >
         <DialogTitle>Upload new timeline file from DaVinci Resolve</DialogTitle>
 
-
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-
-            <Typography>Please do not close this window until you are finished editing. When you are finished export the timeline from Davinci Resolve and export the video you have cut and upload it aswell.</Typography>
+            <Typography>
+              Please do not close this window until you are finished editing. When you are finished
+              export the timeline from Davinci Resolve and export the video you have cut and upload
+              it aswell.
+            </Typography>
 
             <Button variant="outlined" component="label">
               Upload exported timeline...
@@ -1703,143 +1681,158 @@ const addManualEdit = (fromClipId: string) => {
         </DialogContent>
 
         <DialogActions>
+          <Button onClick={() => setTimeLineImportOpen(false)}>Cancel</Button>
           <Button
-            onClick={() => setTimeLineImportOpen(false)}
-          >Cancel</Button>
-          <Button
-onClick={async () => {
-  if (!uploadedTimeLineFile) return;
-  if (!editedVideoUploadFile) return;
+            onClick={async () => {
+              if (!uploadedTimeLineFile) return;
+              if (!editedVideoUploadFile) return;
 
-  if (!manualEditDraft) {
-    alert("No manual edit draft found. Start a manual edit from a clip first.");
-    return;
-  }
+              if (!manualEditDraft) {
+                alert("No manual edit draft found. Start a manual edit from a clip first.");
+                return;
+              }
 
-  const { fromClipId, expectedBasename } = manualEditDraft;
+              const { fromClipId, expectedBasename } = manualEditDraft;
 
-  try {
-    // 1) uploads
-    const storedVideo = await comfyUploadVideo(editedVideoUploadFile);
-    const res = await uploadTimelineFile(props.project.id, uploadedTimeLineFile);
+              try {
+                // 1) uploads
+                const storedVideo = await comfyUploadVideo(editedVideoUploadFile);
+                const res = await uploadTimelineFile(props.project.id, uploadedTimeLineFile);
 
-    // 2) jetzt IDs erzeugen (final!)
-    const editId = nanoid();
-    const outClipId = nanoid(); // <- oder: aus expectedBasename ableiten, wenn du willst
-    // wenn du den outClipId an expectedBasename koppeln willst:
-    // const outClipId = expectedBasename.replace(/\.mp4$/i, "");
+                // 2) jetzt IDs erzeugen (final!)
+                const editId = nanoid();
+                const outClipId = nanoid(); // <- oder: aus expectedBasename ableiten, wenn du willst
+                // wenn du den outClipId an expectedBasename koppeln willst:
+                // const outClipId = expectedBasename.replace(/\.mp4$/i, "");
 
+                // 3) positions berechnen (wie vorher)
+                const fromNode = rfNodesRef.current.find((n) => n.id === fromClipId);
+                const baseX = fromNode?.position.x ?? 50;
+                const baseY = fromNode?.position.y ?? 80;
 
-    // 3) positions berechnen (wie vorher)
-    const fromNode = rfNodesRef.current.find((n) => n.id === fromClipId);
-    const baseX = fromNode?.position.x ?? 50;
-    const baseY = fromNode?.position.y ?? 80;
+                const branchIndex = countBranches(rfEdgesRef.current as any, fromClipId);
+                const yOffset = branchIndex * 180;
 
-    const branchIndex = countBranches(rfEdgesRef.current as any, fromClipId);
-    const yOffset = branchIndex * 180;
+                const desiredEditPos = { x: baseX + 260, y: baseY + yOffset };
+                const editPos = findFreePosition(desiredEditPos, rfNodesRef.current);
 
-    const desiredEditPos = { x: baseX + 260, y: baseY + yOffset };
-    const editPos = findFreePosition(desiredEditPos, rfNodesRef.current);
+                const desiredClipPos = { x: baseX + 520, y: editPos.y };
+                const clipPos = findFreePosition(desiredClipPos, rfNodesRef.current);
 
-    const desiredClipPos = { x: baseX + 520, y: editPos.y };
-    const clipPos = findFreePosition(desiredClipPos, rfNodesRef.current);
+                const prevEffectKeys = getPrevEffectKeysFromParentClip(props.project, fromClipId);
 
-    // 4) nodes bauen
-    const editNode: RFNode = {
-      id: editId,
-      type: "edit",
-      position: editPos,
-      data: {
-        label: "Manual edit",
-        tool: "resolve",
-        parentClipId: fromClipId,
-        outClipId,
-        export: {
-          expectedBasename, // bleibt stabil, den hat der User ja exportiert
-          status: "imported",
-          foundPath: null,
-        },
-        timeline: {
-          snapshot: res.snapshot,
-          changelog: res.changelog,
-          importedAt: new Date().toISOString(),
-          fileName: uploadedTimeLineFile.name,
-          storedTimelineFilename: res.storedTimelineFilename,
-          version: "latest",
-        },
-        meta: null,
-        notes: `Export as: ${expectedBasename}`,
-      } as any,
-      draggable: true,
-    };
+                const { nextEffectKeys } = parsedChangelogLines(res.changelog, prevEffectKeys);
 
-    const outClipNode: RFNode = {
-      id: outClipId,
-      type: "clip",
-      position: clipPos,
-      data: {
-        label: "Edited Clip",
-        videoFile: storedVideo,
-        videoStatus: "done",
-        producedByEditId: editId,
-      } as any,
-      draggable: true,
-    };
+                // 4) nodes bauen
+                const editNode: RFNode = {
+                  id: editId,
+                  type: "edit",
+                  position: editPos,
+                  data: {
+                    label: "Manual edit",
+                    tool: "resolve",
+                    parentClipId: fromClipId,
+                    outClipId,
+                    export: {
+                      expectedBasename, // bleibt stabil, den hat der User ja exportiert
+                      status: "imported",
+                      foundPath: null,
+                    },
+                    timeline: {
+                      snapshot: res.snapshot,
+                      changelog: res.changelog,
+                      importedAt: new Date().toISOString(),
+                      fileName: uploadedTimeLineFile.name,
+                      storedTimelineFilename: res.storedTimelineFilename,
+                      version: "latest",
+                    },
+                    prevEffectKeys,
+                    effectKeys: nextEffectKeys,
+                    meta: null,
+                    notes: `Export as: ${expectedBasename}`,
+                  } as any,
+                  draggable: true,
+                };
 
-    const e1 = { id: nanoid(), type: "edit_in" as const, source: fromClipId, target: editId };
-    const e2 = { id: nanoid(), type: "edit_out" as const, source: editId, target: outClipId };
+                const outClipNode: RFNode = {
+                  id: outClipId,
+                  type: "clip",
+                  position: clipPos,
+                  data: {
+                    label: "Edited Clip",
+                    videoFile: storedVideo,
+                    videoStatus: "done",
+                    producedByEditId: editId,
+                  } as any,
+                  draggable: true,
+                };
 
-    const edge1: RFEdge = {
-      id: e1.id,
-      source: e1.source,
-      target: e1.target,
-      type: "labeled",
-      data: { label: e1.type, showLabel: props.showEdgeLabels },
-      sourceHandle: "out",
-      targetHandle: "in",
-    };
+                const e1 = {
+                  id: nanoid(),
+                  type: "edit_in" as const,
+                  source: fromClipId,
+                  target: editId,
+                };
+                const e2 = {
+                  id: nanoid(),
+                  type: "edit_out" as const,
+                  source: editId,
+                  target: outClipId,
+                };
 
-    const edge2: RFEdge = {
-      id: e2.id,
-      source: e2.source,
-      target: e2.target,
-      type: "labeled",
-      data: { label: e2.type, showLabel: props.showEdgeLabels },
-      sourceHandle: "out",
-      targetHandle: "in",
-    };
+                const edge1: RFEdge = {
+                  id: e1.id,
+                  source: e1.source,
+                  target: e1.target,
+                  type: "labeled",
+                  data: { label: e1.type, showLabel: props.showEdgeLabels },
+                  sourceHandle: "out",
+                  targetHandle: "in",
+                };
 
-    // 5) state + persist in einem Rutsch
-    setRfNodes((prevNodes) => {
-      const nextNodes = [...prevNodes, editNode, outClipNode];
+                const edge2: RFEdge = {
+                  id: e2.id,
+                  source: e2.source,
+                  target: e2.target,
+                  type: "labeled",
+                  data: { label: e2.type, showLabel: props.showEdgeLabels },
+                  sourceHandle: "out",
+                  targetHandle: "in",
+                };
 
-      setRfEdges((prevEdges) => {
-        const nextEdges = [...prevEdges, edge1, edge2];
+                // 5) state + persist in einem Rutsch
+                setRfNodes((prevNodes) => {
+                  const nextNodes = [...prevNodes, editNode, outClipNode];
 
-        props.onChange((prevProject) => {
-          const base = fromRF(prevProject, nextNodes as any, nextEdges as any);
-          return { ...base, uiState: { ...prevProject.uiState, selectedNodeId: editId } };
-        });
+                  setRfEdges((prevEdges) => {
+                    const nextEdges = [...prevEdges, edge1, edge2];
 
-        return nextEdges;
-      });
+                    props.onChange((prevProject) => {
+                      const base = fromRF(prevProject, nextNodes as any, nextEdges as any);
+                      return {
+                        ...base,
+                        uiState: { ...prevProject.uiState, selectedNodeId: editId },
+                      };
+                    });
 
-      return nextNodes;
-    });
+                    return nextEdges;
+                  });
 
-    // 6) cleanup + focus
-    setPendingFocusId(outClipId);
+                  return nextNodes;
+                });
 
-    setTimeLineImportOpen(false);
-    setUploadedTimeLineFile(null);
-    setEditedVideoUploadFile(null);
-    setManualEditDraft(null);
-  } catch (e: any) {
-    console.error(e);
-    alert("Timeline upload failed: " + (e?.message ?? String(e)));
-  }
-}}
+                // 6) cleanup + focus
+                setPendingFocusId(outClipId);
 
+                setTimeLineImportOpen(false);
+                setUploadedTimeLineFile(null);
+                setEditedVideoUploadFile(null);
+                setManualEditDraft(null);
+              } catch (e: any) {
+                console.error(e);
+                alert("Timeline upload failed: " + (e?.message ?? String(e)));
+              }
+            }}
             disabled={!uploadedTimeLineFile || !editedVideoUploadFile}
           >
             Finish
@@ -1853,26 +1846,27 @@ onClick={async () => {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>
-          Choose how you want to open the timeline file
-        </DialogTitle>
-        <DialogContent>The previous edit node contains a timeline file from DaVinci Resolve you can use. You can copy the link to the file, download it or open it directly in Davinci Resolve.</DialogContent>
+        <DialogTitle>Choose how you want to open the timeline file</DialogTitle>
+        <DialogContent>
+          The previous edit node contains a timeline file from DaVinci Resolve you can use. You can
+          copy the link to the file, download it or open it directly in Davinci Resolve.
+        </DialogContent>
 
         <DialogActions>
           <Button
             onClick={async () => {
               await copyTimelineFileURL();
-              setDaVinciActionDalogOpen(false)
+              setDaVinciActionDalogOpen(false);
               setTimeLineImportOpen(true);
             }}
           >
             Copy URL
           </Button>
 
-          <Button 
+          <Button
             onClick={async () => {
-              downloadTImelineFile(props.project.id)
-              setDaVinciActionDalogOpen(false)
+              downloadTImelineFile(props.project.id);
+              setDaVinciActionDalogOpen(false);
               setTimeLineImportOpen(true);
             }}
           >
@@ -1882,8 +1876,8 @@ onClick={async () => {
           <Button
             variant="contained"
             onClick={async () => {
-              await openTimelineFileInDavinciBackend()
-              setDaVinciActionDalogOpen(false)
+              await openTimelineFileInDavinciBackend();
+              setDaVinciActionDalogOpen(false);
               setTimeLineImportOpen(true);
             }}
           >

@@ -10,9 +10,9 @@ import { StoredMediaFile } from "@ma/shared";
 import { execFile } from "node:child_process";
 
 type ClipSnap = {
-  id: string
+  id: string;
   key: string;
-  kind?: "clip" | "effect"
+  kind?: "clip" | "effect";
   name?: string;
   lane?: number;
   offset?: number;
@@ -30,8 +30,18 @@ type TimelineSnapshot = {
 type Change =
   | { type: "clip_added"; id: string; clip: ClipSnap }
   | { type: "clip_removed"; id: string; clip: ClipSnap }
-  | { type: "clip_moved"; id: string; from?: { offset?: number; lane?: number }; to?: { offset?: number; lane?: number } }
-  | { type: "clip_trimmed"; id: string; from?: { start?: number; duration?: number }; to?: { start?: number; duration?: number } }
+  | {
+      type: "clip_moved";
+      id: string;
+      from?: { offset?: number; lane?: number };
+      to?: { offset?: number; lane?: number };
+    }
+  | {
+      type: "clip_trimmed";
+      id: string;
+      from?: { start?: number; duration?: number };
+      to?: { start?: number; duration?: number };
+    }
   | { type: "clip_renamed"; id: string; from?: string; to?: string };
 
 const COMFY_DIR = process.env.COMFY_DIR ?? path.resolve(process.cwd(), "tools/comfyui");
@@ -105,9 +115,7 @@ function scoreDrtXml(text: string): number {
   return s;
 }
 
-async function extractXmlTextFromDrtZip(
-  buf: Buffer
-): Promise<{
+async function extractXmlTextFromDrtZip(buf: Buffer): Promise<{
   xmlText: string;
   pickedName: string;
   candidates: Array<{ name: string; score: number }>;
@@ -195,8 +203,6 @@ function extractClipsFromFcpxml(obj: any): TimelineSnapshot {
             String(lane),
             offset == null ? undefined : String(offset),
           ]);
-
-
 
           const clip: ClipSnap = {
             id,
@@ -359,7 +365,6 @@ function extractFromDrt(obj: any): TimelineSnapshot {
       const ref = safeStr(vc?.MediaRef) ?? clipDbId;
       const stableCore = clipDbId ?? safeStr(vc?.MediaRef) ?? mediaFilePath ?? name;
       const id = stableIdFromParts(["DRT", stableCore]);
-
 
       clips.push({
         id,
@@ -613,7 +618,14 @@ export async function timelineRoutes(app: FastifyInstance) {
     const body = req.body as { projectId: string; filename: string };
 
     const safeName = path.basename(body.filename); // important!
-    const abs = path.resolve(process.cwd(), "data", "projects", body.projectId, "timelines", safeName);
+    const abs = path.resolve(
+      process.cwd(),
+      "data",
+      "projects",
+      body.projectId,
+      "timelines",
+      safeName
+    );
 
     await fs.access(abs);
 
@@ -627,14 +639,7 @@ export async function timelineRoutes(app: FastifyInstance) {
     const { projectId, filename } = req.params as any;
 
     const safeName = path.basename(filename);
-    const abs = path.resolve(
-      process.cwd(),
-      "data",
-      "projects",
-      projectId,
-      "timelines",
-      safeName
-    );
+    const abs = path.resolve(process.cwd(), "data", "projects", projectId, "timelines", safeName);
 
     await fs.access(abs);
 
@@ -643,7 +648,4 @@ export async function timelineRoutes(app: FastifyInstance) {
 
     return reply.send(await fs.readFile(abs));
   });
-
-
-  
 }

@@ -184,17 +184,14 @@ export async function uploadTimelineFile(projectId: string, file: File, expected
 }
 
 export async function openTimelineInResolve(projectId: string, filename: string) {
- 
-
- const res = await fetch("/api/timeline/open-timeline", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: projectId,
-          filename: filename,
-        }),
-      });
+  const res = await fetch("/api/timeline/open-timeline", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      projectId: projectId,
+      filename: filename,
+    }),
+  });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
-
