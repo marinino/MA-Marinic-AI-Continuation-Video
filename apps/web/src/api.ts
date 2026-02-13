@@ -167,12 +167,24 @@ export async function resolveExportTimeline() {
   return await r.json();
 }
 
-export async function uploadTimelineFile(projectId: string, file: File, expectedBasename?: string) {
+export async function uploadTimelineFile(
+  projectId: string,
+  file: File,
+  baselineStoredTimelineFilename?: string,
+  expectedBasename?: string
+) {
   const fd = new FormData();
   fd.append("file", file);
 
   const qs = new URLSearchParams({ projectId });
-  if (expectedBasename) qs.set("expectedBasename", expectedBasename);
+
+  if (baselineStoredTimelineFilename) {
+    qs.set("baselineStoredTimelineFilename", baselineStoredTimelineFilename);
+  }
+
+  if (expectedBasename) {
+    qs.set("expectedBasename", expectedBasename);
+  }
 
   const res = await fetch(`/api/timeline/upload?${qs.toString()}`, {
     method: "POST",
@@ -182,6 +194,7 @@ export async function uploadTimelineFile(projectId: string, file: File, expected
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+
 
 export async function openTimelineInResolve(projectId: string, filename: string) {
   const res = await fetch("/api/timeline/open-timeline", {

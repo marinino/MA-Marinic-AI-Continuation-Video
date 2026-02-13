@@ -486,7 +486,7 @@ function safeExt(filename: string) {
 /* ---------------- Route ---------------- */
 export async function timelineRoutes(app: FastifyInstance) {
   app.post("/timeline/upload", async (req, reply) => {
-    const q = req.query as { projectId?: string; expectedBasename?: string };
+    const q = req.query as { projectId?: string; expectedBasename?: string; baselineStoredTimelineFilename?: string; };
 
     if (!q.projectId) return reply.code(400).send({ error: "missing_projectId" });
 
@@ -500,7 +500,30 @@ export async function timelineRoutes(app: FastifyInstance) {
     await mkdir(baseDir, { recursive: true });
 
     const latestPath = path.join(baseDir, "latest.snapshot.json");
-    const prev = await readJsonIfExists<TimelineSnapshot>(latestPath);
+    let prev: TimelineSnapshot | null = null;
+
+    if (q.baselineStoredTimelineFilename) {
+      // baselineStoredTimelineFilename = z.B. "1700000000000.timeline.drt"
+      const base = path.basename(q.baselineStoredTimelineFilename);
+      // z.B. "1700....timeline.drt" -> "1700....timeline.drt.snapshot.json" geht nicht
+      // also: nimm exakt dieselbe Version wie du sie speicherst:
+      const version = base.split(".")[0];
+      const baselineSnapPath = path.join(baseDir, `${version}.snapshot.json`);
+
+      prev = await readJsonIfExists<TimelineSnapshot>(baselineSnapPath);
+
+      if (!prev) {
+        return reply.code(400).send({
+          error: "baseline_snapshot_not_found",
+          baselineSnapPath,
+        });
+      }
+    } else {
+      // fallback (optional): bisheriges Verhalten
+      console.log("BASELINE NOT FOUND FOR JSON")
+      const latestPath = path.join(baseDir, "latest.snapshot.json");
+      prev = await readJsonIfExists<TimelineSnapshot>(latestPath);
+    }
 
     const parser = new XMLParser({ ignoreAttributes: false });
 

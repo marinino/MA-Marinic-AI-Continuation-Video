@@ -612,6 +612,25 @@ export function GraphView(props: {
     window.open(timelineUrl(projectId, ctx.stored), "_blank", "noopener,noreferrer");
   }
 
+  function getBaselineStoredTimelineFilenameForClip(project: Project, clipId: string): string | null {
+    // clip -> edit, der ihn erzeugt hat
+    const editId = (() => {
+      const clip = project.nodes.find((n) => n.id === clipId) as any;
+      if (clip?.data?.producedByEditId) return clip.data.producedByEditId as string;
+
+      const inc = project.edges.find((e) => e.target === clipId && e.type === "edit_out");
+      if (inc) return inc.source;
+
+      return null;
+    })();
+
+    if (!editId) return null;
+
+    const editNode = project.nodes.find((n) => n.id === editId) as any;
+    return editNode?.data?.timeline?.storedTimelineFilename ?? null;
+  }
+
+
   async function openTimelineFileInDavinciBackend() {
     const ctx = requireTimelineFromContext();
     if (!ctx) return;
@@ -1697,7 +1716,8 @@ export function GraphView(props: {
               try {
                 // 1) uploads
                 const storedVideo = await comfyUploadVideo(editedVideoUploadFile);
-                const res = await uploadTimelineFile(props.project.id, uploadedTimeLineFile);
+                const baseline = getBaselineStoredTimelineFilenameForClip(props.project, fromClipId);
+                const res = await uploadTimelineFile(props.project.id, uploadedTimeLineFile, baseline ?? undefined, expectedBasename);
 
                 // 2) jetzt IDs erzeugen (final!)
                 const editId = nanoid();
