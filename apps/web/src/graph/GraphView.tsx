@@ -198,6 +198,11 @@ export function GraphView(props: {
 
   const [daVinciActionDalogOpen, setDaVinciActionDalogOpen] = useState(false);
 
+  const [errorDialog, setErrorDialog] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
+
   const rfEdgesRef = useRef<RFEdge[]>([]);
   useEffect(() => {
     rfEdgesRef.current = rfEdges;
@@ -561,13 +566,11 @@ export function GraphView(props: {
     const direct = clip?.data?.producedByEditId ?? null;
     if (direct) return direct;
 
-    // 2) Fallback: über edges (reload-safe)
+    // 2) Fallback: nur wenn clip OUTPUT eines edits ist (incoming edit_out)
     const inc = props.project.edges.find((e) => e.target === clipId && e.type === "edit_out");
     if (inc) return inc.source;
 
-    const out = props.project.edges.find((e) => e.source === clipId && e.type === "edit_in");
-    if (out) return out.target;
-
+    // ❌ KEIN fallback über edit_in (parent clip)
     return null;
   }
 
@@ -578,17 +581,45 @@ export function GraphView(props: {
   function requireTimelineFromContext(): { stored: string; url: string } | null {
     const editId = getCurrentEditId();
 
-    if (!editId) {
-      alert("No edit context selected. Select an edited clip or the edit node first.");
-      return null;
-    }
-
     const prNode = props.project.nodes.find((n) => n.id === editId) as any;
+
+    console.log(prNode, "PRNODE");
 
     const stored = prNode?.data?.timeline?.storedTimelineFilename ?? null;
 
+    if (!editId) {
+      const lines = [
+        "No edit context has been found for this node. This is likely to happen when no edit node exists as a parent to the selected node.",
+        "",
+        "Use the clip file manually as highlighted in the file explorer:",
+        `- ${clickedClipFilename ?? "(unknown upload name)"}`,
+        "",
+        "Tip: Use the highlighted file, create/export a timeline in DaVinci Resolve, then upload it in the next dialog.",
+      ].filter(Boolean);
+
+      setErrorDialog({
+        title: "No edit node found",
+        message: lines.join("\n"),
+      });
+
+      return null;
+    }
+
     if (!stored) {
-      alert("No timeline file found in this edit node. Upload a timeline first.");
+      const lines = [
+        "No timeline file found in this edit node.",
+        "",
+        "Expected / highlighted file in explorer:",
+        `- ${clickedClipFilename ?? "(unknown upload name)"}`,
+        "",
+        "Tip: Use the highlighted file, create/export a timeline in DaVinci Resolve, then upload it in the next dialog.",
+      ].filter(Boolean);
+
+      setErrorDialog({
+        title: "No timeline found",
+        message: lines.join("\n"),
+      });
+
       return null;
     }
 
@@ -612,7 +643,10 @@ export function GraphView(props: {
     window.open(timelineUrl(projectId, ctx.stored), "_blank", "noopener,noreferrer");
   }
 
-  function getBaselineStoredTimelineFilenameForClip(project: Project, clipId: string): string | null {
+  function getBaselineStoredTimelineFilenameForClip(
+    project: Project,
+    clipId: string
+  ): string | null {
     // clip -> edit, der ihn erzeugt hat
     const editId = (() => {
       const clip = project.nodes.find((n) => n.id === clipId) as any;
@@ -630,7 +664,6 @@ export function GraphView(props: {
     return editNode?.data?.timeline?.storedTimelineFilename ?? null;
   }
 
-
   async function openTimelineFileInDavinciBackend() {
     const ctx = requireTimelineFromContext();
     if (!ctx) return;
@@ -643,7 +676,10 @@ export function GraphView(props: {
       }
     } catch (e: any) {
       console.error(e);
-      alert("Could not open timeline in Resolve: " + (e?.message ?? String(e)));
+      setErrorDialog({
+        title: "Could not open",
+        message: "Could not open timeline in Resolve",
+      });
     }
   }
 
@@ -780,6 +816,14 @@ export function GraphView(props: {
     return rfNodes.find((n) => n.id === clickedNodeId) ?? null;
   }, [clickedNodeId, rfNodes]);
 
+  const clickedClipFilename = useMemo(() => {
+    if (!clickedNodeId) return null;
+    const node = rfNodes.find((n) => n.id === clickedNodeId) as any;
+    if (!node || node.type !== "clip") return null;
+
+    return (node.data?.videoFile?.filename as string | undefined) ?? null;
+  }, [clickedNodeId, rfNodes]);
+
   const createRoot = () => {
     const hasRoot = rfNodes.some((n) => {
       if (n.type !== "clip") return false;
@@ -788,9 +832,11 @@ export function GraphView(props: {
     });
 
     if (hasRoot) {
-      alert(
-        "There is already a root node for this project. Create a new project if you want to start with a new root."
-      );
+      setErrorDialog({
+        title: "Only one root allowed",
+        message: "Create a new project to start with a new root",
+      });
+
       return;
     }
 
@@ -1588,7 +1634,11 @@ export function GraphView(props: {
             onClick={async () => {
               const editId = davinciContextEditIdRef.current;
               if (!editId) {
-                alert("No edit node found for the selected clip.");
+                setErrorDialog({
+                  title: "Node not found",
+                  message: "No edit node found for the selected clip.",
+                });
+
                 return;
               }
 
@@ -1617,8 +1667,10 @@ export function GraphView(props: {
                   );
                   return nextNodes;
                 });
-
-                alert("Import changes failed: " + (e?.message ?? String(e)));
+                setErrorDialog({
+                  title: "Import error",
+                  message: "Import changes failed: " + (e?.message ?? String(e)),
+                });
               }
             }}
           >
@@ -1630,7 +1682,11 @@ export function GraphView(props: {
             onClick={() => {
               console.log(manualEditDraft);
               if (!manualEditDraft) {
-                alert("No manual edit in progress.");
+                setErrorDialog({
+                  title: "No edit found",
+                  message: "No manual edit in progress.",
+                });
+
                 return;
               }
               setDaVinciActionDalogOpen(true);
@@ -1707,7 +1763,11 @@ export function GraphView(props: {
               if (!editedVideoUploadFile) return;
 
               if (!manualEditDraft) {
-                alert("No manual edit draft found. Start a manual edit from a clip first.");
+                setErrorDialog({
+                  title: "No draft found",
+                  message: "No manual edit draft found. Start a manual edit from a clip first.",
+                });
+
                 return;
               }
 
@@ -1716,8 +1776,16 @@ export function GraphView(props: {
               try {
                 // 1) uploads
                 const storedVideo = await comfyUploadVideo(editedVideoUploadFile);
-                const baseline = getBaselineStoredTimelineFilenameForClip(props.project, fromClipId);
-                const res = await uploadTimelineFile(props.project.id, uploadedTimeLineFile, baseline ?? undefined, expectedBasename);
+                const baseline = getBaselineStoredTimelineFilenameForClip(
+                  props.project,
+                  fromClipId
+                );
+                const res = await uploadTimelineFile(
+                  props.project.id,
+                  uploadedTimeLineFile,
+                  baseline ?? undefined,
+                  expectedBasename
+                );
 
                 // 2) jetzt IDs erzeugen (final!)
                 const editId = nanoid();
@@ -1850,7 +1918,10 @@ export function GraphView(props: {
                 setManualEditDraft(null);
               } catch (e: any) {
                 console.error(e);
-                alert("Timeline upload failed: " + (e?.message ?? String(e)));
+                setErrorDialog({
+                  title: "Upload error",
+                  message: "Timeline upload failed: " + (e?.message ?? String(e)),
+                });
               }
             }}
             disabled={!uploadedTimeLineFile || !editedVideoUploadFile}
@@ -1902,6 +1973,29 @@ export function GraphView(props: {
             }}
           >
             Open timeline file in Da Vinci
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!errorDialog} onClose={() => setErrorDialog(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>{errorDialog?.title}</DialogTitle>
+
+        <DialogContent>
+          <Typography
+            component="pre"
+            sx={{
+              whiteSpace: "pre-wrap",
+              fontFamily: "monospace",
+              fontSize: 14,
+            }}
+          >
+            {errorDialog?.message}
+          </Typography>
+        </DialogContent>
+
+        <DialogActions>
+          <Button variant="contained" onClick={() => setErrorDialog(null)}>
+            Close
           </Button>
         </DialogActions>
       </Dialog>

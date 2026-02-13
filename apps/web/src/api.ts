@@ -195,7 +195,6 @@ export async function uploadTimelineFile(
   return res.json();
 }
 
-
 export async function openTimelineInResolve(projectId: string, filename: string) {
   const res = await fetch("/api/timeline/open-timeline", {
     method: "POST",

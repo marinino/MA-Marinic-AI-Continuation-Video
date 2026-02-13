@@ -486,7 +486,11 @@ function safeExt(filename: string) {
 /* ---------------- Route ---------------- */
 export async function timelineRoutes(app: FastifyInstance) {
   app.post("/timeline/upload", async (req, reply) => {
-    const q = req.query as { projectId?: string; expectedBasename?: string; baselineStoredTimelineFilename?: string; };
+    const q = req.query as {
+      projectId?: string;
+      expectedBasename?: string;
+      baselineStoredTimelineFilename?: string;
+    };
 
     if (!q.projectId) return reply.code(400).send({ error: "missing_projectId" });
 
@@ -520,7 +524,7 @@ export async function timelineRoutes(app: FastifyInstance) {
       }
     } else {
       // fallback (optional): bisheriges Verhalten
-      console.log("BASELINE NOT FOUND FOR JSON")
+      console.log("BASELINE NOT FOUND FOR JSON");
       const latestPath = path.join(baseDir, "latest.snapshot.json");
       prev = await readJsonIfExists<TimelineSnapshot>(latestPath);
     }
