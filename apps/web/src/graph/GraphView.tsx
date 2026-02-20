@@ -36,6 +36,8 @@ import {
   Tab,
   Box,
   Tooltip,
+  Slider,
+  Divider,
 } from "@mui/material";
 import {
   comfyBuildVideoUrl,
@@ -198,6 +200,16 @@ export function GraphView(props: {
 
   const [daVinciActionDalogOpen, setDaVinciActionDalogOpen] = useState(false);
 
+  type V2VTab = "simple" | "advanced";
+  const [v2vTab, setV2vTab] = useState<V2VTab>("simple");
+
+  // Simple-Tab Slider (0..100 oder gemischt)
+  const [simpleTotalSteps, setSimpleTotalSteps] = useState(0);
+  const [simpleStepRatio, setSimpleStepRatio] = useState(50);
+  const [simpleHighShift, setSimpleHighShift] = useState(50);
+  const [simpleHighCfg, setSimpleHighCfg] = useState(50);
+  const [simpleHighStrength, setSimpleHighStrength] = useState(50);
+
   const [errorDialog, setErrorDialog] = useState<{
     title: string;
     message: string;
@@ -355,6 +367,57 @@ export function GraphView(props: {
     startJob(next.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobs, activeJobId]);
+
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+  function sliderToRange(slider: number, min: number, max: number) {
+    const t = clamp(slider, 0, 100) / 100;
+    return min + t * (max - min);
+  }
+
+  function sliderToIntRange(slider: number, min: number, max: number) {
+    return Math.round(sliderToRange(slider, min, max));
+  }
+
+  function sliderToPercent(slider: number, minPct: number, maxPct: number) {
+    // returns percent value (e.g. 50..80)
+    return sliderToRange(slider, minPct, maxPct);
+  }
+
+  function deriveV2VParamsFromSimple(opts: {
+    totalSteps: number;
+    stepRatio01: number; // low Anteil 0..1
+    highShift: number;
+    highCfg: number;
+    highStrength: number;
+  }) {
+    const totalSteps = Math.round(clamp(opts.totalSteps, 1, 100));
+
+    // low/high split
+    const lowSteps = Math.max(1, Math.round(totalSteps * clamp(opts.stepRatio01, 0, 1)));
+    const highSteps = Math.max(1, totalSteps - lowSteps);
+
+    // Start/End Steps: wir lassen low danach laufen (typisch: erst high-noise, dann low-noise)
+    const highStart = 0;
+    const highEnd = highSteps;
+
+    const lowStart = highEnd;
+    const lowEnd = highEnd + lowSteps;
+
+    return {
+      highNoiseSteps: highSteps,
+      lowNoiseSteps: lowSteps,
+      highNoiseStartStep: highStart,
+      highNoiseEndStep: highEnd,
+      lowNoiseStartStep: lowStart,
+      lowNoiseEndStep: lowEnd,
+
+      // High params kommen aus Slider
+      highNoiseShift: opts.highShift,
+      highNoiseCfg: opts.highCfg,
+      highNoiseModelStrength: opts.highStrength,
+    };
+  }
 
   async function startJob(jobId: string) {
     // mark connecting
@@ -935,6 +998,155 @@ export function GraphView(props: {
     });
   }
 
+  function LabeledSlider(props: {
+    label: string;
+    value: number; // 0..100
+    onChange: (v: number) => void;
+    min?: number;
+    max?: number;
+    step?: number;
+    formatValue?: (v: number) => string;
+  }) {
+    const min = props.min ?? 0;
+    const max = props.max ?? 100;
+    const step = props.step ?? 1;
+
+    const clamp = (v: number) => Math.max(min, Math.min(max, v));
+
+    const display = props.formatValue
+      ? props.formatValue(props.value)
+      : props.value.toFixed(step < 1 ? 1 : 0);
+
+    const handleMinus = () => {
+      props.onChange(clamp(props.value - step));
+    };
+
+    const handlePlus = () => {
+      props.onChange(clamp(props.value + step));
+    };
+
+    return (
+      <Box sx={{ userSelect: "none" }}>
+        {/* Header row */}
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography variant="body2">{props.label}</Typography>
+
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="body2" color="text.secondary">
+              {display}
+            </Typography>
+
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleMinus}
+              disabled={props.value <= min}
+              sx={{ minWidth: 28, px: 0 }}
+            >
+              −
+            </Button>
+
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handlePlus}
+              disabled={props.value >= max}
+              sx={{ minWidth: 28, px: 0 }}
+            >
+              +
+            </Button>
+          </Stack>
+        </Stack>
+
+        {/* Slider */}
+        <Slider
+          value={props.value}
+          min={min}
+          max={max}
+          step={step}
+          onChange={(_, v) => props.onChange(v as number)}
+          valueLabelDisplay="off"
+        />
+      </Box>
+    );
+  }
+
+  function computeCategoryScoresFromSimple(s: {
+    totalSteps: number;
+    stepRatio: number; // 0..100 (low%)
+    highShift: number;
+    highCfg: number;
+    highStrength: number;
+  }) {
+    // Beispiel-Logik (anpassbar): wir normalisieren grob auf 0..100
+    // Du kannst die ranges exakt so setzen wie deine Presets.
+    const steps01 = clamp((s.totalSteps - 20) / (24 - 20), 0, 1);
+    const ratio01 = clamp((s.stepRatio - 50) / (80 - 50), 0, 1); // low%: 45..80
+    const shift01 = clamp((s.highShift - 2.3) / (3 - 2.3), 0, 1);
+    const cfg01 = clamp((s.highCfg - 2.5) / (3.0 - 2.5), 0, 1);
+    const strength01 = clamp((s.highStrength - 0.2) / (0.45 - 0.2), 0, 1);
+
+    // Dummy mapping -> ersetzbar durch deine echte Misch-Logik
+
+    const promptFaithfulness = clamp(0.85 * cfg01 + 0.15 * ratio01, 0, 1);
+    const videoFaithfulness = clamp(
+      0.55 * ratio01 + 0.3 * (1 - shift01) + 0.15 * (1 - strength01),
+      0,
+      1
+    );
+    const transitionSmoothness = clamp(0.55 * steps01 + 0.45 * ratio01, 0, 1);
+    const motion = clamp(0.45 * shift01 + 0.45 * strength01 - 0.2 * ratio01 + 0.3, 0, 1);
+    const creativity = clamp(
+      0.45 * shift01 + 0.35 * strength01 + 0.2 * (1 - cfg01) - 0.25 * ratio01 + 0.25,
+      0,
+      1
+    );
+
+    return {
+      creativity: Math.round(creativity * 100),
+      promptFaithfulness: Math.round(promptFaithfulness * 100),
+      motion: Math.round(motion * 100),
+      transitionSmoothness: Math.round(transitionSmoothness * 100),
+      videoFaithfulness: Math.round(videoFaithfulness * 100),
+    };
+  }
+
+  function handleStartV2V() {
+    if (!v2vPrompt.trim()) return;
+
+    if (v2vTab === "simple") {
+      // 0..100 -> echte ranges
+      const totalStepsReal = sliderToIntRange(simpleTotalSteps, 20, 24);
+      const stepRatioPct = sliderToRange(simpleStepRatio, 50, 80); // 50..80
+      const stepRatio01 = stepRatioPct / 100;
+
+      const highShiftReal = sliderToRange(simpleHighShift, 2.3, 3.0);
+      const highCfgReal = sliderToRange(simpleHighCfg, 2.5, 3.0);
+      const highStrengthReal = sliderToRange(simpleHighStrength, 0.2, 0.45);
+
+      const d = deriveV2VParamsFromSimple({
+        totalSteps: totalStepsReal,
+        stepRatio01,
+        highShift: highShiftReal,
+        highCfg: highCfgReal,
+        highStrength: highStrengthReal,
+      });
+
+      enqueueExtendJob({
+        // low konstant (deine Werte)
+        lowNoiseCfg: 2,
+        lowNoiseModelStrength: 0.3,
+        lowNoiseShift: 2.6,
+        ...d,
+      });
+
+      return;
+    }
+
+    // advanced: nimm exakt die vorhandenen States unverändert
+    enqueueExtendJob();
+  }
+
   function enqueueRootJob() {
     if (!rootPrompt.trim()) return;
 
@@ -984,7 +1196,22 @@ export function GraphView(props: {
     ]);
   }
 
-  function enqueueExtendJob() {
+  function enqueueExtendJob(
+    overrides?: Partial<{
+      highNoiseCfg: number;
+      lowNoiseCfg: number;
+      highNoiseModelStrength: number;
+      lowNoiseModelStrength: number;
+      highNoiseShift: number;
+      lowNoiseShift: number;
+      highNoiseSteps: number;
+      lowNoiseSteps: number;
+      highNoiseStartStep: number;
+      lowNoiseStartStep: number;
+      highNoiseEndStep: number;
+      lowNoiseEndStep: number;
+    }>
+  ) {
     if (!v2vParentClipId) return;
     if (!v2vPrompt.trim()) return;
 
@@ -999,20 +1226,21 @@ export function GraphView(props: {
 
     // capture all params NOW (wichtig, falls user danach slider ändert)
     const payload = {
-      text: prompt,
+      text: v2vPrompt,
       videoFile: parentFile,
-      highNoiseCfg,
-      lowNoiseCfg,
-      highNoiseModelStrength,
-      lowNoiseModelStrength,
-      highNoiseShift,
-      lowNoiseShift,
-      highNoiseSteps,
-      lowNoiseSteps,
-      highNoiseStartStep,
-      lowNoiseStartStep,
-      highNoiseEndStep,
-      lowNoiseEndStep,
+
+      highNoiseCfg: overrides?.highNoiseCfg ?? highNoiseCfg,
+      lowNoiseCfg: overrides?.lowNoiseCfg ?? lowNoiseCfg,
+      highNoiseModelStrength: overrides?.highNoiseModelStrength ?? highNoiseModelStrength,
+      lowNoiseModelStrength: overrides?.lowNoiseModelStrength ?? lowNoiseModelStrength,
+      highNoiseShift: overrides?.highNoiseShift ?? highNoiseShift,
+      lowNoiseShift: overrides?.lowNoiseShift ?? lowNoiseShift,
+      highNoiseSteps: overrides?.highNoiseSteps ?? highNoiseSteps,
+      lowNoiseSteps: overrides?.lowNoiseSteps ?? lowNoiseSteps,
+      highNoiseStartStep: overrides?.highNoiseStartStep ?? highNoiseStartStep,
+      lowNoiseStartStep: overrides?.lowNoiseStartStep ?? lowNoiseStartStep,
+      highNoiseEndStep: overrides?.highNoiseEndStep ?? highNoiseEndStep,
+      lowNoiseEndStep: overrides?.lowNoiseEndStep ?? lowNoiseEndStep,
     };
 
     const { videoFile: _parentVideoFile, ...paramsOnly } = payload;
@@ -1297,14 +1525,12 @@ export function GraphView(props: {
         edges={rfEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        nodesDraggable
-        nodesConnectable={false}
-        elementsSelectable={true}
-        // ❌ fitView raus!
-        // ❌ fitViewOptions raus!
-        panOnDrag={[1, 2]}
-        zoomOnScroll
-        deleteKeyCode={null}
+        nodesDraggable={!clipDialogOpen && !rootDialogOpen && !actionDialogOpen}
+        panOnDrag={clipDialogOpen || rootDialogOpen || actionDialogOpen ? false : [1, 2]}
+        zoomOnScroll={!(clipDialogOpen || rootDialogOpen || actionDialogOpen)}
+        zoomOnPinch={!(clipDialogOpen || rootDialogOpen || actionDialogOpen)}
+        zoomOnDoubleClick={!(clipDialogOpen || rootDialogOpen || actionDialogOpen)}
+        elementsSelectable={!(clipDialogOpen || rootDialogOpen || actionDialogOpen)}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
@@ -1478,118 +1704,314 @@ export function GraphView(props: {
       <Dialog
         open={clipDialogOpen}
         onClose={() => setClipDialogOpen(false)}
-        maxWidth="sm"
+        maxWidth="lg"
         fullWidth
       >
         <DialogTitle>Generate Clip – Prompt</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label="Prompt"
-              value={v2vPrompt}
-              onChange={(e) => setV2vPrompt(e.target.value)}
-              multiline
-              minRows={4}
-              fullWidth
-            />
+        <DialogContent
+          sx={{
+            overscrollBehavior: "contain",
+            touchAction: "none",
+          }}
+        >
+          <Tabs value={v2vTab} onChange={(_, v) => setV2vTab(v)} sx={{ mb: 2 }}>
+            <Tab value="simple" label="Simple (Sliders)" />
+            <Tab value="advanced" label="Advanced (Raw)" />
+          </Tabs>
 
-            <TextField
-              type="number"
-              label="Low Noise CFG"
-              value={lowNoiseCfg}
-              onChange={(e) => setLowNoiseCfg(Number(e.target.value))}
-              fullWidth
-            />
-            <TextField
-              type="number"
-              label="High Noise CFG"
-              value={highNoiseCfg}
-              onChange={(e) => setHighNoiseCfg(Number(e.target.value))}
-              fullWidth
-            />
-            <TextField
-              type="number"
-              label="Low Noise Model Strength"
-              value={lowNoiseModelStrength}
-              onChange={(e) => setLowNoiseModelStrength(Number(e.target.value))}
-              fullWidth
-            />
-            <TextField
-              type="number"
-              label="High Noise Model Strength"
-              value={highNoiseModelStrength}
-              onChange={(e) => setHighNoiseModelStrength(Number(e.target.value))}
-              fullWidth
-            />
-            <TextField
-              type="number"
-              label="Low Noise Shift"
-              value={lowNoiseShift}
-              onChange={(e) => setLowNoiseShift(Number(e.target.value))}
-              fullWidth
-            />
-            <TextField
-              type="number"
-              label="High Noise Shift"
-              value={highNoiseShift}
-              onChange={(e) => setHighNoiseShift(Number(e.target.value))}
-              fullWidth
-            />
-            <TextField
-              type="number"
-              label="Low Noise Steps"
-              value={lowNoiseSteps}
-              onChange={(e) => setLowNoiseSteps(Number(e.target.value))}
-              fullWidth
-            />
-            <TextField
-              type="number"
-              label="High Noise Steps"
-              value={highNoiseSteps}
-              onChange={(e) => setHighNoiseSteps(Number(e.target.value))}
-              fullWidth
-            />
-            <TextField
-              type="number"
-              label="Low Noise Start Step"
-              value={lowNoiseStartStep}
-              onChange={(e) => setLowNoiseStartStep(Number(e.target.value))}
-              fullWidth
-            />
-            <TextField
-              type="number"
-              label="High Noise Start Step"
-              value={highNoiseStartStep}
-              onChange={(e) => setHighNoiseStartStep(Number(e.target.value))}
-              fullWidth
-            />
-            <TextField
-              type="number"
-              label="Low Noise End Step"
-              value={lowNoiseEndStep}
-              onChange={(e) => setLowNoiseEndStep(Number(e.target.value))}
-              fullWidth
-            />
-            <TextField
-              type="number"
-              label="High Noise End Step"
-              value={highNoiseEndStep}
-              onChange={(e) => setHighNoiseEndStep(Number(e.target.value))}
-              fullWidth
-            />
+          {v2vTab === "simple" && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField
+                label="Prompt"
+                value={v2vPrompt}
+                onChange={(e) => setV2vPrompt(e.target.value)}
+                multiline
+                minRows={4}
+                fullWidth
+              />
 
-            {clipGenerating && <LinearProgress />}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr auto 1fr",
+                  gap: 2,
+                  alignItems: "stretch",
+                }}
+              >
+                {/* LEFT: editable */}
+                <Stack spacing={2}>
+                  {/* LEFT: editable sliders */}
+                  <Stack spacing={3}>
+                    <LabeledSlider
+                      label="Total steps"
+                      value={simpleTotalSteps}
+                      step={1}
+                      onChange={setSimpleTotalSteps}
+                    />
+                    <LabeledSlider
+                      label="Step ratio (low %)"
+                      value={simpleStepRatio}
+                      step={1}
+                      onChange={setSimpleStepRatio}
+                    />
+                    <LabeledSlider
+                      label="High noise shift"
+                      value={simpleHighShift}
+                      step={1}
+                      onChange={setSimpleHighShift}
+                    />
+                    <LabeledSlider
+                      label="High noise CFG"
+                      value={simpleHighCfg}
+                      step={1}
+                      onChange={setSimpleHighCfg}
+                    />
+                    <LabeledSlider
+                      label="High noise strength"
+                      value={simpleHighStrength}
+                      step={1}
+                      onChange={setSimpleHighStrength}
+                    />
+                  </Stack>
 
-            {clipStatus && (
-              <Typography variant="body2" color="text.secondary">
-                {clipStatus}
-              </Typography>
-            )}
+                  {/* optional: kleine Summary */}
+                  <Paper variant="outlined" sx={{ p: 1.5 }}>
+                    {(() => {
+                      // 0..100 -> echte Werte
+                      const totalStepsReal = sliderToIntRange(simpleTotalSteps, 20, 24);
+                      const stepRatioPct = sliderToRange(simpleStepRatio, 50, 80); // 50..80
+                      const stepRatio01 = stepRatioPct / 100;
 
-            {clipPreviewUrl && (
-              <video src={clipPreviewUrl} controls style={{ width: "100%", borderRadius: 8 }} />
-            )}
-          </Stack>
+                      const highShiftReal = sliderToRange(simpleHighShift, 2.3, 3.0);
+                      const highCfgReal = sliderToRange(simpleHighCfg, 2.5, 3.0);
+                      const highStrengthReal = sliderToRange(simpleHighStrength, 0.2, 0.45);
+
+                      const d = deriveV2VParamsFromSimple({
+                        totalSteps: totalStepsReal,
+                        stepRatio01,
+                        highShift: highShiftReal,
+                        highCfg: highCfgReal,
+                        highStrength: highStrengthReal,
+                      });
+
+                      return (
+                        <Stack spacing={0.5}>
+                          <Typography variant="subtitle2">Computed params</Typography>
+
+                          <Typography variant="body2" color="text.secondary">
+                            Steps total: <b>{totalStepsReal}</b> • low%:{" "}
+                            <b>{Math.round(simpleStepRatio)}%</b>
+                          </Typography>
+
+                          <Typography variant="body2" color="text.secondary">
+                            High steps: <b>{d.highNoiseSteps}</b> (0 → {d.highNoiseEndStep})
+                          </Typography>
+
+                          <Typography variant="body2" color="text.secondary">
+                            Low steps: <b>{d.lowNoiseSteps}</b> ({d.lowNoiseStartStep} →{" "}
+                            {d.lowNoiseEndStep})
+                          </Typography>
+
+                          <Divider sx={{ my: 0.5 }} />
+
+                          <Typography variant="body2" color="text.secondary">
+                            High shift: <b>{highShiftReal.toFixed(2)}</b> • High CFG:{" "}
+                            <b>{highCfgReal.toFixed(2)}</b>
+                          </Typography>
+
+                          <Typography variant="body2" color="text.secondary">
+                            High strength: <b>{highStrengthReal.toFixed(2)}</b>
+                          </Typography>
+
+                          <Typography variant="caption" color="text.secondary">
+                            (Low params are set to constants on submit.)
+                          </Typography>
+                        </Stack>
+                      );
+                    })()}
+                  </Paper>
+                </Stack>
+
+                {/* MIDDLE: vertical separator */}
+                <Divider orientation="vertical" flexItem />
+
+                {/* RIGHT: read-only category sliders */}
+                {/* RIGHT: read-only category sliders */}
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  {(() => {
+                    // ✅ HIER rein (ganz oben in dieser IIFE)
+                    const totalStepsReal = sliderToIntRange(simpleTotalSteps, 20, 24);
+                    const stepRatioPct = sliderToRange(simpleStepRatio, 50, 80);
+                    const highShiftReal = sliderToRange(simpleHighShift, 2.3, 3.0);
+                    const highCfgReal = sliderToRange(simpleHighCfg, 2.5, 3.0);
+                    const highStrengthReal = sliderToRange(simpleHighStrength, 0.2, 0.45);
+
+                    const scores = computeCategoryScoresFromSimple({
+                      totalSteps: totalStepsReal,
+                      stepRatio: stepRatioPct,
+                      highShift: highShiftReal,
+                      highCfg: highCfgReal,
+                      highStrength: highStrengthReal,
+                    });
+
+                    const ReadonlySlider = (props: { label: string; value: number }) => (
+                      <Box>
+                        <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                          <Typography variant="body2">{props.label}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {props.value}
+                          </Typography>
+                        </Stack>
+                        <Slider value={props.value} min={0} max={100} step={1} disabled />
+                      </Box>
+                    );
+
+                    return (
+                      <Stack spacing={2}>
+                        <Typography variant="subtitle2">Categories (read-only)</Typography>
+                        <ReadonlySlider label="Creativity" value={scores.creativity} />
+                        <ReadonlySlider
+                          label="Prompt faithfulness"
+                          value={scores.promptFaithfulness}
+                        />
+                        <ReadonlySlider label="Motion" value={scores.motion} />
+                        <ReadonlySlider
+                          label="Transition Smoothness"
+                          value={scores.transitionSmoothness}
+                        />
+                        <ReadonlySlider
+                          label="Video Faithfulness"
+                          value={scores.videoFaithfulness}
+                        />
+                      </Stack>
+                    );
+                  })()}
+                </Paper>
+              </Box>
+
+              {clipGenerating && <LinearProgress />}
+
+              {clipStatus && (
+                <Typography variant="body2" color="text.secondary">
+                  {clipStatus}
+                </Typography>
+              )}
+
+              {clipPreviewUrl && (
+                <video src={clipPreviewUrl} controls style={{ width: "100%", borderRadius: 8 }} />
+              )}
+            </Stack>
+          )}
+
+          {v2vTab === "advanced" && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField
+                label="Prompt"
+                value={v2vPrompt}
+                onChange={(e) => setV2vPrompt(e.target.value)}
+                multiline
+                minRows={4}
+                fullWidth
+              />
+
+              <TextField
+                type="number"
+                label="Low Noise CFG"
+                value={lowNoiseCfg}
+                onChange={(e) => setLowNoiseCfg(Number(e.target.value))}
+                fullWidth
+              />
+              <TextField
+                type="number"
+                label="High Noise CFG"
+                value={highNoiseCfg}
+                onChange={(e) => setHighNoiseCfg(Number(e.target.value))}
+                fullWidth
+              />
+              <TextField
+                type="number"
+                label="Low Noise Model Strength"
+                value={lowNoiseModelStrength}
+                onChange={(e) => setLowNoiseModelStrength(Number(e.target.value))}
+                fullWidth
+              />
+              <TextField
+                type="number"
+                label="High Noise Model Strength"
+                value={highNoiseModelStrength}
+                onChange={(e) => setHighNoiseModelStrength(Number(e.target.value))}
+                fullWidth
+              />
+              <TextField
+                type="number"
+                label="Low Noise Shift"
+                value={lowNoiseShift}
+                onChange={(e) => setLowNoiseShift(Number(e.target.value))}
+                fullWidth
+              />
+              <TextField
+                type="number"
+                label="High Noise Shift"
+                value={highNoiseShift}
+                onChange={(e) => setHighNoiseShift(Number(e.target.value))}
+                fullWidth
+              />
+              <TextField
+                type="number"
+                label="Low Noise Steps"
+                value={lowNoiseSteps}
+                onChange={(e) => setLowNoiseSteps(Number(e.target.value))}
+                fullWidth
+              />
+              <TextField
+                type="number"
+                label="High Noise Steps"
+                value={highNoiseSteps}
+                onChange={(e) => setHighNoiseSteps(Number(e.target.value))}
+                fullWidth
+              />
+              <TextField
+                type="number"
+                label="Low Noise Start Step"
+                value={lowNoiseStartStep}
+                onChange={(e) => setLowNoiseStartStep(Number(e.target.value))}
+                fullWidth
+              />
+              <TextField
+                type="number"
+                label="High Noise Start Step"
+                value={highNoiseStartStep}
+                onChange={(e) => setHighNoiseStartStep(Number(e.target.value))}
+                fullWidth
+              />
+              <TextField
+                type="number"
+                label="Low Noise End Step"
+                value={lowNoiseEndStep}
+                onChange={(e) => setLowNoiseEndStep(Number(e.target.value))}
+                fullWidth
+              />
+              <TextField
+                type="number"
+                label="High Noise End Step"
+                value={highNoiseEndStep}
+                onChange={(e) => setHighNoiseEndStep(Number(e.target.value))}
+                fullWidth
+              />
+
+              {clipGenerating && <LinearProgress />}
+
+              {clipStatus && (
+                <Typography variant="body2" color="text.secondary">
+                  {clipStatus}
+                </Typography>
+              )}
+
+              {clipPreviewUrl && (
+                <video src={clipPreviewUrl} controls style={{ width: "100%", borderRadius: 8 }} />
+              )}
+            </Stack>
+          )}
         </DialogContent>
 
         <DialogActions>
@@ -1601,8 +2023,8 @@ export function GraphView(props: {
             Close
           </Button>
 
-          <Button variant="contained" onClick={enqueueExtendJob} disabled={!v2vPrompt.trim()}>
-            Start COMFYUI Genration
+          <Button variant="contained" onClick={handleStartV2V} disabled={!v2vPrompt.trim()}>
+            Start COMFYUI Generation
           </Button>
         </DialogActions>
       </Dialog>
