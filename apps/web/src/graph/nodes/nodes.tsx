@@ -66,6 +66,14 @@ function NodeCard(props: {
   lowNoiseStartStep?: number;
   highNoiseEndStep?: number;
   lowNoiseEndStep?: number;
+
+  categoryScores?: {
+    creativity: number;
+    promptFaithfulness: number;
+    motion: number;
+    transitionSmoothness: number;
+    videoFaithfulness: number;
+  };
 }) {
   const theme = useTheme();
   const [infoOpen, setInfoOpen] = useState(false);
@@ -203,6 +211,24 @@ function NodeCard(props: {
                 <Typography variant="caption" color="text.secondary" display="block">
                   Shift: {props.lowNoiseShift} · Strength: {props.lowNoiseModelStrength}
                 </Typography>
+
+                <Typography variant="subtitle2" sx={{ mt: 1 }}>
+                  Category scores
+                </Typography>
+
+                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                  <Chip size="small" label={`Creativity: ${props.categoryScores?.creativity}`} />
+                  <Chip
+                    size="small"
+                    label={`Prompt: ${props.categoryScores?.promptFaithfulness}`}
+                  />
+                  <Chip size="small" label={`Motion: ${props.categoryScores?.motion}`} />
+                  <Chip
+                    size="small"
+                    label={`Transition: ${props.categoryScores?.transitionSmoothness}`}
+                  />
+                  <Chip size="small" label={`Video: ${props.categoryScores?.videoFaithfulness}`} />
+                </Stack>
               </>
             ) : props.videoUrl ? (
               <>
@@ -263,6 +289,7 @@ export function ClipNode(props: NodeProps<any>) {
         videoUrl={videoUrl}
         videoFile={videoFile}
         videoStatus={videoStatus}
+        categoryScores={props.data?.categoryScores}
       >
         <Typography variant="body2">{props.data?.label}</Typography>
       </NodeCard>
