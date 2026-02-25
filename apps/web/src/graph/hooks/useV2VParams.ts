@@ -73,15 +73,20 @@ export type CategoryScores = {
   videoFaithfulness: number;
 };
 
-export function computeCategoryScoresFromSimple(s: {
-  totalSteps: number;
-  stepRatio: number; // 0..100 (low%)
-  highShift: number;
-  highCfg: number;
-  highStrength: number;
-}): CategoryScores {
-  const steps01 = clamp((s.totalSteps - 20) / (24 - 20), 0, 1);
-  const ratio01 = clamp((s.stepRatio - 50) / (80 - 50), 0, 1); // low%: 45..80 (mega used 50..80 mapping in UI; keep formula same)
+export function computeCategoryScoresFromSimple(
+  s: {
+    totalSteps: number;
+    stepRatio: number; // 0..100 (low%)
+    highShift: number;
+    highCfg: number;
+    highStrength: number;
+  },
+  stepsRange: { min: number; max: number } = { min: 20, max: 24 } // default = Simple behavior
+): CategoryScores {
+  const denom = Math.max(1e-6, stepsRange.max - stepsRange.min);
+  const steps01 = clamp((s.totalSteps - stepsRange.min) / denom, 0, 1);
+
+  const ratio01 = clamp((s.stepRatio - 50) / (80 - 50), 0, 1); // keep exact formula
   const shift01 = clamp((s.highShift - 2.3) / (3 - 2.3), 0, 1);
   const cfg01 = clamp((s.highCfg - 2.5) / (3.0 - 2.5), 0, 1);
   const strength01 = clamp((s.highStrength - 0.2) / (0.45 - 0.2), 0, 1);
@@ -116,21 +121,26 @@ export function computeCategoryScoresFromSimple(s: {
 /**
  * Hook wrapper for computed scores
  */
-export function useCategoryScores(simpleReal: {
-  totalSteps: number;
-  stepRatio: number;
-  highShift: number;
-  highCfg: number;
-  highStrength: number;
-}) {
+export function useCategoryScores(
+  simpleReal: {
+    totalSteps: number;
+    stepRatio: number;
+    highShift: number;
+    highCfg: number;
+    highStrength: number;
+  },
+  stepsRange: { min: number; max: number } = { min: 20, max: 24 }
+) {
   return useMemo(
-    () => computeCategoryScoresFromSimple(simpleReal),
+    () => computeCategoryScoresFromSimple(simpleReal, stepsRange),
     [
       simpleReal.totalSteps,
       simpleReal.stepRatio,
       simpleReal.highShift,
       simpleReal.highCfg,
       simpleReal.highStrength,
+      stepsRange.min,
+      stepsRange.max,
     ]
   );
 }

@@ -199,7 +199,7 @@
     "inputs": {
       "width": ["122:121", 0],
       "height": ["122:121", 1],
-      "length": 162,
+      "length": 113,
       "batch_size": 1,
       "positive": ["122:93", 0],
       "negative": ["122:89", 0],

@@ -1,4 +1,4 @@
-import type { Edge as RFEdge, Node as RFNode } from "reactflow";
+import type { Edge as RFEdge, Node as RFNode, ReactFlowInstance } from "reactflow";
 
 export type XY = { x: number; y: number };
 
@@ -47,4 +47,41 @@ export function findFreePosition(
  */
 export function findNode(nodes: RFNode[], id: string) {
   return nodes.find((n) => n.id === id) ?? null;
+}
+
+export type CenterOnNodeOpts = {
+  duration?: number;
+  fallbackW?: number;
+  fallbackH?: number;
+  onAfter?: () => void; // z.B. vp.saveViewport
+};
+
+export function centerOnNode(
+  rf: ReactFlowInstance | null,
+  nodeId: string,
+  opts?: CenterOnNodeOpts
+) {
+  if (!rf) return;
+
+  const duration = opts?.duration ?? 250;
+  const fallbackW = opts?.fallbackW ?? 220;
+  const fallbackH = opts?.fallbackH ?? 120;
+
+  requestAnimationFrame(() => {
+    const n = rf.getNode(nodeId);
+    if (!n) return;
+
+    const w = (n as any).width ?? fallbackW;
+    const h = (n as any).height ?? fallbackH;
+
+    const cx = n.position.x + w / 2;
+    const cy = n.position.y + h / 2;
+    const currentZoom = rf.getZoom();
+
+    rf.setCenter(cx, cy, { duration, zoom: currentZoom });
+
+    if (opts?.onAfter) {
+      setTimeout(opts.onAfter, duration + 50);
+    }
+  });
 }

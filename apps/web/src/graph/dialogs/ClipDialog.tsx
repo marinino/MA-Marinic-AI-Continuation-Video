@@ -15,13 +15,16 @@ import {
   Divider,
   Paper,
   Slider,
+  ButtonGroup,
 } from "@mui/material";
 
 // ⬇️ falls dein PentagonMap woanders liegt: Pfad anpassen
 import { PentagonMap } from "../components/PentagonMap";
+import { useV2VSliders } from "../hooks/useV2VSliders";
 
 export type V2VTab = "simple" | "advanced";
 type CatView = "sliders" | "pentagon";
+type SimpleSpeedMode = "simple" | "quick";
 
 export type AdvancedParamsState = {
   lowNoiseCfg: number;
@@ -82,6 +85,10 @@ export type ClipDialogProps = {
   onClose: () => void;
   onStart: () => void;
   startDisabled?: boolean;
+
+  simpleSpeedMode: "simple" | "quick";
+onSimpleSpeedModeChange: (m: "simple" | "quick") => void;
+
 };
 
 /* ========= helpers (wie im mega-file) ========= */
@@ -135,15 +142,20 @@ function deriveV2VParamsFromSimple(opts: {
   };
 }
 
-function computeCategoryScoresFromSimple(s: {
-  totalSteps: number; // real
-  stepRatio: number; // real (% low)
-  highShift: number; // real
-  highCfg: number; // real
-  highStrength: number; // real
-}): CategoryScores {
+function computeCategoryScoresFromSimple(
+  s: {
+    totalSteps: number; // real
+    stepRatio: number; // real (% low)
+    highShift: number; // real
+    highCfg: number; // real
+    highStrength: number; // real
+  },
+  stepsMinMax: { min: number; max: number }
+): CategoryScores {
   // EXACT mega-file mapping (aus deinem großen snippet)
-  const steps01 = clamp((s.totalSteps - 20) / (24 - 20), 0, 1);
+  const denom = Math.max(1e-6, stepsMinMax.max - stepsMinMax.min);
+  const steps01 = clamp((s.totalSteps - stepsMinMax.min) / denom, 0, 1);
+
   const ratio01 = clamp((s.stepRatio - 50) / (80 - 50), 0, 1); // low%: 50..80
   const shift01 = clamp((s.highShift - 2.3) / (3.0 - 2.3), 0, 1);
   const cfg01 = clamp((s.highCfg - 2.5) / (3.0 - 2.5), 0, 1);
@@ -193,7 +205,9 @@ export function ClipDialog(p: ClipDialogProps) {
 
   // --- compute real values + derived params exactly like mega-file ---
   const computed = React.useMemo(() => {
-    const totalStepsReal = sliderToIntRange(p.simpleTotalSteps, 20, 24);
+    const stepsRange = p.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
+    const totalStepsReal = sliderToIntRange(p.simpleTotalSteps, stepsRange.min, stepsRange.max);
+
     const stepRatioPct = sliderToRange(p.simpleStepRatio, 50, 80); // low% 50..80
     const stepRatio01 = stepRatioPct / 100;
 
@@ -209,13 +223,16 @@ export function ClipDialog(p: ClipDialogProps) {
       highStrength: highStrengthReal,
     });
 
-    const scores = computeCategoryScoresFromSimple({
-      totalSteps: totalStepsReal,
-      stepRatio: stepRatioPct,
-      highShift: highShiftReal,
-      highCfg: highCfgReal,
-      highStrength: highStrengthReal,
-    });
+    const scores = computeCategoryScoresFromSimple(
+      {
+        totalSteps: totalStepsReal,
+        stepRatio: stepRatioPct,
+        highShift: highShiftReal,
+        highCfg: highCfgReal,
+        highStrength: highStrengthReal,
+      },
+      stepsRange
+    );
 
     return {
       totalStepsReal,
@@ -227,6 +244,7 @@ export function ClipDialog(p: ClipDialogProps) {
       scores,
     };
   }, [
+    p.simpleSpeedMode,
     p.simpleTotalSteps,
     p.simpleStepRatio,
     p.simpleHighShift,
@@ -246,6 +264,39 @@ export function ClipDialog(p: ClipDialogProps) {
 
         {p.tab === "simple" && (
           <Stack spacing={2} sx={{ mt: 1 }}>
+            
+            
+                <ButtonGroup
+                fullWidth
+                    variant="contained"
+                    aria-label="Basic button group"
+                    sx={{
+                        '& .MuiButton-root:first-of-type': {
+                        borderTopLeftRadius: 8,
+                        borderBottomLeftRadius: 8,
+                        },
+                        '& .MuiButton-root:last-of-type': {
+                        borderTopRightRadius: 8,
+                        borderBottomRightRadius: 8,
+                        },
+                    }}
+                    >
+                    <Button
+    variant={p.simpleSpeedMode === "quick" ? "contained" : "outlined"}
+    onClick={() => p.onSimpleSpeedModeChange("quick")}
+  >
+    Quick mode (4–5 steps)
+  </Button>
+
+  <Button
+    variant={p.simpleSpeedMode === "simple" ? "contained" : "outlined"}
+    onClick={() => p.onSimpleSpeedModeChange("simple")}
+  >
+    Quality mode (20–24 steps)
+  </Button>
+                </ButtonGroup>
+            
+
             <TextField
               label="Prompt"
               value={p.prompt}
@@ -304,6 +355,10 @@ export function ClipDialog(p: ClipDialogProps) {
                 ) : (
                   <Paper variant="outlined" sx={{ p: 1.5 }}>
                     <Stack spacing={0.5}>
+                      <Typography variant="body2" color="text.secondary">
+                        Mode: <b>{p.simpleSpeedMode}</b>
+                      </Typography>
+
                       <Typography variant="subtitle2">Computed params</Typography>
 
                       <Typography variant="body2" color="text.secondary">

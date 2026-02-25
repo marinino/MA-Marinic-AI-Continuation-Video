@@ -4,6 +4,7 @@ import App from "./App";
 
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
+import { makeTheme } from "./theme";
 
 type ColorMode = "light" | "dark";
 
@@ -13,13 +14,6 @@ function Main() {
     return saved === "dark" || saved === "light" ? saved : "light";
   });
 
-  const theme = useMemo(
-    () =>
-      createTheme({
-        palette: { mode },
-      }),
-    [mode]
-  );
 
   const toggleColorMode = () => {
     setMode((prev) => {
@@ -30,7 +24,7 @@ function Main() {
   };
 
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={makeTheme(mode)}>
       <CssBaseline />
       <App mode={mode} toggleColorMode={toggleColorMode} />
     </ThemeProvider>

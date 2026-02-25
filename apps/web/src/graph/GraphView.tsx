@@ -57,12 +57,14 @@ import { JobsPanel } from "./components/JobsPanel";
 
 // MUI
 import { Box, Button, Paper, Stack } from "@mui/material";
+import { centerOnNode, countBranches, findFreePosition } from "./graph_helpers/layout";
 
 // edgeTypes
 const edgeTypes = { labeled: LabeledEdge };
 
 type RootMode = "generate" | "upload";
 type ManualEditDraft = { fromClipId: string; expectedBasename: string };
+type SimpleSpeedMode = "simple" | "quick";
 
 export function GraphView(props: {
   project: Project;
@@ -74,28 +76,27 @@ export function GraphView(props: {
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
 
   // ---------- graph state ----------
-const g = useProjectGraph({
-  project: props.project,
-  onChange: props.onChange,
-  showEdgeLabels: props.showEdgeLabels,
+  const g = useProjectGraph({
+    project: props.project,
+    onChange: props.onChange,
+    showEdgeLabels: props.showEdgeLabels,
 
-  onAdd: (nodeId: string) => {
-    // selection persistieren
-    props.onChange((prev) => ({
-      ...prev,
-      uiState: { ...(prev.uiState ?? {}), selectedNodeId: nodeId },
-    }));
+    onAdd: (nodeId: string) => {
+      // selection persistieren
+      props.onChange((prev) => ({
+        ...prev,
+        uiState: { ...(prev.uiState ?? {}), selectedNodeId: nodeId },
+      }));
 
-    // local selection (hook synced from project uiState anyway)
-    setActionDialogOpen(true);
-  },
-});
+      // local selection (hook synced from project uiState anyway)
+      setActionDialogOpen(true);
+    },
+  });
 
-useEffect(() => {
-  const sel = props.project.uiState?.selectedNodeId ?? null;
-  g.setClickedNodeId(sel);
-}, [props.project.uiState?.selectedNodeId]);
-
+  useEffect(() => {
+    const sel = props.project.uiState?.selectedNodeId ?? null;
+    g.setClickedNodeId(sel);
+  }, [props.project.uiState?.selectedNodeId]);
 
   // ✅ inject onAdd handler for the "+" button inside nodes
   const nodesForUI = useMemo(() => {
@@ -117,7 +118,6 @@ useEffect(() => {
       },
     }));
   }, [g.nodesWithRootFlag, g.setClickedNodeId, props.onChange]);
-
 
   // keep selection in project uiState (same behavior)
   useEffect(() => {
@@ -149,18 +149,11 @@ useEffect(() => {
   const jobs = jobsApi.jobs;
 
   const anyBusy = useMemo(
-    () =>
-      jobs.some((j) =>
-        ["queued", "connecting", "running", "finalizing"].includes(j.status)
-      ),
+    () => jobs.some((j) => ["queued", "connecting", "running", "finalizing"].includes(j.status)),
     [jobs]
   );
 
-  const genState = jobs.some((j) => j.status === "error")
-    ? "error"
-    : anyBusy
-      ? "running"
-      : "idle";
+  const genState = jobs.some((j) => j.status === "error") ? "error" : anyBusy ? "running" : "idle";
 
   // ---------- dialogs ----------
   const [jobsOpen, setJobsOpen] = useState(false);
@@ -207,17 +200,21 @@ useEffect(() => {
   // simple sliders hook (your preference)
   const v2v = useV2VSliders();
 
+  const stepsRange = v2v.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
+
   // category scores (IMPORTANT: must match mega-file formula in your hook)
-  const scores = useCategoryScores({
-    totalSteps: sliderToIntRange(v2v.simpleTotalSteps, 20, 24),
-    stepRatio: sliderToRange(v2v.simpleStepRatio, 50, 80),
-    highShift: sliderToRange(v2v.simpleHighShift, 2.3, 3.0),
-    highCfg: sliderToRange(v2v.simpleHighCfg, 2.5, 3.0),
-    highStrength: sliderToRange(v2v.simpleHighStrength, 0.2, 0.45),
-  });
+  const scores = useCategoryScores(
+    {
+      totalSteps: sliderToIntRange(v2v.simpleTotalSteps, stepsRange.min, stepsRange.max),
+      stepRatio: sliderToRange(v2v.simpleStepRatio, 50, 80),
+      highShift: sliderToRange(v2v.simpleHighShift, 2.3, 3.0),
+      highCfg: sliderToRange(v2v.simpleHighCfg, 2.5, 3.0),
+      highStrength: sliderToRange(v2v.simpleHighStrength, 0.2, 0.45),
+    },
+    stepsRange
+  );
 
   // ---------- davinci timeline helper ----------
-
 
   // manual edit draft
   const [manualEditDraft, setManualEditDraft] = useState<ManualEditDraft | null>(null);
@@ -237,10 +234,10 @@ useEffect(() => {
     return (node.data?.videoFile?.filename as string | undefined) ?? null;
   }, [g.clickedNodeId, g.rfNodes]);
 
-    const davinci = useDavinciTimeline({
-  project: props.project,
-  clickedClipFilename,
-});
+  const davinci = useDavinciTimeline({
+    project: props.project,
+    clickedClipFilename,
+  });
 
   // ---------- Root create ----------
   function createRoot() {
@@ -395,7 +392,11 @@ useEffect(() => {
 
     // Simple mode: derive overrides
     if (v2v.v2vTab === "simple") {
-      const totalStepsReal = sliderToIntRange(v2v.simpleTotalSteps, 20, 24);
+      const stepsRange =
+        v2v.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
+
+      const totalStepsReal = sliderToIntRange(v2v.simpleTotalSteps, stepsRange.min, stepsRange.max);
+
       const stepRatioPct = sliderToRange(v2v.simpleStepRatio, 50, 80);
       const stepRatio01 = stepRatioPct / 100;
 
@@ -411,9 +412,7 @@ useEffect(() => {
         highStrength: highStrengthReal,
       });
 
-      console.log(d)
-
-
+      console.log(d);
 
       // enqueue job (your old enqueueExtendJob behavior must be in onSuccess mapping)
       enqueueExtendJob(parentFile, {
@@ -498,8 +497,22 @@ useEffect(() => {
             // I'm assuming you still have the same helpers wired in your project.
             // If not: import from graph_helpers/layout (same as mega-file).
 
-            const paramPos = { x: baseX + 260, y: baseY };
-            const clipPos = { x: baseX + 520, y: baseY };
+            const branchIndex = countBranches(nextEdges, parentId); 
+            // nextEdges enthält edge1 schon -> branchIndex ist damit praktisch "neue Anzahl"
+
+            const desiredParam: { x: number; y: number } = {
+              x: baseX + 260,
+              y: baseY + (branchIndex - 1) * 160, // -1 weil edge1 schon drin ist
+            };
+
+            const paramPos = findFreePosition(desiredParam, prevNodes, { stepY: 160 });
+
+            const clipPos = findFreePosition(
+              { x: baseX + 520, y: paramPos.y },
+              prevNodes,
+              { stepY: 160 }
+            );
+
 
             const paramNode: RFNode = {
               id: paramId,
@@ -511,7 +524,7 @@ useEffect(() => {
                 mode: "v2v",
                 parentClipId: parentId,
                 ...params,
-                categoryScores: scores
+                categoryScores: scores,
               } as any,
               draggable: true,
             };
@@ -540,6 +553,8 @@ useEffect(() => {
 
             // commit graph
             g.commit(nextNodes, nextEdges);
+            centerOnNode(rfInstance, newClipId, { onAfter: vp.saveViewport });
+
 
             return nextNodes;
           });
@@ -570,19 +585,18 @@ useEffect(() => {
   return (
     <div style={{ height: "100%", position: "relative" }}>
       {/* Jobs */}
-<Paper elevation={2} sx={{ position: "absolute", zIndex: 10, top: 12, right: 12, p: 1 }}>
-  <Stack direction="row" spacing={1} alignItems="center">
-    <StatusDot state={genState as any} />
-  </Stack>
+      <Paper elevation={2} sx={{ position: "absolute", zIndex: 10, top: 12, right: 12, p: 1 }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <StatusDot state={genState as any} />
+        </Stack>
 
-  <JobsPanel
-    jobs={jobs}
-    open={jobsOpen}
-    onToggle={() => setJobsOpen((v) => !v)}
-    title="Jobs"
-  />
-</Paper>
-
+        <JobsPanel
+          jobs={jobs}
+          open={jobsOpen}
+          onToggle={() => setJobsOpen((v) => !v)}
+          title="Jobs"
+        />
+      </Paper>
 
       {/* Root */}
       <Paper elevation={2} sx={{ position: "absolute", zIndex: 10, top: 12, left: 12, p: 1 }}>
@@ -649,30 +663,31 @@ useEffect(() => {
       />
 
       <ClipDialog
-  open={clipDialogOpen}
-  tab={v2v.v2vTab}
-  onTabChange={v2v.setV2vTab}
-  prompt={v2vPrompt}
-  onPromptChange={setV2vPrompt}
-  simpleTotalSteps={v2v.simpleTotalSteps}
-  simpleStepRatio={v2v.simpleStepRatio}
-  simpleHighShift={v2v.simpleHighShift}
-  simpleHighCfg={v2v.simpleHighCfg}
-  simpleHighStrength={v2v.simpleHighStrength}
-  onChangeTotalSteps={v2v.handleChangeTotalStepsSlider}
-  onChangeStepRatio={v2v.handleChangeRatio}
-  onChangeHighShift={v2v.handleChangeShift}
-  onChangeHighCfg={v2v.handleChangeCFG}
-  onChangeHighStrength={v2v.handleChangeStrength}
-  advanced={advanced}
-  onAdvancedChange={(patch) => setAdvanced((prev) => ({ ...prev, ...patch }))}
-  generating={clipGenerating}
-  statusText={clipStatus}
-  previewUrl={clipPreviewUrl}
-  onClose={() => setClipDialogOpen(false)}
-  onStart={handleStartV2V}
-/>
-
+        open={clipDialogOpen}
+        tab={v2v.v2vTab}
+        onTabChange={v2v.setV2vTab}
+        prompt={v2vPrompt}
+        onPromptChange={setV2vPrompt}
+        simpleTotalSteps={v2v.simpleTotalSteps}
+        simpleStepRatio={v2v.simpleStepRatio}
+        simpleHighShift={v2v.simpleHighShift}
+        simpleHighCfg={v2v.simpleHighCfg}
+        simpleHighStrength={v2v.simpleHighStrength}
+        onChangeTotalSteps={v2v.handleChangeTotalStepsSlider}
+        onChangeStepRatio={v2v.handleChangeRatio}
+        onChangeHighShift={v2v.handleChangeShift}
+        onChangeHighCfg={v2v.handleChangeCFG}
+        onChangeHighStrength={v2v.handleChangeStrength}
+        advanced={advanced}
+        onAdvancedChange={(patch) => setAdvanced((prev) => ({ ...prev, ...patch }))}
+        generating={clipGenerating}
+        statusText={clipStatus}
+        previewUrl={clipPreviewUrl}
+        onClose={() => setClipDialogOpen(false)}
+        onStart={handleStartV2V}
+        simpleSpeedMode={v2v.simpleSpeedMode}
+        onSimpleSpeedModeChange={v2v.setSimpleSpeedMode}
+      />
 
       <NamingConventionDialog
         open={namingConventionOpen}
@@ -714,7 +729,6 @@ useEffect(() => {
           setTimelineUploadOpen(true);
         }}
       />
-
 
       <TimelineUploadDialog
         open={timelineUploadOpen}

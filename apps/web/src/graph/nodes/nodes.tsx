@@ -289,7 +289,6 @@ export function ClipNode(props: NodeProps<any>) {
         videoUrl={videoUrl}
         videoFile={videoFile}
         videoStatus={videoStatus}
-        categoryScores={props.data?.categoryScores}
       >
         <Typography variant="body2">{props.data?.label}</Typography>
       </NodeCard>
@@ -323,6 +322,7 @@ export function ParamNode(props: NodeProps<any>) {
         lowNoiseStartStep={props.data?.lowNoiseStartStep}
         highNoiseEndStep={props.data?.highNoiseEndStep}
         lowNoiseEndStep={props.data?.lowNoiseEndStep}
+        categoryScores={props.data?.categoryScores}
       >
         <Typography variant="body2">{props.data?.label}</Typography>
       </NodeCard>

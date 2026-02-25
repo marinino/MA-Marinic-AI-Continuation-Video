@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Box } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 
 export type CategoryScores = {
   creativity: number;
@@ -14,8 +15,24 @@ export function PentagonMap(props: {
   size?: number;
   showRadarPolygon?: boolean;
 }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
   const size = props.size ?? 260;
   const showRadarPolygon = props.showRadarPolygon ?? true;
+
+  // --- theme-aware colors (tweak to taste) ---
+  const gridStroke = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.14)";
+  const outerStroke = isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.28)";
+
+  // accent for polygon
+  const radarFill = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0,0,0,0.08)";
+  const radarStroke = isDark ? "rgba(255, 255, 255, 1)" : "rgba(0,0,0,0.45)";
+  const radarPoint = isDark ? "rgba(255, 255, 255, 1)" : "rgba(0,0,0,0.65)";
+
+  // center dot (you wanted dark in light mode)
+  const dotFill = isDark ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.85)";
+  const dotGlow = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)";
 
   const labels = [
     { key: "creativity", label: "Creativity" },
@@ -98,7 +115,7 @@ export function PentagonMap(props: {
                 key={idx}
                 points={poly(ringPts)}
                 fill="none"
-                stroke="rgba(255,255,255,0.12)"
+                stroke={gridStroke}
                 strokeWidth={1}
               />
             );
@@ -112,7 +129,7 @@ export function PentagonMap(props: {
               y1={cy}
               x2={v.x}
               y2={v.y}
-              stroke="rgba(255,255,255,0.12)"
+              stroke={gridStroke}
               strokeWidth={1}
             />
           ))}
@@ -121,7 +138,7 @@ export function PentagonMap(props: {
           <polygon
             points={poly(verts)}
             fill="none"
-            stroke="rgba(255,255,255,0.25)"
+            stroke={outerStroke}
             strokeWidth={2}
           />
 
@@ -130,19 +147,19 @@ export function PentagonMap(props: {
             <>
               <polygon
                 points={poly(radarPts)}
-                fill="rgba(100, 180, 255, 0.18)"
-                stroke="rgba(100, 180, 255, 0.65)"
+                fill={radarFill}
+                stroke={radarStroke}
                 strokeWidth={2}
               />
               {radarPts.map((p, i) => (
-                <circle key={i} cx={p.x} cy={p.y} r={3.2} fill="rgba(100, 180, 255, 0.9)" />
+                <circle key={i} cx={p.x} cy={p.y} r={3.2} fill={radarPoint} />
               ))}
             </>
           )}
 
           {/* Dot */}
-          <circle cx={dot.x} cy={dot.y} r={6} fill="rgba(255,255,255,0.9)" />
-          <circle cx={dot.x} cy={dot.y} r={10} fill="rgba(255,255,255,0.12)" />
+          <circle cx={dot.x} cy={dot.y} r={6} fill={dotFill} />
+          <circle cx={dot.x} cy={dot.y} r={10} fill={dotGlow} />
         </svg>
 
         {/* Labels */}
