@@ -2,14 +2,14 @@ import { useState } from "react";
 
 export type V2VTab = "simple" | "advanced";
 export type CatView = "sliders" | "pentagon";
-export type SimpleSpeedMode = "simple" | "quick";
+export type SimpleSpeedMode = "quality" | "quick";
 
 export function useV2VSliders() {
   const [v2vTab, setV2vTab] = useState<V2VTab>("simple");
   const [catView, setCatView] = useState<CatView>("sliders");
 
   // ✅ NEW: speed mode for simple tab
-  const [simpleSpeedMode, setSimpleSpeedMode] = useState<SimpleSpeedMode>("simple");
+  const [simpleSpeedMode, setSimpleSpeedMode] = useState<SimpleSpeedMode>("quality");
 
   const [simpleTotalSteps, setSimpleTotalSteps] = useState(0);
   const [simpleStepRatio, setSimpleStepRatio] = useState(50);
@@ -58,6 +58,5 @@ export function useV2VSliders() {
     handleChangeShift,
     handleChangeCFG,
     handleChangeStrength,
-
   };
 }

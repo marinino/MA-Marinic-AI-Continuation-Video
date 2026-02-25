@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -64,7 +64,6 @@ const edgeTypes = { labeled: LabeledEdge };
 
 type RootMode = "generate" | "upload";
 type ManualEditDraft = { fromClipId: string; expectedBasename: string };
-type SimpleSpeedMode = "simple" | "quick";
 
 export function GraphView(props: {
   project: Project;
@@ -98,12 +97,35 @@ export function GraphView(props: {
     g.setClickedNodeId(sel);
   }, [props.project.uiState?.selectedNodeId]);
 
+  const markVideoOpened = useCallback(
+    (nodeId: string) => {
+      g.setRfNodes((prev) => {
+        const next = prev.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...(n.data as any), videoOpened: true } } : n
+        );
+
+        // ✅ commit muss den "next" state bekommen
+        g.setRfEdges((prevE) => {
+          g.commit(next, prevE);
+          return prevE;
+        });
+
+        return next;
+      });
+    },
+    [g]
+  );
+
   // ✅ inject onAdd handler for the "+" button inside nodes
   const nodesForUI = useMemo(() => {
     return g.nodesWithRootFlag.map((n) => ({
       ...n,
       data: {
         ...(n.data as any),
+        videoOpened: Boolean((n.data as any)?.videoOpened),
+
+        // ✅ callback für den MovieIcon-click im Node
+        markVideoOpened,
         onAdd: (nodeId: string) => {
           // selection persistieren
           g.setClickedNodeId(nodeId);
@@ -117,7 +139,7 @@ export function GraphView(props: {
         },
       },
     }));
-  }, [g.nodesWithRootFlag, g.setClickedNodeId, props.onChange]);
+  }, [g.nodesWithRootFlag, g.setClickedNodeId, props.onChange, markVideoOpened]);
 
   // keep selection in project uiState (same behavior)
   useEffect(() => {
@@ -181,6 +203,8 @@ export function GraphView(props: {
   const [v2vParentClipId, setV2vParentClipId] = useState<string | null>(null);
   const [v2vPrompt, setV2vPrompt] = useState("");
 
+  const paletteKey = genState === "idle" ? "success" : genState === "running" ? "warning" : "error";
+
   // advanced raw params (same as mega-file)
   const [advanced, setAdvanced] = useState({
     lowNoiseCfg: 1,
@@ -239,6 +263,16 @@ export function GraphView(props: {
     clickedClipFilename,
   });
 
+  // helper (z.B. in GraphView oder in einer kleinen utils-Datei)
+  function jobStateStyle(state: "idle" | "running" | "error") {
+    const paletteKey = state === "idle" ? "success" : state === "running" ? "warning" : "error";
+
+    return {
+      borderColor: `${paletteKey}.main`,
+      bgColor: `${paletteKey}.50`, // sehr dezent
+    } as const;
+  }
+
   // ---------- Root create ----------
   function createRoot() {
     const hasRoot = g.rfNodes.some((n) => {
@@ -274,7 +308,12 @@ export function GraphView(props: {
           id,
           type: "clip",
           position: { x: 50, y: 80 },
-          data: { label: "Root Clip", videoFile: file, videoStatus: "done" } as any,
+          data: {
+            label: "Root Clip",
+            videoFile: file,
+            videoStatus: "done",
+            videoOpened: false,
+          } as any,
           draggable: true,
         };
 
@@ -314,7 +353,12 @@ export function GraphView(props: {
         id,
         type: "clip",
         position: { x: 50, y: 80 },
-        data: { label: "Root Clip", videoFile: stored, videoStatus: "done" } as any,
+        data: {
+          label: "Root Clip",
+          videoFile: stored,
+          videoStatus: "done",
+          videoOpened: false,
+        } as any,
         draggable: true,
       };
 
@@ -497,7 +541,7 @@ export function GraphView(props: {
             // I'm assuming you still have the same helpers wired in your project.
             // If not: import from graph_helpers/layout (same as mega-file).
 
-            const branchIndex = countBranches(nextEdges, parentId); 
+            const branchIndex = countBranches(nextEdges, parentId);
             // nextEdges enthält edge1 schon -> branchIndex ist damit praktisch "neue Anzahl"
 
             const desiredParam: { x: number; y: number } = {
@@ -507,12 +551,9 @@ export function GraphView(props: {
 
             const paramPos = findFreePosition(desiredParam, prevNodes, { stepY: 160 });
 
-            const clipPos = findFreePosition(
-              { x: baseX + 520, y: paramPos.y },
-              prevNodes,
-              { stepY: 160 }
-            );
-
+            const clipPos = findFreePosition({ x: baseX + 520, y: paramPos.y }, prevNodes, {
+              stepY: 160,
+            });
 
             const paramNode: RFNode = {
               id: paramId,
@@ -533,7 +574,12 @@ export function GraphView(props: {
               id: newClipId,
               type: "clip",
               position: clipPos,
-              data: { label: "Generated Clip", videoFile: file, videoStatus: "done" } as any,
+              data: {
+                label: "Generated Clip",
+                videoFile: file,
+                videoStatus: "done",
+                videoOpened: false,
+              } as any,
               draggable: true,
             };
 
@@ -554,7 +600,6 @@ export function GraphView(props: {
             // commit graph
             g.commit(nextNodes, nextEdges);
             centerOnNode(rfInstance, newClipId, { onAfter: vp.saveViewport });
-
 
             return nextNodes;
           });
@@ -585,11 +630,19 @@ export function GraphView(props: {
   return (
     <div style={{ height: "100%", position: "relative" }}>
       {/* Jobs */}
-      <Paper elevation={2} sx={{ position: "absolute", zIndex: 10, top: 12, right: 12, p: 1 }}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <StatusDot state={genState as any} />
-        </Stack>
-
+      <Paper
+        elevation={3}
+        sx={{
+          position: "absolute",
+          zIndex: 10,
+          top: 12,
+          right: 12,
+          p: 1.5,
+          borderLeft: 6,
+          borderLeftColor: `${paletteKey}.main`,
+          bgcolor: genState === "idle" ? "background.paper" : `${paletteKey}.50`,
+        }}
+      >
         <JobsPanel
           jobs={jobs}
           open={jobsOpen}

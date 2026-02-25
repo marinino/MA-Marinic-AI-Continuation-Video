@@ -75,6 +75,8 @@ export const ClipNodeDataSchema = z.object({
   videoStatus: z.enum(["idle", "generating", "done", "error"]).optional(),
   videoUrl: z.string().optional(),
   videoFile: StoredMediaFileSchema.optional(),
+
+  videoOpened: z.boolean().optional(),
 });
 
 export const NodeSchema = z.discriminatedUnion("type", [

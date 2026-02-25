@@ -123,24 +123,11 @@ export function PentagonMap(props: {
 
           {/* Axes */}
           {verts.map((v, i) => (
-            <line
-              key={i}
-              x1={cx}
-              y1={cy}
-              x2={v.x}
-              y2={v.y}
-              stroke={gridStroke}
-              strokeWidth={1}
-            />
+            <line key={i} x1={cx} y1={cy} x2={v.x} y2={v.y} stroke={gridStroke} strokeWidth={1} />
           ))}
 
           {/* Outer pentagon */}
-          <polygon
-            points={poly(verts)}
-            fill="none"
-            stroke={outerStroke}
-            strokeWidth={2}
-          />
+          <polygon points={poly(verts)} fill="none" stroke={outerStroke} strokeWidth={2} />
 
           {/* Radar */}
           {showRadarPolygon && (

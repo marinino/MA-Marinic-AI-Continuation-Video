@@ -18,15 +18,13 @@ export type JobsPanelProps = {
 
 export function JobsPanel(p: JobsPanelProps) {
   return (
-    <Paper elevation={2} sx={{ p: 1 }}>
-      <Stack direction="row" spacing={1} alignItems="center">
-        <Button size="small" onClick={p.onToggle}>
-          {p.title ?? "Jobs"} ({p.jobs.length})
-        </Button>
-      </Stack>
+    <Stack spacing={1}>
+      <Button size="small" onClick={p.onToggle}>
+        {p.title ?? "Jobs"} ({p.jobs.length})
+      </Button>
 
       {p.open && (
-        <Box sx={{ mt: 1, minWidth: 320, maxHeight: 280, overflow: "auto" }}>
+        <Box sx={{ minWidth: 320, maxHeight: 280, overflow: "auto" }}>
           <Stack spacing={1}>
             {p.jobs.map((j) => (
               <Paper key={j.id} variant="outlined" sx={{ p: 1 }}>
@@ -49,7 +47,11 @@ export function JobsPanel(p: JobsPanelProps) {
                   <video
                     src={j.previewUrl}
                     controls
-                    style={{ width: "100%", borderRadius: 8, marginTop: 6 }}
+                    style={{
+                      width: "100%",
+                      borderRadius: 8,
+                      marginTop: 6,
+                    }}
                   />
                 )}
               </Paper>
@@ -57,6 +59,6 @@ export function JobsPanel(p: JobsPanelProps) {
           </Stack>
         </Box>
       )}
-    </Paper>
+    </Stack>
   );
 }

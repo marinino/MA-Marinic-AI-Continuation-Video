@@ -14,7 +14,6 @@ function Main() {
     return saved === "dark" || saved === "light" ? saved : "light";
   });
 
-
   const toggleColorMode = () => {
     setMode((prev) => {
       const next: ColorMode = prev === "light" ? "dark" : "light";

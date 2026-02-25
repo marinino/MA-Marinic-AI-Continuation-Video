@@ -67,6 +67,9 @@ function NodeCard(props: {
   highNoiseEndStep?: number;
   lowNoiseEndStep?: number;
 
+  videoOpened?: boolean;
+  onVideoOpened?: (nodeId: string) => void;
+
   categoryScores?: {
     creativity: number;
     promptFaithfulness: number;
@@ -80,11 +83,10 @@ function NodeCard(props: {
 
   const base = getNodeColors(props.type, props.isRoot);
 
-  const infoText =
-    props.infoText ?? "Dummy Info: Hier kommt später eine Erklärung zu diesem Node-Typ rein.";
-
   const bg = theme.palette.mode === "dark" ? theme.palette.background.paper : base.bg;
   const borderColor = base.border;
+
+  const shouldHighlightUnseen = props.type === "clip" && !props.videoOpened && !props.selected;
 
   return (
     <>
@@ -99,6 +101,27 @@ function NodeCard(props: {
           outline: "none",
           minWidth: 180,
           boxShadow: props.selected ? `0 0 0 5px ${borderColor}` : undefined,
+
+          ...(shouldHighlightUnseen
+            ? {
+                boxShadow: `0 0 0 4px ${borderColor}55, 0 0 18px ${borderColor}55`,
+                animation: "pulseGlow 1.6s ease-in-out infinite",
+                "@keyframes pulseGlow": {
+                  "0%": {
+                    transform: "scale(1)",
+                    boxShadow: `0 0 0 3px ${borderColor}44, 0 0 10px ${borderColor}44`,
+                  },
+                  "50%": {
+                    transform: "scale(1.02)",
+                    boxShadow: `0 0 0 5px ${borderColor}66, 0 0 22px ${borderColor}66`,
+                  },
+                  "100%": {
+                    transform: "scale(1)",
+                    boxShadow: `0 0 0 3px ${borderColor}44, 0 0 10px ${borderColor}44`,
+                  },
+                },
+              }
+            : null),
         }}
       >
         <CardContent>
@@ -109,6 +132,11 @@ function NodeCard(props: {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+
+                if (props.type === "clip") {
+                  props.onVideoOpened?.(props.nodeId);
+                }
+
                 setInfoOpen(true);
               }}
               onMouseDown={(e) => {
@@ -272,6 +300,9 @@ export function ClipNode(props: NodeProps<any>) {
 
   const videoUrl = props.data?.videoUrl ?? (videoFile ? comfyBuildVideoUrl(videoFile) : null);
 
+  const videoOpened = Boolean(props.data?.videoOpened);
+  const markVideoOpened = props.data?.markVideoOpened as ((id: string) => void) | undefined;
+
   return (
     <div style={{ position: "relative" }}>
       <Handle id="in" type="target" position={Position.Left} />
@@ -289,6 +320,8 @@ export function ClipNode(props: NodeProps<any>) {
         videoUrl={videoUrl}
         videoFile={videoFile}
         videoStatus={videoStatus}
+        videoOpened={videoOpened}
+        onVideoOpened={(id) => markVideoOpened?.(id)}
       >
         <Typography variant="body2">{props.data?.label}</Typography>
       </NodeCard>
