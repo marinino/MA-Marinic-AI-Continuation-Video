@@ -104,20 +104,20 @@ function NodeCard(props: {
 
           ...(shouldHighlightUnseen
             ? {
-                boxShadow: `0 0 0 4px ${borderColor}55, 0 0 18px ${borderColor}55`,
+                boxShadow: `0 0 0 4px #ffffff55, 0 0 18px #ffffff55`,
                 animation: "pulseGlow 1.6s ease-in-out infinite",
                 "@keyframes pulseGlow": {
                   "0%": {
                     transform: "scale(1)",
-                    boxShadow: `0 0 0 3px ${borderColor}44, 0 0 10px ${borderColor}44`,
+                    boxShadow: `0 0 0 3px #ffffff44, 0 0 10px #ffffff44`,
                   },
                   "50%": {
                     transform: "scale(1.02)",
-                    boxShadow: `0 0 0 5px ${borderColor}66, 0 0 22px ${borderColor}66`,
+                    boxShadow: `0 0 0 5px #ffffff66, 0 0 22px ${borderColor}66`,
                   },
                   "100%": {
                     transform: "scale(1)",
-                    boxShadow: `0 0 0 3px ${borderColor}44, 0 0 10px ${borderColor}44`,
+                    boxShadow: `0 0 0 3px #ffffff66, 0 0 10px #ffffff66`,
                   },
                 },
               }

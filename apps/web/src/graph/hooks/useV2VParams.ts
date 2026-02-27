@@ -88,7 +88,7 @@ export function computeCategoryScoresFromSimple(
 
   const ratio01 = clamp((s.stepRatio - 50) / (80 - 50), 0, 1); // keep exact formula
   const shift01 = clamp((s.highShift - 2.3) / (3 - 2.3), 0, 1);
-  const cfg01 = clamp((s.highCfg - 2.5) / (3.0 - 2.5), 0, 1);
+  const cfg01 = clamp((s.highCfg - 2.2) / (3.0 - 2.2), 0, 1);
   const strength01 = clamp((s.highStrength - 0.2) / (0.45 - 0.2), 0, 1);
 
   const promptFaithfulness = clamp(0.85 * cfg01 + 0.15 * ratio01, 0, 1);

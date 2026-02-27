@@ -226,14 +226,13 @@ export function GraphView(props: {
 
   const stepsRange = v2v.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
 
-  // category scores (IMPORTANT: must match mega-file formula in your hook)
   const scores = useCategoryScores(
     {
-      totalSteps: sliderToIntRange(v2v.simpleTotalSteps, stepsRange.min, stepsRange.max),
-      stepRatio: sliderToRange(v2v.simpleStepRatio, 50, 80),
-      highShift: sliderToRange(v2v.simpleHighShift, 2.3, 3.0),
-      highCfg: sliderToRange(v2v.simpleHighCfg, 2.5, 3.0),
-      highStrength: sliderToRange(v2v.simpleHighStrength, 0.2, 0.45),
+      totalSteps: v2v.simple.totalSteps,
+      stepRatio: v2v.simple.stepRatioPct, // % 50..80
+      highShift: v2v.simple.highShift,
+      highCfg: v2v.simple.highCfg,
+      highStrength: v2v.simple.highStrength,
     },
     stepsRange
   );
@@ -322,6 +321,13 @@ export function GraphView(props: {
 
           g.setRfEdges((prevE) => {
             g.commit(next, prevE);
+
+            if (rfInstance) {
+              centerOnNode(rfInstance, id, { onAfter: vp.saveViewport });
+            } else {
+              // falls rfInstance noch null ist, wenigstens Viewport später speichern
+              requestAnimationFrame(vp.saveViewport);
+            }
             return prevE;
           });
 
@@ -367,6 +373,13 @@ export function GraphView(props: {
 
         g.setRfEdges((prevE) => {
           g.commit(next, prevE);
+
+          if (rfInstance) {
+            centerOnNode(rfInstance, id, { onAfter: vp.saveViewport });
+          } else {
+            // falls rfInstance noch null ist, wenigstens Viewport später speichern
+            requestAnimationFrame(vp.saveViewport);
+          }
           return prevE;
         });
 
@@ -380,6 +393,7 @@ export function GraphView(props: {
 
       setRootUploading(false);
       setRootDialogOpen(false);
+      setRootUploadStatus("");
     } catch (e: any) {
       setRootUploadStatus(`Error: ${e?.message ?? String(e)}`);
       setRootUploading(false);
@@ -436,29 +450,16 @@ export function GraphView(props: {
 
     // Simple mode: derive overrides
     if (v2v.v2vTab === "simple") {
-      const stepsRange =
-        v2v.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
-
-      const totalStepsReal = sliderToIntRange(v2v.simpleTotalSteps, stepsRange.min, stepsRange.max);
-
-      const stepRatioPct = sliderToRange(v2v.simpleStepRatio, 50, 80);
-      const stepRatio01 = stepRatioPct / 100;
-
-      const highShiftReal = sliderToRange(v2v.simpleHighShift, 2.3, 3.0);
-      const highCfgReal = sliderToRange(v2v.simpleHighCfg, 2.5, 3.0);
-      const highStrengthReal = sliderToRange(v2v.simpleHighStrength, 0.2, 0.45);
+      const s = v2v.simple;
 
       const d = deriveV2VParamsFromSimple({
-        totalSteps: totalStepsReal,
-        stepRatio01,
-        highShift: highShiftReal,
-        highCfg: highCfgReal,
-        highStrength: highStrengthReal,
+        totalSteps: s.totalSteps,
+        stepRatio01: s.stepRatioPct / 100,
+        highShift: s.highShift,
+        highCfg: s.highCfg,
+        highStrength: s.highStrength,
       });
 
-      console.log(d);
-
-      // enqueue job (your old enqueueExtendJob behavior must be in onSuccess mapping)
       enqueueExtendJob(parentFile, {
         lowNoiseCfg: 2,
         lowNoiseModelStrength: 0.3,
@@ -721,16 +722,14 @@ export function GraphView(props: {
         onTabChange={v2v.setV2vTab}
         prompt={v2vPrompt}
         onPromptChange={setV2vPrompt}
-        simpleTotalSteps={v2v.simpleTotalSteps}
-        simpleStepRatio={v2v.simpleStepRatio}
-        simpleHighShift={v2v.simpleHighShift}
-        simpleHighCfg={v2v.simpleHighCfg}
-        simpleHighStrength={v2v.simpleHighStrength}
-        onChangeTotalSteps={v2v.handleChangeTotalStepsSlider}
-        onChangeStepRatio={v2v.handleChangeRatio}
-        onChangeHighShift={v2v.handleChangeShift}
-        onChangeHighCfg={v2v.handleChangeCFG}
-        onChangeHighStrength={v2v.handleChangeStrength}
+        // ✅ NEW
+        simple={v2v.simple}
+        sliderCfg={v2v.sliderCfg}
+        onChangeTotalSteps={v2v.onTotalSteps}
+        onChangeStepRatio={v2v.onRatio}
+        onChangeHighShift={v2v.onShift}
+        onChangeHighCfg={v2v.onCfg}
+        onChangeHighStrength={v2v.onStrength}
         advanced={advanced}
         onAdvancedChange={(patch) => setAdvanced((prev) => ({ ...prev, ...patch }))}
         generating={clipGenerating}
@@ -740,6 +739,8 @@ export function GraphView(props: {
         onStart={handleStartV2V}
         simpleSpeedMode={v2v.simpleSpeedMode}
         onSimpleSpeedModeChange={v2v.setSimpleSpeedMode}
+        getBounds={v2v.getBounds}
+        roundTo={v2v.roundTo}
       />
 
       <NamingConventionDialog

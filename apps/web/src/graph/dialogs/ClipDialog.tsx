@@ -21,11 +21,20 @@ import {
 
 // ⬇️ falls dein PentagonMap woanders liegt: Pfad anpassen
 import { PentagonMap } from "../components/PentagonMap";
-import { useV2VSliders } from "../hooks/useV2VSliders";
-import { computeCategoryScoresFromSimple } from "../hooks/useV2VParams";
+import {
+  SAFE_PRESETS,
+  SafeKey,
+  SafePreset,
+  SimpleReal,
+  SliderConfig,
+  useV2VSliders,
+} from "../hooks/useV2VSliders";
+import { computeCategoryScoresFromSimple, deriveV2VParamsFromSimple } from "../hooks/useV2VParams";
 
 export type V2VTab = "simple" | "advanced";
 type CatView = "sliders" | "pentagon";
+
+type Mark = { value: number; label?: React.ReactNode };
 
 export type AdvancedParamsState = {
   lowNoiseCfg: number;
@@ -50,6 +59,8 @@ export type CategoryScores = {
   videoFaithfulness: number;
 };
 
+type SimpleSliderKey = keyof SimpleReal; // statt eigener keys, wenn du willst
+
 export type ClipDialogProps = {
   open: boolean;
   tab: V2VTab;
@@ -59,11 +70,7 @@ export type ClipDialogProps = {
   onPromptChange: (v: string) => void;
 
   // Simple sliders (0..100)
-  simpleTotalSteps: number;
-  simpleStepRatio: number;
-  simpleHighShift: number;
-  simpleHighCfg: number;
-  simpleHighStrength: number;
+  simple: SimpleReal; // <-- EIN Objekt, echte Werte
 
   onChangeTotalSteps: (e: Event, v: number | number[]) => void;
   onChangeStepRatio: (e: Event, v: number | number[]) => void;
@@ -89,92 +96,19 @@ export type ClipDialogProps = {
 
   simpleSpeedMode: "quality" | "quick";
   onSimpleSpeedModeChange: (m: "quality" | "quick") => void;
-};
+  sliderCfg: Record<keyof SimpleReal, SliderConfig>;
 
-type SafePreset = {
-  name: string;
-  stepsTotal: number;
-  lowRatio: number; // lowSteps/stepsTotal
-  cfgHigh: number;
-  shiftHigh: number;
-  strengthHigh: number;
+  getBounds: (k: SafeKey, v: number) => Record<SafeKey, { min: number; max: number }> | null;
+  roundTo: (x: number, decimals: number) => number;
 };
-
-type SimpleSliderKey = "totalSteps" | "stepRatio" | "highShift" | "highCfg" | "highStrength";
 
 type CatKey = keyof CategoryScores;
 
-const INFLUENCE: Record<SimpleSliderKey, Partial<Record<CatKey, number>>> = {
-  totalSteps: {
-    transitionSmoothness: +0.55,
-  },
-  stepRatio: {
-    promptFaithfulness: +0.15,
-    videoFaithfulness: +0.55,
-    transitionSmoothness: +0.45,
-    motion: -0.2,
-    creativity: -0.25,
-  },
-  highShift: {
-    videoFaithfulness: -0.3,
-    motion: +0.45,
-    creativity: +0.45,
-  },
-  highCfg: {
-    promptFaithfulness: +0.85,
-    creativity: -0.2,
-  },
-  highStrength: {
-    videoFaithfulness: -0.15,
-    motion: +0.45,
-    creativity: +0.35,
-  },
-};
+type SpeedMode = "quick" | "quality";
+
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 /* ========= helpers (wie im mega-file) ========= */
-
-const SAFE_PRESETS: SafePreset[] = [
-  {
-    name: "Motion",
-    stepsTotal: 20,
-    lowRatio: 10 / 20,
-    cfgHigh: 2.5,
-    shiftHigh: 2.95,
-    strengthHigh: 0.44,
-  },
-  {
-    name: "Creativity",
-    stepsTotal: 20,
-    lowRatio: 12 / 20,
-    cfgHigh: 2.2,
-    shiftHigh: 2.9,
-    strengthHigh: 0.4,
-  },
-  {
-    name: "Prompt",
-    stepsTotal: 20,
-    lowRatio: 14 / 20,
-    cfgHigh: 3.0,
-    shiftHigh: 2.5,
-    strengthHigh: 0.3,
-  },
-  {
-    name: "Video",
-    stepsTotal: 20,
-    lowRatio: 16 / 20,
-    cfgHigh: 3.0,
-    shiftHigh: 2.3,
-    strengthHigh: 0.2,
-  },
-  {
-    name: "Transition",
-    stepsTotal: 24,
-    lowRatio: 16 / 24,
-    cfgHigh: 3.0,
-    shiftHigh: 2.5,
-    strengthHigh: 0.3,
-  },
-];
 
 const SAFE_R = {
   stepsTotal: { min: 20, max: 24 },
@@ -183,6 +117,15 @@ const SAFE_R = {
   shiftHigh: { min: 2.3, max: 2.95 },
   strengthHigh: { min: 0.2, max: 0.44 },
 };
+
+function toSafeKey(k: SimpleSliderKey): SafeKey | null {
+  if (k === "totalSteps") return "totalSteps";
+  if (k === "stepRatioPct") return "stepRatioPct";
+  if (k === "highShift") return "highShift";
+  if (k === "highCfg") return "highCfg";
+  if (k === "highStrength") return "highStrength";
+  return null;
+}
 
 function norm01(x: number, min: number, max: number) {
   if (max === min) return 0;
@@ -216,127 +159,33 @@ function softmaxWeights(d2s: number[], temperature = 0.12) {
   return xs.map((x) => x / sum);
 }
 
-function projectToSafe(current: SafePreset, temperature = 0.12): SafePreset {
-  const d2s = SAFE_PRESETS.map((p) => dist2Safe(current, p));
-  const w = softmaxWeights(d2s, temperature);
+function rangePct(value: number, min: number, max: number) {
+  if (max <= min) return 0;
+  return ((value - min) / (max - min)) * 100;
+}
 
-  const mixed = SAFE_PRESETS.reduce(
-    (acc, p, i) => {
-      const wi = w[i];
-      acc.stepsTotal += wi * p.stepsTotal;
-      acc.lowRatio += wi * p.lowRatio;
-      acc.cfgHigh += wi * p.cfgHigh;
-      acc.shiftHigh += wi * p.shiftHigh;
-      acc.strengthHigh += wi * p.strengthHigh;
-      return acc;
-    },
-    { name: "Projected", stepsTotal: 0, lowRatio: 0, cfgHigh: 0, shiftHigh: 0, strengthHigh: 0 }
+function SafeRangeBar(props: { min: number; max: number; sliderMin: number; sliderMax: number }) {
+  const left = rangePct(props.min, props.sliderMin, props.sliderMax);
+  const right = rangePct(props.max, props.sliderMin, props.sliderMax);
+  const width = Math.max(0, right - left);
+
+  return (
+    <Box sx={{ position: "relative", height: 6, borderRadius: 999, bgcolor: "action.hover" }}>
+      <Box
+        sx={{
+          position: "absolute",
+          left: `${left}%`,
+          width: `${width}%`,
+          top: 0,
+          bottom: 0,
+          borderRadius: 999,
+          bgcolor: "success.main",
+          opacity: 0.25,
+        }}
+      />
+    </Box>
   );
-
-  // clamp to safe bounds (extra safety)
-  mixed.stepsTotal = clamp(mixed.stepsTotal, SAFE_R.stepsTotal.min, SAFE_R.stepsTotal.max);
-  mixed.lowRatio = clamp(mixed.lowRatio, SAFE_R.lowRatio.min, SAFE_R.lowRatio.max);
-  mixed.cfgHigh = clamp(mixed.cfgHigh, SAFE_R.cfgHigh.min, SAFE_R.cfgHigh.max);
-  mixed.shiftHigh = clamp(mixed.shiftHigh, SAFE_R.shiftHigh.min, SAFE_R.shiftHigh.max);
-  mixed.strengthHigh = clamp(mixed.strengthHigh, SAFE_R.strengthHigh.min, SAFE_R.strengthHigh.max);
-
-  return mixed;
 }
-
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-
-function smoothstep01(x: number) {
-  const t = clamp(x, 0, 1);
-  return t * t * (3 - 2 * t);
-}
-
-function sliderToRange(slider: number, min: number, max: number, easing?: (t: number) => number) {
-  const t0 = clamp(slider, 0, 100) / 100;
-  const t = easing ? easing(t0) : t0;
-  return min + t * (max - min);
-}
-
-function sliderToIntRange(slider: number, min: number, max: number) {
-  return Math.round(sliderToRange(slider, min, max));
-}
-
-type CategoryScores01 = {
-  creativity: number;
-  promptFaithfulness: number;
-  motion: number;
-  transitionSmoothness: number;
-  videoFaithfulness: number;
-};
-
-function computeCategoryScoresFromSimple01(
-  s: {
-    totalSteps: number;
-    stepRatio: number;
-    highShift: number;
-    highCfg: number;
-    highStrength: number;
-  },
-  stepsMinMax: { min: number; max: number }
-): CategoryScores01 {
-  const denom = Math.max(1e-6, stepsMinMax.max - stepsMinMax.min);
-  const steps01 = clamp((s.totalSteps - stepsMinMax.min) / denom, 0, 1);
-
-  const ratio01 = clamp((s.stepRatio - 50) / (80 - 50), 0, 1);
-  const shift01 = clamp((s.highShift - 2.3) / (3.0 - 2.3), 0, 1);
-  const cfg01 = clamp((s.highCfg - 2.5) / (3.0 - 2.5), 0, 1);
-  const strength01 = clamp((s.highStrength - 0.2) / (0.45 - 0.2), 0, 1);
-
-  const promptFaithfulness = clamp(0.85 * cfg01 + 0.15 * ratio01, 0, 1);
-  const videoFaithfulness = clamp(
-    0.55 * ratio01 + 0.3 * (1 - shift01) + 0.15 * (1 - strength01),
-    0,
-    1
-  );
-  const transitionSmoothness = clamp(0.55 * steps01 + 0.45 * ratio01, 0, 1);
-  const motion = clamp(0.45 * shift01 + 0.45 * strength01 - 0.2 * ratio01 + 0.3, 0, 1);
-  const creativity = clamp(
-    0.45 * shift01 + 0.35 * strength01 + 0.2 * (1 - cfg01) - 0.25 * ratio01 + 0.25,
-    0,
-    1
-  );
-
-  return { creativity, promptFaithfulness, motion, transitionSmoothness, videoFaithfulness };
-}
-
-
-function deriveV2VParamsFromSimple(opts: {
-  totalSteps: number;
-  stepRatio01: number; // low Anteil 0..1
-  highShift: number;
-  highCfg: number;
-  highStrength: number;
-}) {
-  const totalSteps = Math.round(clamp(opts.totalSteps, 1, 100));
-
-  const lowSteps = Math.max(1, Math.round(totalSteps * clamp(opts.stepRatio01, 0, 1)));
-  const highSteps = Math.max(1, totalSteps - lowSteps);
-
-  const highStart = 0;
-  const highEnd = highSteps;
-
-  const lowStart = highEnd;
-  const lowEnd = highEnd + lowSteps;
-
-  return {
-    highNoiseSteps: highSteps,
-    lowNoiseSteps: lowSteps,
-    highNoiseStartStep: highStart,
-    highNoiseEndStep: highEnd,
-    lowNoiseStartStep: lowStart,
-    lowNoiseEndStep: lowEnd,
-
-    highNoiseShift: opts.highShift,
-    highNoiseCfg: opts.highCfg,
-    highNoiseModelStrength: opts.highStrength,
-  };
-}
-
-
 
 /* ========= UI helpers ========= */
 
@@ -354,35 +203,59 @@ function ReadonlySlider(props: { label: string; value: number; sx?: any }) {
   );
 }
 
+function marksFor(b?: { min: number; max: number }, decimals = 2): Mark[] | undefined {
+  if (!b) return undefined;
+
+  const fmt = (x: number) => Number(x.toFixed(decimals));
+
+  return [
+    { value: b.min, label: <Typography variant="caption">{fmt(b.min)}</Typography> },
+    { value: b.max, label: <Typography variant="caption">{fmt(b.max)}</Typography> },
+  ];
+}
+
 function PressableSlider(props: {
   sliderKey: SimpleSliderKey;
-  activeKey: SimpleSliderKey | null;
   onBegin: (k: SimpleSliderKey) => void;
   onEnd: () => void;
   value: number;
+  min: number;
+  max: number;
+  step: number;
+  marks?: Mark[];
   onChange: (e: Event, v: number | number[]) => void;
 }) {
-  const { sliderKey, onBegin, onEnd, value, onChange } = props;
-
+  const { sliderKey, onBegin, onEnd, value, onChange, min, max, step, marks } = props;
   return (
     <Box
-      // CAPTURE => feuert bevor MUI intern Dinge “schluckt”
       onPointerDownCapture={() => onBegin(sliderKey)}
       onMouseDownCapture={() => onBegin(sliderKey)}
       onTouchStartCapture={() => onBegin(sliderKey)}
-      // wenn Pointer irgendwo anders endet
       onPointerUpCapture={onEnd}
       onPointerCancelCapture={onEnd}
-      sx={{
-        // wichtig: damit Touch zuverlässig als Drag durchgeht
-        touchAction: "none",
-      }}
+      sx={{ touchAction: "none" }}
     >
       <Slider
+        sx={{
+          "& .MuiSlider-mark": {
+            width: 4,
+            height: 16,
+            borderRadius: 2,
+            opacity: 1,
+            backgroundColor: "text.primary",
+          },
+          "& .MuiSlider-markLabel": {
+            mt: 1,
+            opacity: 0.95,
+            fontWeight: 700,
+          },
+        }}
         value={value}
-        step={1}
+        min={min}
+        max={max}
+        step={step}
+        marks={marks}
         onChange={onChange}
-        // wenn Drag fertig => end
         onChangeCommitted={onEnd as any}
       />
     </Box>
@@ -392,396 +265,178 @@ function PressableSlider(props: {
 export function ClipDialog(p: ClipDialogProps) {
   const [catView, setCatView] = React.useState<CatView>("sliders");
   const [activeSimple, setActiveSimple] = React.useState<SimpleSliderKey | null>(null);
+  const activeValue = activeSimple ? (p.simple[activeSimple] as number) : null;
 
   const [activeEffects, setActiveEffects] = React.useState<Partial<Record<CatKey, number>> | null>(
     null
   );
 
-function beginDrag(key: SimpleSliderKey) {
-  setActiveSimple(key);
-  setActiveEffects(computeEffectsFor(key));
-}
+  React.useEffect(() => {
+    if (!activeSimple) return;
+    setActiveEffects(computeEffectsFor(activeSimple));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSimple, activeValue, p.simpleSpeedMode]);
 
-function endDrag() {
-  setActiveSimple(null);
-  setActiveEffects(null);
-}
+  function beginDrag(key: SimpleSliderKey) {
+    setActiveSimple(key);
+    setActiveEffects(computeEffectsFor(key));
+  }
 
-
-React.useEffect(() => {
-  if (!activeSimple) return;
-
-  const onUp = () => {
+  function endDrag() {
     setActiveSimple(null);
     setActiveEffects(null);
-  };
+  }
 
-  window.addEventListener("pointerup", onUp);
-  window.addEventListener("pointercancel", onUp);
-  return () => {
-    window.removeEventListener("pointerup", onUp);
-    window.removeEventListener("pointercancel", onUp);
-  };
-}, [activeSimple]);
+  React.useEffect(() => {
+    if (!activeSimple) return;
 
+    const onUp = () => {
+      setActiveSimple(null);
+      setActiveEffects(null);
+    };
+
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [activeSimple]);
 
   // --- compute real values + derived params exactly like mega-file ---
   const computed = React.useMemo(() => {
-    const stepsRange = p.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
-    const totalStepsReal = sliderToIntRange(p.simpleTotalSteps, stepsRange.min, stepsRange.max);
-
-    const stepRatioPct = sliderToRange(p.simpleStepRatio, 50, 80);
-    const stepRatio01 = stepRatioPct / 100;
-
-    const highShiftReal = sliderToRange(p.simpleHighShift, 2.3, 3.0, smoothstep01);
-    const highCfgReal = sliderToRange(p.simpleHighCfg, 2.5, 3.0);
-    const highStrengthReal = sliderToRange(p.simpleHighStrength, 0.2, 0.45, smoothstep01);
-
-    // ✅ project into safe space (only in quality mode)
-    let safe = {
-      name: "Current",
-      stepsTotal: totalStepsReal,
-      lowRatio: stepRatio01,
-      cfgHigh: highCfgReal,
-      shiftHigh: highShiftReal,
-      strengthHigh: highStrengthReal,
-    };
-
-    if (p.simpleSpeedMode === "quality") {
-      safe = projectToSafe(safe, 0.12);
-    }
-
-    // use the projected values
-
-    // derive from SAFE params
-    const d = deriveV2VParamsFromSimple({
-      totalSteps: Math.round(safe.stepsTotal),
-      stepRatio01: safe.lowRatio,
-      highShift: safe.shiftHigh,
-      highCfg: safe.cfgHigh,
-      highStrength: safe.strengthHigh,
+    const s = p.simple;
+    const derived = deriveV2VParamsFromSimple({
+      totalSteps: Math.round(s.totalSteps),
+      stepRatio01: s.stepRatioPct / 100,
+      highShift: s.highShift,
+      highCfg: s.highCfg,
+      highStrength: s.highStrength,
     });
+
+    const stepsRange = p.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
 
     const scores = computeCategoryScoresFromSimple(
       {
-        totalSteps: Math.round(safe.stepsTotal),
-        stepRatio: safe.lowRatio * 100,
-        highShift: safe.shiftHigh,
-        highCfg: safe.cfgHigh,
-        highStrength: safe.strengthHigh,
+        totalSteps: Math.round(s.totalSteps),
+        stepRatio: s.stepRatioPct,
+        highShift: s.highShift,
+        highCfg: s.highCfg,
+        highStrength: s.highStrength,
       },
       stepsRange
     );
 
+    return { derived, scores };
+  }, [p.simple, p.simpleSpeedMode]);
+
+  function projectToSafe(current: SafePreset, temperature = 0.12): SafePreset {
+    const d2s = SAFE_PRESETS.map((p) => dist2Safe(current, p));
+    const w = softmaxWeights(d2s, temperature);
+
+    const mixed = SAFE_PRESETS.reduce(
+      (acc, p, i) => {
+        const wi = w[i];
+        acc.stepsTotal += wi * p.stepsTotal;
+        acc.lowRatio += wi * p.lowRatio;
+        acc.cfgHigh += wi * p.cfgHigh;
+        acc.shiftHigh += wi * p.shiftHigh;
+        acc.strengthHigh += wi * p.strengthHigh;
+        return acc;
+      },
+      { name: "Projected", stepsTotal: 0, lowRatio: 0, cfgHigh: 0, shiftHigh: 0, strengthHigh: 0 }
+    );
+
+    // clamp to safe bounds (extra safety)
+    mixed.stepsTotal = clamp(mixed.stepsTotal, SAFE_R.stepsTotal.min, SAFE_R.stepsTotal.max);
+    mixed.lowRatio = clamp(mixed.lowRatio, SAFE_R.lowRatio.min, SAFE_R.lowRatio.max);
+    mixed.cfgHigh = clamp(mixed.cfgHigh, SAFE_R.cfgHigh.min, SAFE_R.cfgHigh.max);
+    mixed.shiftHigh = clamp(mixed.shiftHigh, SAFE_R.shiftHigh.min, SAFE_R.shiftHigh.max);
+    mixed.strengthHigh = clamp(
+      mixed.strengthHigh,
+      SAFE_R.strengthHigh.min,
+      SAFE_R.strengthHigh.max
+    );
+
+    return quantizeSafe(mixed);
+  }
+
+  function quantizeSafe(s: SafePreset): SafePreset {
     return {
-      // raw values (optional, for debugging)
-      totalStepsReal,
-      stepRatioPct,
-      highShiftReal,
-      highCfgReal,
-      highStrengthReal,
-
-      // projected values (these are what you actually use)
-      safe,
-
-      derived: d,
-      scores,
+      ...s,
+      stepsTotal: p.roundTo(s.stepsTotal, 0), // int
+      lowRatio: p.roundTo(s.lowRatio, 2), // 0.01 = 1%
+      cfgHigh: p.roundTo(s.cfgHigh, 2),
+      shiftHigh: p.roundTo(s.shiftHigh, 2),
+      strengthHigh: p.roundTo(s.strengthHigh, 2),
     };
-  }, [
-    p.simpleSpeedMode,
-    p.simpleTotalSteps,
-    p.simpleStepRatio,
-    p.simpleHighShift,
-    p.simpleHighCfg,
-    p.simpleHighStrength,
-  ]);
-
-  function computeScores01FromUISliders(ui: {
-  totalSteps: number;
-  stepRatio: number;
-  highShift: number;
-  highCfg: number;
-  highStrength: number;
-}): CategoryScores01 {
-  const stepsRange = p.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
-
-  const totalStepsReal = sliderToIntRange(ui.totalSteps, stepsRange.min, stepsRange.max);
-  const stepRatioPct = sliderToRange(ui.stepRatio, 50, 80);
-  const stepRatio01 = stepRatioPct / 100;
-
-  const highShiftReal = sliderToRange(ui.highShift, 2.3, 3.0, smoothstep01);
-  const highCfgReal = sliderToRange(ui.highCfg, 2.5, 3.0);
-  const highStrengthReal = sliderToRange(ui.highStrength, 0.2, 0.45, smoothstep01);
-
-  let safe = {
-    name: "Current",
-    stepsTotal: totalStepsReal,
-    lowRatio: stepRatio01,
-    cfgHigh: highCfgReal,
-    shiftHigh: highShiftReal,
-    strengthHigh: highStrengthReal,
-  };
-
-  if (p.simpleSpeedMode === "quality") {
-    safe = projectToSafe(safe, 0.12);
   }
 
-  return computeCategoryScoresFromSimple01(
-    {
-      totalSteps: Math.round(safe.stepsTotal),
-      stepRatio: safe.lowRatio * 100,
-      highShift: safe.shiftHigh,
-      highCfg: safe.cfgHigh,
-      highStrength: safe.strengthHigh,
-    },
-    stepsRange
-  );
-}
-
-function computeScores01FromRealParams(x: {
-  totalStepsReal: number;       // <-- int, z.B. 20..24
-  stepRatioSlider: number;      // 0..100
-  highShiftSlider: number;      // 0..100
-  highCfgSlider: number;        // 0..100
-  highStrengthSlider: number;   // 0..100
-}): CategoryScores01 {
-  const stepsRange = p.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
-
-  const stepRatioPct = sliderToRange(x.stepRatioSlider, 50, 80);
-  const stepRatio01 = stepRatioPct / 100;
-
-  const highShiftReal = sliderToRange(x.highShiftSlider, 2.3, 3.0, smoothstep01);
-  const highCfgReal = sliderToRange(x.highCfgSlider, 2.5, 3.0);
-  const highStrengthReal = sliderToRange(x.highStrengthSlider, 0.2, 0.45, smoothstep01);
-
-  let safe = {
-    name: "Current",
-    stepsTotal: x.totalStepsReal,
-    lowRatio: stepRatio01,
-    cfgHigh: highCfgReal,
-    shiftHigh: highShiftReal,
-    strengthHigh: highStrengthReal,
-  };
-
-  if (p.simpleSpeedMode === "quality") {
-    safe = projectToSafe(safe, 0.12);
-  }
-
-  return computeCategoryScoresFromSimple01(
-    {
-      totalSteps: Math.round(safe.stepsTotal),
-      stepRatio: safe.lowRatio * 100,
-      highShift: safe.shiftHigh,
-      highCfg: safe.cfgHigh,
-      highStrength: safe.strengthHigh,
-    },
-    stepsRange
-  );
-}
-
-
-  function computeScoresFromUISliders(ui: {
-    totalSteps: number; // 0..100
-    stepRatio: number; // 0..100
-    highShift: number; // 0..100
-    highCfg: number; // 0..100
-    highStrength: number; // 0..100
-  }): CategoryScores {
+  function computeScoresFromReal(s: SimpleReal): CategoryScores {
     const stepsRange = p.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
-
-    const totalStepsReal = sliderToIntRange(ui.totalSteps, stepsRange.min, stepsRange.max);
-
-    const stepRatioPct = sliderToRange(ui.stepRatio, 50, 80);
-    const stepRatio01 = stepRatioPct / 100;
-
-    const highShiftReal = sliderToRange(ui.highShift, 2.3, 3.0, smoothstep01);
-    const highCfgReal = sliderToRange(ui.highCfg, 2.5, 3.0);
-    const highStrengthReal = sliderToRange(ui.highStrength, 0.2, 0.45, smoothstep01);
-
-    let safe = {
-      name: "Current",
-      stepsTotal: totalStepsReal,
-      lowRatio: stepRatio01,
-      cfgHigh: highCfgReal,
-      shiftHigh: highShiftReal,
-      strengthHigh: highStrengthReal,
-    };
-
-    if (p.simpleSpeedMode === "quality") {
-      safe = projectToSafe(safe, 0.12);
-    }
 
     return computeCategoryScoresFromSimple(
       {
-        totalSteps: Math.round(safe.stepsTotal),
-        stepRatio: safe.lowRatio * 100,
-        highShift: safe.shiftHigh,
-        highCfg: safe.cfgHigh,
-        highStrength: safe.strengthHigh,
+        totalSteps: Math.round(s.totalSteps),
+        stepRatio: s.stepRatioPct,
+        highShift: s.highShift,
+        highCfg: s.highCfg,
+        highStrength: s.highStrength,
       },
       stepsRange
     );
   }
 
-  function clamp01_100(v: number) {
-    return Math.max(0, Math.min(100, v));
+  function clampToCfg<K extends keyof SimpleReal>(key: K, v: number) {
+    const c = p.sliderCfg[key];
+    return clamp(v, c.min, c.max);
   }
 
-  function computeScoresFromRealParams(args: {
-  totalStepsReal: number; // ✅ real steps (z.B. 20..24 oder 4..5)
-  stepRatioSlider: number; // 0..100
-  highShiftSlider: number; // 0..100
-  highCfgSlider: number; // 0..100
-  highStrengthSlider: number; // 0..100
-}): CategoryScores {
-  const stepsRange = p.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
-
-  // die restlichen slider normal in reale Werte umrechnen
-  const stepRatioPct = sliderToRange(args.stepRatioSlider, 50, 80);
-  const stepRatio01 = stepRatioPct / 100;
-
-  const highShiftReal = sliderToRange(args.highShiftSlider, 2.3, 3.0, smoothstep01);
-  const highCfgReal = sliderToRange(args.highCfgSlider, 2.5, 3.0);
-  const highStrengthReal = sliderToRange(args.highStrengthSlider, 0.2, 0.45, smoothstep01);
-
-  let safe = {
-    name: "Current",
-    stepsTotal: args.totalStepsReal,
-    lowRatio: stepRatio01,
-    cfgHigh: highCfgReal,
-    shiftHigh: highShiftReal,
-    strengthHigh: highStrengthReal,
-  };
-
-  if (p.simpleSpeedMode === "quality") {
-    safe = projectToSafe(safe, 0.12);
-  }
-
-  return computeCategoryScoresFromSimple(
-    {
-      totalSteps: Math.round(safe.stepsTotal),
-      stepRatio: safe.lowRatio * 100,
-      highShift: safe.shiftHigh,
-      highCfg: safe.cfgHigh,
-      highStrength: safe.strengthHigh,
-    },
-    stepsRange
+  const activeSafeKey = React.useMemo(
+    () => (activeSimple ? toSafeKey(activeSimple) : null),
+    [activeSimple]
   );
-}
 
+  const safeBounds = React.useMemo(() => {
+    if (!activeSafeKey) return null;
+    const v = p.simple[activeSafeKey] as number;
+    // <-- kommt vom Hook als prop (siehe unten)
+    return p.getBounds(activeSafeKey, v);
+  }, [activeSafeKey, p.simple]);
 
-function computeEffectsFor(key: SimpleSliderKey): Partial<Record<CatKey, number>> {
-  const baseUI = {
-    totalSteps: p.simpleTotalSteps,
-    stepRatio: p.simpleStepRatio,
-    highShift: p.simpleHighShift,
-    highCfg: p.simpleHighCfg,
-    highStrength: p.simpleHighStrength,
-  };
+  function computeEffectsFor(key: keyof SimpleReal): Partial<Record<CatKey, number>> {
+    const base = p.simple;
 
-  // --- SPECIAL CASE: totalSteps ist DISKRET ---
-if (key === "totalSteps") {
-  const stepsRange = p.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
-  const curReal = sliderToIntRange(baseUI.totalSteps, stepsRange.min, stepsRange.max);
+    const step = p.sliderCfg[key].step;
 
-  const nextReal = Math.min(stepsRange.max, curReal + 1);
-  const prevReal = Math.max(stepsRange.min, curReal - 1);
+    // Mehrere Steps nehmen => stabiler gegen Quantisierung/Projection,
+    // aber am Ende wieder "pro 1 step" ausgeben.
+    const epsSteps = key === "totalSteps" ? 1 : 3; // totalSteps ist diskret; die anderen profitieren von 3
+    const eps = step * epsSteps;
 
-  const sCur = computeScoresFromRealParams({
-    totalStepsReal: curReal,
-    stepRatioSlider: baseUI.stepRatio,
-    highShiftSlider: baseUI.highShift,
-    highCfgSlider: baseUI.highCfg,
-    highStrengthSlider: baseUI.highStrength,
-  });
+    const s0 = computeScoresFromReal(base);
 
-  // wenn wir hoch können => forward diff (zeigt wirklich "was passiert wenn ich Steps erhöhe")
-  if (nextReal !== curReal) {
-    const sNext = computeScoresFromRealParams({
-      totalStepsReal: nextReal,
-      stepRatioSlider: baseUI.stepRatio,
-      highShiftSlider: baseUI.highShift,
-      highCfgSlider: baseUI.highCfg,
-      highStrengthSlider: baseUI.highStrength,
-    });
+    const plus = {
+      ...base,
+      [key]: clampToCfg(key, (base[key] as number) + eps),
+    } as SimpleReal;
+
+    const minus = {
+      ...base,
+      [key]: clampToCfg(key, (base[key] as number) - eps),
+    } as SimpleReal;
+
+    const sPlus = computeScoresFromReal(plus);
+    const sMinus = computeScoresFromReal(minus);
 
     const out: Partial<Record<CatKey, number>> = {};
-    (Object.keys(sCur) as CatKey[]).forEach((cat) => {
-      out[cat] = (sNext[cat] - sCur[cat]); // ✅ score-points pro +1 step
+    (Object.keys(s0) as CatKey[]).forEach((cat) => {
+      // central diff: change per 1 slider-step
+      out[cat] = (sPlus[cat] - sMinus[cat]) / (2 * epsSteps);
     });
+
     return out;
   }
-
-  // sonst (am oberen Rand) => backward diff
-  const sPrev = computeScoresFromRealParams({
-    totalStepsReal: prevReal,
-    stepRatioSlider: baseUI.stepRatio,
-    highShiftSlider: baseUI.highShift,
-    highCfgSlider: baseUI.highCfg,
-    highStrengthSlider: baseUI.highStrength,
-  });
-
-  const out: Partial<Record<CatKey, number>> = {};
-  (Object.keys(sCur) as CatKey[]).forEach((cat) => {
-    out[cat] = (sCur[cat] - sPrev[cat]); // ✅ score-points pro +1 step (gedanklich)
-  });
-  return out;
-}
-
-
-  // --- alle anderen bleiben wie du es schon hast (slider +/- eps) ---
-  const eps = 1;
-  const x = (baseUI as any)[key] as number;
-
-  const canMinus = x - eps >= 0;
-  const canPlus = x + eps <= 100;
-
-  const s0 = computeScores01FromUISliders(baseUI);
-
-  let deriv01: Partial<Record<CatKey, number>> = {};
-
-  if (canMinus && canPlus) {
-    const plus = { ...baseUI, [key]: x + eps } as any;
-    const minus = { ...baseUI, [key]: x - eps } as any;
-
-    const sP = computeScores01FromUISliders(plus);
-    const sM = computeScores01FromUISliders(minus);
-
-    (Object.keys(s0) as CatKey[]).forEach((cat) => {
-      deriv01[cat] = (sP[cat] - sM[cat]) / (2 * eps);
-    });
-  } else if (canPlus) {
-    const plus = { ...baseUI, [key]: x + eps } as any;
-    const sP = computeScores01FromUISliders(plus);
-
-    (Object.keys(s0) as CatKey[]).forEach((cat) => {
-      deriv01[cat] = (sP[cat] - s0[cat]) / eps;
-    });
-  } else {
-    const minus = { ...baseUI, [key]: x - eps } as any;
-    const sM = computeScores01FromUISliders(minus);
-
-    (Object.keys(s0) as CatKey[]).forEach((cat) => {
-      deriv01[cat] = (s0[cat] - sM[cat]) / eps;
-    });
-  }
-
-  const out: Partial<Record<CatKey, number>> = {};
-  (Object.keys(s0) as CatKey[]).forEach((cat) => {
-    out[cat] = (deriv01[cat] ?? 0) * 100;
-  });
-  return out;
-}
-
-
-
-  const sliderDragHandlers = (key: SimpleSliderKey) => ({
-    onPointerDown: () => beginDrag(key),
-    onPointerUp: endDrag,
-    onPointerCancel: endDrag,
-    onBlur: endDrag,
-    onMouseLeave: endDrag,
-  });
 
   function catInfluenceSx(cat: CatKey) {
     if (!activeSimple || !activeEffects) return {};
@@ -790,8 +445,8 @@ if (key === "totalSteps") {
 
     // threshold: tiny numerical noise ignorieren
     const dead = 1e-6;
-    const maxD = 0.5;     // sehr sensibel: "0.5 score-points pro slider unit" ist schon stark
-    const gamma = 0.7; 
+    const maxD = 0.5; // sehr sensibel: "0.5 score-points pro slider unit" ist schon stark
+    const gamma = 0.7;
     if (Math.abs(d) < dead) {
       return {
         opacity: 0.25,
@@ -801,14 +456,14 @@ if (key === "totalSteps") {
       };
     }
 
-    const color = d > 0 ? "#0000ff" : "#ff0000";
+    const color = d > 0 ? "#3333cc" : "#990000";
 
     // Intensität: clamp + gamma für deutliche Abstufungen
-    
-const t = Math.min(1, Math.abs(d) / maxD);
-const mag = Math.pow(t, gamma);
 
-const trackOpacity = 0.15 + 0.85 * mag;
+    const t = Math.min(1, Math.abs(d) / maxD);
+    const mag = Math.pow(t, gamma);
+
+    const trackOpacity = 0.15 + 0.85 * mag;
 
     return {
       opacity: 1,
@@ -818,9 +473,11 @@ const trackOpacity = 0.15 + 0.85 * mag;
     };
   }
 
+  const cfg = p.sliderCfg;
+
   return (
     <Dialog open={p.open} onClose={p.onClose} maxWidth="lg" fullWidth>
-      <DialogTitle>Generate Clip – Prompt</DialogTitle>
+      <DialogTitle>Set your parameters for the generated continuation</DialogTitle>
 
       <DialogContent sx={{ overscrollBehavior: "contain", touchAction: "none" }}>
         <Tabs value={p.tab} onChange={(_, v) => p.onTabChange(v)} sx={{ mb: 2 }}>
@@ -881,125 +538,159 @@ const trackOpacity = 0.15 + 0.85 * mag;
               <Stack spacing={2}>
                 <Stack spacing={2.5}>
                   <Stack spacing={0.5}>
-                    <Typography gutterBottom>Total Steps: {p.simpleTotalSteps}%</Typography>
+                    <Typography gutterBottom>
+                      <Typography gutterBottom>
+                        Steps total: <b>{p.simple.totalSteps}</b>
+                      </Typography>
+                    </Typography>
                     <PressableSlider
                       sliderKey="totalSteps"
-                      activeKey={activeSimple}
                       onBegin={beginDrag}
                       onEnd={endDrag}
-                      value={p.simpleTotalSteps}
+                      value={p.simple.totalSteps}
+                      min={cfg.totalSteps.min}
+                      max={cfg.totalSteps.max}
+                      step={cfg.totalSteps.step}
+                      marks={
+                        activeSafeKey && activeSafeKey !== "totalSteps"
+                          ? marksFor(safeBounds?.totalSteps, 2)
+                          : undefined
+                      }
                       onChange={p.onChangeTotalSteps}
                     />
+                    {safeBounds?.totalSteps && activeSafeKey !== "totalSteps" && (
+                      <SafeRangeBar
+                        min={safeBounds.totalSteps.min}
+                        max={safeBounds.totalSteps.max}
+                        sliderMin={cfg.totalSteps.min}
+                        sliderMax={cfg.totalSteps.max}
+                      />
+                    )}
                   </Stack>
 
                   <Stack spacing={0.5}>
-                    <Typography gutterBottom>Step Ratio: {p.simpleStepRatio}%</Typography>
+                    <Typography gutterBottom>
+                      Ratio: <b>{p.simple.stepRatioPct}%</b>
+                    </Typography>
                     <PressableSlider
-                      sliderKey="stepRatio"
-                      activeKey={activeSimple}
+                      sliderKey="stepRatioPct"
                       onBegin={beginDrag}
                       onEnd={endDrag}
-                      value={p.simpleStepRatio}
+                      value={p.simple.stepRatioPct}
+                      min={cfg.stepRatioPct.min}
+                      max={cfg.stepRatioPct.max}
+                      step={cfg.stepRatioPct.step}
+                      marks={
+                        activeSafeKey && activeSafeKey !== "stepRatioPct"
+                          ? marksFor(safeBounds?.stepRatioPct, 2)
+                          : undefined
+                      }
                       onChange={p.onChangeStepRatio}
                     />
+                    {safeBounds?.stepRatioPct && activeSafeKey !== "stepRatioPct" && (
+                      <SafeRangeBar
+                        min={safeBounds.stepRatioPct.min}
+                        max={safeBounds.stepRatioPct.max}
+                        sliderMin={cfg.stepRatioPct.min}
+                        sliderMax={cfg.stepRatioPct.max}
+                      />
+                    )}
                   </Stack>
 
                   <Stack spacing={0.5}>
-                    <Typography gutterBottom>Shift: {p.simpleHighShift} %</Typography>
-
+                    <Typography gutterBottom>
+                      High shift: <b>{p.simple.highShift.toFixed(2)}</b>
+                    </Typography>
                     <PressableSlider
                       sliderKey="highShift"
-                      activeKey={activeSimple}
                       onBegin={beginDrag}
                       onEnd={endDrag}
-                      value={p.simpleHighShift}
+                      value={p.simple.highShift}
+                      min={cfg.highShift.min}
+                      max={cfg.highShift.max}
+                      step={cfg.highShift.step}
+                      marks={
+                        activeSafeKey && activeSafeKey !== "highShift"
+                          ? marksFor(safeBounds?.highShift, 2)
+                          : undefined
+                      }
                       onChange={p.onChangeHighShift}
                     />
+                    {safeBounds?.highShift && activeSafeKey !== "highShift" && (
+                      <SafeRangeBar
+                        min={safeBounds.highShift.min}
+                        max={safeBounds.highShift.max}
+                        sliderMin={cfg.highShift.min}
+                        sliderMax={cfg.highShift.max}
+                      />
+                    )}
                   </Stack>
 
                   <Stack spacing={0.5}>
-                    <Typography gutterBottom>CFG: {p.simpleHighCfg}%</Typography>
+                    <Typography gutterBottom>
+                      High CFG: <b>{p.simple.highCfg.toFixed(2)} → used: </b>
+                    </Typography>
                     <PressableSlider
                       sliderKey="highCfg"
-                      activeKey={activeSimple}
                       onBegin={beginDrag}
                       onEnd={endDrag}
-                      value={p.simpleHighCfg}
+                      value={p.simple.highCfg}
+                      min={cfg.highCfg.min}
+                      max={cfg.highCfg.max}
+                      step={cfg.highCfg.step}
+                      marks={
+                        activeSafeKey && activeSafeKey !== "highCfg"
+                          ? marksFor(safeBounds?.highCfg, 2)
+                          : undefined
+                      }
                       onChange={p.onChangeHighCfg}
                     />
+                    {safeBounds?.highCfg && activeSafeKey !== "highCfg" && (
+                      <SafeRangeBar
+                        min={safeBounds.highCfg.min}
+                        max={safeBounds.highCfg.max}
+                        sliderMin={cfg.highCfg.min}
+                        sliderMax={cfg.highCfg.max}
+                      />
+                    )}
                   </Stack>
 
                   <Stack spacing={0.5}>
-                    <Typography gutterBottom>Model strength: {p.simpleHighStrength}%</Typography>
+                    <Typography gutterBottom>
+                      High strength: <b>{p.simple.highStrength.toFixed(2)}</b>
+                    </Typography>
                     <PressableSlider
                       sliderKey="highStrength"
-                      activeKey={activeSimple}
                       onBegin={beginDrag}
                       onEnd={endDrag}
-                      value={p.simpleHighStrength}
+                      value={p.simple.highStrength}
+                      min={cfg.highStrength.min}
+                      max={cfg.highStrength.max}
+                      step={cfg.highStrength.step}
+                      marks={
+                        activeSafeKey && activeSafeKey !== "highStrength"
+                          ? marksFor(safeBounds?.highStrength, 2)
+                          : undefined
+                      }
                       onChange={p.onChangeHighStrength}
                     />
+                    {safeBounds?.highStrength && activeSafeKey !== "highStrength" && (
+                      <SafeRangeBar
+                        min={safeBounds.highStrength.min}
+                        max={safeBounds.highStrength.max}
+                        sliderMin={cfg.highStrength.min}
+                        sliderMax={cfg.highStrength.max}
+                      />
+                    )}
                   </Stack>
                 </Stack>
 
+                <Paper variant="outlined">
+                  Parameters used for generation may differ from set parameters to ensure stable
+                  paramter combinations.
+                </Paper>
+
                 {/* Computed params — mega-file style */}
-                {p.computedParamsPanel ? (
-                  <Paper variant="outlined" sx={{ p: 1.5 }}>
-                    {p.computedParamsPanel}
-                  </Paper>
-                ) : (
-                  <Paper variant="outlined" sx={{ p: 1.5 }}>
-                    <Stack spacing={0.5}>
-                      <Typography variant="body2" color="text.secondary">
-                        Mode: <b>{p.simpleSpeedMode}</b>
-                      </Typography>
-
-                      <Typography variant="subtitle2">Computed params</Typography>
-
-                      <Typography variant="body2" color="text.secondary">
-                        Steps total: <b>{computed.totalStepsReal}</b> • low%:{" "}
-                        <b>{Math.round(computed.stepRatioPct)}%</b>
-                      </Typography>
-
-                      <Typography variant="body2" color="text.secondary">
-                        High steps: <b>{computed.derived.highNoiseSteps}</b> (0 →{" "}
-                        {computed.derived.highNoiseEndStep})
-                      </Typography>
-
-                      <Typography variant="body2" color="text.secondary">
-                        Low steps: <b>{computed.derived.lowNoiseSteps}</b> (
-                        {computed.derived.lowNoiseStartStep} → {computed.derived.lowNoiseEndStep})
-                      </Typography>
-
-                      <Divider sx={{ my: 0.5 }} />
-
-                      <Typography variant="body2" color="text.secondary">
-                        High shift:{" "}
-                        <b>
-                          {computed.highShiftReal.toFixed(2)} → used:{" "}
-                          {computed.safe.shiftHigh.toFixed(2)}
-                        </b>{" "}
-                        • High CFG:{" "}
-                        <b>
-                          {computed.highCfgReal.toFixed(2)} → used:{" "}
-                          {computed.safe.cfgHigh.toFixed(2)}
-                        </b>
-                      </Typography>
-
-                      <Typography variant="body2" color="text.secondary">
-                        High strength:{" "}
-                        <b>
-                          {computed.highStrengthReal.toFixed(2)} → used:{" "}
-                          {computed.safe.strengthHigh.toFixed(2)}
-                        </b>
-                      </Typography>
-
-                      <Typography variant="caption" color="text.secondary">
-                        (Low params are set to constants on submit.)
-                      </Typography>
-                    </Stack>
-                  </Paper>
-                )}
               </Stack>
 
               <Divider orientation="vertical" flexItem />

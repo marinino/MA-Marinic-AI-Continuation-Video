@@ -20,7 +20,7 @@ export type ActionDialogProps = {
 
 export function ActionDialog(props: ActionDialogProps) {
   return (
-    <Dialog open={props.open} onClose={props.onClose} maxWidth="xs" fullWidth>
+    <Dialog open={props.open} onClose={props.onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Next step</DialogTitle>
 
       <DialogContent>
@@ -40,10 +40,10 @@ export function ActionDialog(props: ActionDialogProps) {
         <Button onClick={props.onClose}>Cancel</Button>
         <Stack direction="row" spacing={1} sx={{ pr: 1 }}>
           <Button variant="outlined" onClick={props.onManualEdit}>
-            Manual edit
+            Edit current clip
           </Button>
           <Button variant="contained" onClick={props.onGenerate} disabled={!props.canGenerate}>
-            Generate Clip (V2V)
+            Generate Continuation
           </Button>
         </Stack>
       </DialogActions>
