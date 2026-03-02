@@ -122,6 +122,7 @@ export async function comfyStartV2V(args: {
   lowNoiseStartStep: number;
   highNoiseEndStep: number;
   lowNoiseEndStep: number;
+  length: number;
 }) {
   const r = await fetch("/api/comfy/v2v", {
     method: "POST",

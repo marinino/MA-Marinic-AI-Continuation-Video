@@ -171,6 +171,8 @@ export async function comfyRoutes(app: FastifyInstance) {
 
       highNoiseEndStep?: number;
       lowNoiseEndStep?: number;
+
+      length?: number;
     };
 
     if (!body.text || typeof body.text !== "string") {
@@ -219,6 +221,8 @@ export async function comfyRoutes(app: FastifyInstance) {
     setNum("122:85", "steps", body.lowNoiseSteps);
     setNum("122:85", "start_at_step", body.lowNoiseStartStep);
     setNum("122:85", "end_at_step", body.lowNoiseEndStep);
+
+    setNum("122:98", "length", body.length);
 
     const client_id = nanoid();
 

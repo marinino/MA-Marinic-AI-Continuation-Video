@@ -1,0 +1,72 @@
+import {
+  DEFAULT_FORMULA_WEIGHTS,
+  type FormulaWeights,
+  type CustomScoreSlider,
+} from "../graph/hooks/useV2VParams";
+
+const KEY_FORMULA = "ma:v2v:formulaWeights:v1";
+const KEY_CUSTOM = "ma:v2v:customScoreSliders:v1";
+
+// ---------------- FormulaWeights ----------------
+
+export function loadFormulaWeights(): FormulaWeights {
+  try {
+    const raw = localStorage.getItem(KEY_FORMULA);
+    if (!raw) return DEFAULT_FORMULA_WEIGHTS;
+    const parsed = JSON.parse(raw);
+    return deepMerge(DEFAULT_FORMULA_WEIGHTS, parsed);
+  } catch {
+    return DEFAULT_FORMULA_WEIGHTS;
+  }
+}
+
+export function saveFormulaWeights(w: FormulaWeights) {
+  try {
+    localStorage.setItem(KEY_FORMULA, JSON.stringify(w));
+  } catch {}
+}
+
+// ---------------- Custom Sliders ----------------
+
+export function loadCustomSliders(): CustomScoreSlider[] {
+  try {
+    const raw = localStorage.getItem(KEY_CUSTOM);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+
+    // Minimal sanity checks
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((x) => x && typeof x === "object")
+      .map((x) => ({
+        id: String(x.id ?? ""),
+        name: String(x.name ?? "Untitled"),
+        w: { ...(x.w ?? {}) },
+      }))
+      .filter((x) => x.id.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+export function saveCustomSliders(sliders: CustomScoreSlider[]) {
+  try {
+    localStorage.setItem(KEY_CUSTOM, JSON.stringify(sliders));
+  } catch {}
+}
+
+// ---------------- helpers ----------------
+
+function isObj(x: any) {
+  return x && typeof x === "object" && !Array.isArray(x);
+}
+
+function deepMerge<T>(base: T, patch: any): T {
+  if (!isObj(base) || !isObj(patch)) return (patch ?? base) as T;
+
+  const out: any = { ...(base as any) };
+  for (const k of Object.keys(patch)) {
+    out[k] = isObj(out[k]) ? deepMerge(out[k], patch[k]) : patch[k];
+  }
+  return out as T;
+}

@@ -1,5 +1,70 @@
 import { useMemo } from "react";
 
+type CatKey = keyof CategoryScores;
+
+export type FormulaWeights = {
+  promptFaithfulness: { cfg: number; ratio: number };
+
+  videoFaithfulness: { ratio: number; invShift: number; invStrength: number };
+
+  transitionSmoothness: { steps: number; ratio: number };
+
+  motion: { shift: number; strength: number; ratio: number; bias: number };
+
+  creativity: { shift: number; strength: number; invCfg: number; ratio: number; bias: number };
+};
+
+export const DEFAULT_FORMULA_WEIGHTS: FormulaWeights = {
+  promptFaithfulness: { cfg: 0.85, ratio: 0.15 },
+
+  videoFaithfulness: { ratio: 0.55, invShift: 0.3, invStrength: 0.15 },
+
+  transitionSmoothness: { steps: 0.55, ratio: 0.45 },
+
+  motion: { shift: 0.45, strength: 0.45, ratio: -0.2, bias: 0.3 },
+
+  creativity: { shift: 0.45, strength: 0.35, invCfg: 0.2, ratio: -0.25, bias: 0.25 },
+};
+
+export type CustomScoreSlider = {
+  id: string;
+  name: string;
+
+  // lineare Formel auf Basis deiner normalisierten features:
+  // steps01, ratio01, shift01, cfg01, strength01 und inverses sowie bias
+  w: {
+    steps: number;
+    ratio: number;
+    shift: number;
+    cfg: number;
+    strength: number;
+
+    invSteps: number;
+    invRatio: number;
+    invShift: number;
+    invCfg: number;
+    invStrength: number;
+
+    bias: number;
+  };
+};
+
+export const DEFAULT_CUSTOM_W: CustomScoreSlider["w"] = {
+  steps: 0,
+  ratio: 0,
+  shift: 0,
+  cfg: 0,
+  strength: 0,
+
+  invSteps: 0,
+  invRatio: 0,
+  invShift: 0,
+  invCfg: 0,
+  invStrength: 0,
+
+  bias: 0,
+};
+
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 export function smoothstep01(x: number) {
@@ -81,7 +146,8 @@ export function computeCategoryScoresFromSimple(
     highCfg: number;
     highStrength: number;
   },
-  stepsRange: { min: number; max: number } = { min: 20, max: 24 } // default = Simple behavior
+  stepsRange: { min: number; max: number } = { min: 20, max: 24 },
+  fw: FormulaWeights = DEFAULT_FORMULA_WEIGHTS // default = Simple behavior
 ): CategoryScores {
   const denom = Math.max(1e-6, stepsRange.max - stepsRange.min);
   const steps01 = clamp((s.totalSteps - stepsRange.min) / denom, 0, 1);
@@ -91,20 +157,41 @@ export function computeCategoryScoresFromSimple(
   const cfg01 = clamp((s.highCfg - 2.2) / (3.0 - 2.2), 0, 1);
   const strength01 = clamp((s.highStrength - 0.2) / (0.45 - 0.2), 0, 1);
 
-  const promptFaithfulness = clamp(0.85 * cfg01 + 0.15 * ratio01, 0, 1);
-
-  const videoFaithfulness = clamp(
-    0.55 * ratio01 + 0.3 * (1 - shift01) + 0.15 * (1 - strength01),
+  const promptFaithfulness = clamp(
+    fw.promptFaithfulness.cfg * cfg01 + fw.promptFaithfulness.ratio * ratio01,
     0,
     1
   );
 
-  const transitionSmoothness = clamp(0.55 * steps01 + 0.45 * ratio01, 0, 1);
+  const videoFaithfulness = clamp(
+    fw.videoFaithfulness.ratio * ratio01 +
+      fw.videoFaithfulness.invShift * (1 - shift01) +
+      fw.videoFaithfulness.invStrength * (1 - strength01),
+    0,
+    1
+  );
 
-  const motion = clamp(0.45 * shift01 + 0.45 * strength01 - 0.2 * ratio01 + 0.3, 0, 1);
+  const transitionSmoothness = clamp(
+    fw.transitionSmoothness.steps * steps01 + fw.transitionSmoothness.ratio * ratio01,
+    0,
+    1
+  );
+
+  const motion = clamp(
+    fw.motion.shift * shift01 +
+      fw.motion.strength * strength01 +
+      fw.motion.ratio * ratio01 +
+      fw.motion.bias,
+    0,
+    1
+  );
 
   const creativity = clamp(
-    0.45 * shift01 + 0.35 * strength01 + 0.2 * (1 - cfg01) - 0.25 * ratio01 + 0.25,
+    fw.creativity.shift * shift01 +
+      fw.creativity.strength * strength01 +
+      fw.creativity.invCfg * (1 - cfg01) +
+      fw.creativity.ratio * ratio01 +
+      fw.creativity.bias,
     0,
     1
   );

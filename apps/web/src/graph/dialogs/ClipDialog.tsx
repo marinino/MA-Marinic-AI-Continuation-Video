@@ -29,7 +29,22 @@ import {
   SliderConfig,
   useV2VSliders,
 } from "../hooks/useV2VSliders";
-import { computeCategoryScoresFromSimple, deriveV2VParamsFromSimple } from "../hooks/useV2VParams";
+import {
+  computeCategoryScoresFromSimple,
+  CustomScoreSlider,
+  DEFAULT_CUSTOM_W,
+  DEFAULT_FORMULA_WEIGHTS,
+  deriveV2VParamsFromSimple,
+  FormulaWeights,
+} from "../hooks/useV2VParams";
+import { WeightsDialog } from "./WeightsDialog";
+import {
+  loadCustomSliders,
+  loadFormulaWeights,
+  saveCustomSliders,
+  saveFormulaWeights,
+} from "../../utils/weightsStorage";
+import { NewCustomSliderDialog } from "./NewSliderDialog";
 
 export type V2VTab = "simple" | "advanced";
 type CatView = "sliders" | "pentagon";
@@ -68,6 +83,9 @@ export type ClipDialogProps = {
 
   prompt: string;
   onPromptChange: (v: string) => void;
+
+  length: number;
+  onLengthChange: (l: number) => void;
 
   // Simple sliders (0..100)
   simple: SimpleReal; // <-- EIN Objekt, echte Werte
@@ -189,15 +207,33 @@ function SafeRangeBar(props: { min: number; max: number; sliderMin: number; slid
 
 /* ========= UI helpers ========= */
 
-function ReadonlySlider(props: { label: string; value: number; sx?: any }) {
+function ReadonlySlider(props: {
+  label: string;
+  value: number;
+  sx?: any;
+  onLabelClick?: () => void;
+}) {
   return (
     <Box sx={props.sx}>
       <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-        <Typography variant="body2">{props.label}</Typography>
+        <Typography
+          variant="body2"
+          onClick={props.onLabelClick}
+          sx={{
+            cursor: props.onLabelClick ? "pointer" : "default",
+            textDecoration: props.onLabelClick ? "underline" : "none",
+            textUnderlineOffset: "3px",
+            userSelect: "none",
+          }}
+        >
+          {props.label}
+        </Typography>
+
         <Typography variant="body2" color="text.secondary">
           {props.value}
         </Typography>
       </Stack>
+
       <Slider value={props.value} min={0} max={100} step={1} sx={{ pointerEvents: "none" }} />
     </Box>
   );
@@ -266,10 +302,48 @@ export function ClipDialog(p: ClipDialogProps) {
   const [catView, setCatView] = React.useState<CatView>("sliders");
   const [activeSimple, setActiveSimple] = React.useState<SimpleSliderKey | null>(null);
   const activeValue = activeSimple ? (p.simple[activeSimple] as number) : null;
+  const [formulaWeights, setFormulaWeights] = React.useState<FormulaWeights>(() =>
+    loadFormulaWeights()
+  );
+  const [customSliders, setCustomSliders] = React.useState<CustomScoreSlider[]>(() =>
+    loadCustomSliders()
+  );
 
   const [activeEffects, setActiveEffects] = React.useState<Partial<Record<CatKey, number>> | null>(
     null
   );
+
+  const [weightsOpen, setWeightsOpen] = React.useState(false);
+  const [weightsCat, setWeightsCat] = React.useState<CatKey | null>(null);
+
+  const [newOpen, setNewOpen] = React.useState(false);
+  const [draftName, setDraftName] = React.useState("");
+  const [draftW, setDraftW] = React.useState(DEFAULT_CUSTOM_W);
+
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [editId, setEditId] = React.useState<string | null>(null);
+  const [editName, setEditName] = React.useState("");
+  const [editW, setEditW] = React.useState(DEFAULT_CUSTOM_W);
+
+  function openWeights(cat: CatKey) {
+    setWeightsCat(cat);
+    setWeightsOpen(true);
+  }
+  function closeWeights() {
+    setWeightsOpen(false);
+    setWeightsCat(null);
+  }
+  function resetWeights() {
+    setFormulaWeights(DEFAULT_FORMULA_WEIGHTS);
+  }
+
+  React.useEffect(() => {
+    saveFormulaWeights(formulaWeights);
+  }, [formulaWeights]);
+
+  React.useEffect(() => {
+    saveCustomSliders(customSliders);
+  }, [customSliders]);
 
   React.useEffect(() => {
     if (!activeSimple) return;
@@ -324,11 +398,65 @@ export function ClipDialog(p: ClipDialogProps) {
         highCfg: s.highCfg,
         highStrength: s.highStrength,
       },
-      stepsRange
+      stepsRange,
+      formulaWeights
     );
 
-    return { derived, scores };
-  }, [p.simple, p.simpleSpeedMode]);
+    const allScores = computeAllScores(
+      {
+        totalSteps: Math.round(s.totalSteps),
+        stepRatio: s.stepRatioPct,
+        highShift: s.highShift,
+        highCfg: s.highCfg,
+        highStrength: s.highStrength,
+      },
+      stepsRange,
+      formulaWeights,
+      customSliders
+    );
+
+    return { derived, scores, allScores };
+  }, [p.simple, p.simpleSpeedMode, formulaWeights, customSliders]);
+
+  function patchFormulaWeights<K extends keyof FormulaWeights>(
+    cat: K,
+    patch: Partial<FormulaWeights[K]>
+  ) {
+    setFormulaWeights((prev) => ({
+      ...prev,
+      [cat]: { ...prev[cat], ...patch },
+    }));
+  }
+
+  function openCustomEdit(id: string) {
+    const cs = customSliders.find((x) => x.id === id);
+    if (!cs) return;
+
+    setEditId(id);
+    setEditName(cs.name);
+    setEditW(cs.w ?? DEFAULT_CUSTOM_W);
+    setEditOpen(true);
+  }
+
+  function closeCustomEdit() {
+    setEditOpen(false);
+    setEditId(null);
+  }
+
+  function saveCustomEdit() {
+    if (!editId) return;
+    setCustomSliders((prev) =>
+      prev.map((x) => (x.id === editId ? { ...x, name: editName.trim(), w: editW } : x))
+    );
+    setEditOpen(false);
+    setEditId(null);
+  }
+
+  function deleteCustom(id: string) {
+    setCustomSliders((prev) => prev.filter((x) => x.id !== id));
+    setEditOpen(false);
+    setEditId(null);
+  }
 
   function projectToSafe(current: SafePreset, temperature = 0.12): SafePreset {
     const d2s = SAFE_PRESETS.map((p) => dist2Safe(current, p));
@@ -438,6 +566,70 @@ export function ClipDialog(p: ClipDialogProps) {
     return out;
   }
 
+  function createCustomSlider() {
+    const id = `custom:${Date.now()}`; // reicht völlig
+    setCustomSliders((prev) => [...prev, { id, name: draftName.trim(), w: draftW }]);
+    setNewOpen(false);
+  }
+
+  function computeAllScores(
+    s: {
+      totalSteps: number;
+      stepRatio: number;
+      highShift: number;
+      highCfg: number;
+      highStrength: number;
+    },
+    stepsRange: { min: number; max: number },
+    formulaWeights: FormulaWeights,
+    custom: CustomScoreSlider[]
+  ): Record<string, number> {
+    const denom = Math.max(1e-6, stepsRange.max - stepsRange.min);
+    const steps01 = clamp((s.totalSteps - stepsRange.min) / denom, 0, 1);
+
+    const ratio01 = clamp((s.stepRatio - 50) / (80 - 50), 0, 1);
+    const shift01 = clamp((s.highShift - 2.3) / (3 - 2.3), 0, 1);
+    const cfg01 = clamp((s.highCfg - 2.2) / (3.0 - 2.2), 0, 1);
+    const strength01 = clamp((s.highStrength - 0.2) / (0.45 - 0.2), 0, 1);
+
+    // ✅ built-ins (deine vorhandene Funktion)
+    const builtIn = computeCategoryScoresFromSimple(
+      {
+        totalSteps: s.totalSteps,
+        stepRatio: s.stepRatio,
+        highShift: s.highShift,
+        highCfg: s.highCfg,
+        highStrength: s.highStrength,
+      },
+      stepsRange,
+      formulaWeights
+    );
+
+    const out: Record<string, number> = { ...builtIn };
+
+    // ✅ custom sliders
+    for (const cs of custom) {
+      const w = cs.w;
+      const raw =
+        w.steps * steps01 +
+        w.ratio * ratio01 +
+        w.shift * shift01 +
+        w.cfg * cfg01 +
+        w.strength * strength01 +
+        w.invSteps * (1 - steps01) +
+        w.invRatio * (1 - ratio01) +
+        w.invShift * (1 - shift01) +
+        w.invCfg * (1 - cfg01) +
+        w.invStrength * (1 - strength01) +
+        w.bias;
+
+      const score01 = clamp(raw, 0, 1);
+      out[cs.id] = Math.round(score01 * 100);
+    }
+
+    return out;
+  }
+
   function catInfluenceSx(cat: CatKey) {
     if (!activeSimple || !activeEffects) return {};
 
@@ -476,295 +668,48 @@ export function ClipDialog(p: ClipDialogProps) {
   const cfg = p.sliderCfg;
 
   return (
-    <Dialog open={p.open} onClose={p.onClose} maxWidth="lg" fullWidth>
-      <DialogTitle>Set your parameters for the generated continuation</DialogTitle>
+    <>
+      <Dialog open={p.open} onClose={p.onClose} maxWidth="lg" fullWidth>
+        <DialogTitle>Set your parameters for the generated continuation</DialogTitle>
 
-      <DialogContent sx={{ overscrollBehavior: "contain", touchAction: "none" }}>
-        <Tabs value={p.tab} onChange={(_, v) => p.onTabChange(v)} sx={{ mb: 2 }}>
-          <Tab value="simple" label="Simple (Sliders)" />
-          <Tab value="advanced" label="Advanced (Raw)" />
-        </Tabs>
+        <DialogContent sx={{ overscrollBehavior: "contain", touchAction: "none" }}>
+          <Tabs value={p.tab} onChange={(_, v) => p.onTabChange(v)} sx={{ mb: 2 }}>
+            <Tab value="simple" label="Simple (Sliders)" />
+            <Tab value="advanced" label="Advanced (Raw)" />
+          </Tabs>
 
-        {p.tab === "simple" && (
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <ButtonGroup
-              fullWidth
-              variant="contained"
-              aria-label="Basic button group"
-              sx={{
-                "& .MuiButton-root:first-of-type": {
-                  borderTopLeftRadius: 8,
-                  borderBottomLeftRadius: 8,
-                },
-                "& .MuiButton-root:last-of-type": {
-                  borderTopRightRadius: 8,
-                  borderBottomRightRadius: 8,
-                },
-              }}
-            >
-              <Button
-                variant={p.simpleSpeedMode === "quick" ? "contained" : "outlined"}
-                onClick={() => p.onSimpleSpeedModeChange("quick")}
+          {p.tab === "simple" && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <ButtonGroup
+                fullWidth
+                variant="contained"
+                aria-label="Basic button group"
+                sx={{
+                  "& .MuiButton-root:first-of-type": {
+                    borderTopLeftRadius: 8,
+                    borderBottomLeftRadius: 8,
+                  },
+                  "& .MuiButton-root:last-of-type": {
+                    borderTopRightRadius: 8,
+                    borderBottomRightRadius: 8,
+                  },
+                }}
               >
-                Quick mode (4–5 steps)
-              </Button>
+                <Button
+                  variant={p.simpleSpeedMode === "quick" ? "contained" : "outlined"}
+                  onClick={() => p.onSimpleSpeedModeChange("quick")}
+                >
+                  Quick mode (4–5 steps)
+                </Button>
 
-              <Button
-                variant={p.simpleSpeedMode === "quality" ? "contained" : "outlined"}
-                onClick={() => p.onSimpleSpeedModeChange("quality")}
-              >
-                Quality mode (20–24 steps)
-              </Button>
-            </ButtonGroup>
+                <Button
+                  variant={p.simpleSpeedMode === "quality" ? "contained" : "outlined"}
+                  onClick={() => p.onSimpleSpeedModeChange("quality")}
+                >
+                  Quality mode (20–24 steps)
+                </Button>
+              </ButtonGroup>
 
-            <TextField
-              label="Prompt"
-              value={p.prompt}
-              onChange={(e) => p.onPromptChange(e.target.value)}
-              multiline
-              minRows={4}
-              fullWidth
-            />
-
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: "1fr auto 1fr",
-                gap: 2,
-                alignItems: "stretch",
-              }}
-            >
-              {/* LEFT */}
-              <Stack spacing={2}>
-                <Stack spacing={2.5}>
-                  <Stack spacing={0.5}>
-                    <Typography gutterBottom>
-                      <Typography gutterBottom>
-                        Steps total: <b>{p.simple.totalSteps}</b>
-                      </Typography>
-                    </Typography>
-                    <PressableSlider
-                      sliderKey="totalSteps"
-                      onBegin={beginDrag}
-                      onEnd={endDrag}
-                      value={p.simple.totalSteps}
-                      min={cfg.totalSteps.min}
-                      max={cfg.totalSteps.max}
-                      step={cfg.totalSteps.step}
-                      marks={
-                        activeSafeKey && activeSafeKey !== "totalSteps"
-                          ? marksFor(safeBounds?.totalSteps, 2)
-                          : undefined
-                      }
-                      onChange={p.onChangeTotalSteps}
-                    />
-                    {safeBounds?.totalSteps && activeSafeKey !== "totalSteps" && (
-                      <SafeRangeBar
-                        min={safeBounds.totalSteps.min}
-                        max={safeBounds.totalSteps.max}
-                        sliderMin={cfg.totalSteps.min}
-                        sliderMax={cfg.totalSteps.max}
-                      />
-                    )}
-                  </Stack>
-
-                  <Stack spacing={0.5}>
-                    <Typography gutterBottom>
-                      Ratio: <b>{p.simple.stepRatioPct}%</b>
-                    </Typography>
-                    <PressableSlider
-                      sliderKey="stepRatioPct"
-                      onBegin={beginDrag}
-                      onEnd={endDrag}
-                      value={p.simple.stepRatioPct}
-                      min={cfg.stepRatioPct.min}
-                      max={cfg.stepRatioPct.max}
-                      step={cfg.stepRatioPct.step}
-                      marks={
-                        activeSafeKey && activeSafeKey !== "stepRatioPct"
-                          ? marksFor(safeBounds?.stepRatioPct, 2)
-                          : undefined
-                      }
-                      onChange={p.onChangeStepRatio}
-                    />
-                    {safeBounds?.stepRatioPct && activeSafeKey !== "stepRatioPct" && (
-                      <SafeRangeBar
-                        min={safeBounds.stepRatioPct.min}
-                        max={safeBounds.stepRatioPct.max}
-                        sliderMin={cfg.stepRatioPct.min}
-                        sliderMax={cfg.stepRatioPct.max}
-                      />
-                    )}
-                  </Stack>
-
-                  <Stack spacing={0.5}>
-                    <Typography gutterBottom>
-                      High shift: <b>{p.simple.highShift.toFixed(2)}</b>
-                    </Typography>
-                    <PressableSlider
-                      sliderKey="highShift"
-                      onBegin={beginDrag}
-                      onEnd={endDrag}
-                      value={p.simple.highShift}
-                      min={cfg.highShift.min}
-                      max={cfg.highShift.max}
-                      step={cfg.highShift.step}
-                      marks={
-                        activeSafeKey && activeSafeKey !== "highShift"
-                          ? marksFor(safeBounds?.highShift, 2)
-                          : undefined
-                      }
-                      onChange={p.onChangeHighShift}
-                    />
-                    {safeBounds?.highShift && activeSafeKey !== "highShift" && (
-                      <SafeRangeBar
-                        min={safeBounds.highShift.min}
-                        max={safeBounds.highShift.max}
-                        sliderMin={cfg.highShift.min}
-                        sliderMax={cfg.highShift.max}
-                      />
-                    )}
-                  </Stack>
-
-                  <Stack spacing={0.5}>
-                    <Typography gutterBottom>
-                      High CFG: <b>{p.simple.highCfg.toFixed(2)} → used: </b>
-                    </Typography>
-                    <PressableSlider
-                      sliderKey="highCfg"
-                      onBegin={beginDrag}
-                      onEnd={endDrag}
-                      value={p.simple.highCfg}
-                      min={cfg.highCfg.min}
-                      max={cfg.highCfg.max}
-                      step={cfg.highCfg.step}
-                      marks={
-                        activeSafeKey && activeSafeKey !== "highCfg"
-                          ? marksFor(safeBounds?.highCfg, 2)
-                          : undefined
-                      }
-                      onChange={p.onChangeHighCfg}
-                    />
-                    {safeBounds?.highCfg && activeSafeKey !== "highCfg" && (
-                      <SafeRangeBar
-                        min={safeBounds.highCfg.min}
-                        max={safeBounds.highCfg.max}
-                        sliderMin={cfg.highCfg.min}
-                        sliderMax={cfg.highCfg.max}
-                      />
-                    )}
-                  </Stack>
-
-                  <Stack spacing={0.5}>
-                    <Typography gutterBottom>
-                      High strength: <b>{p.simple.highStrength.toFixed(2)}</b>
-                    </Typography>
-                    <PressableSlider
-                      sliderKey="highStrength"
-                      onBegin={beginDrag}
-                      onEnd={endDrag}
-                      value={p.simple.highStrength}
-                      min={cfg.highStrength.min}
-                      max={cfg.highStrength.max}
-                      step={cfg.highStrength.step}
-                      marks={
-                        activeSafeKey && activeSafeKey !== "highStrength"
-                          ? marksFor(safeBounds?.highStrength, 2)
-                          : undefined
-                      }
-                      onChange={p.onChangeHighStrength}
-                    />
-                    {safeBounds?.highStrength && activeSafeKey !== "highStrength" && (
-                      <SafeRangeBar
-                        min={safeBounds.highStrength.min}
-                        max={safeBounds.highStrength.max}
-                        sliderMin={cfg.highStrength.min}
-                        sliderMax={cfg.highStrength.max}
-                      />
-                    )}
-                  </Stack>
-                </Stack>
-
-                <Paper variant="outlined">
-                  Parameters used for generation may differ from set parameters to ensure stable
-                  paramter combinations.
-                </Paper>
-
-                {/* Computed params — mega-file style */}
-              </Stack>
-
-              <Divider orientation="vertical" flexItem />
-
-              {/* RIGHT */}
-              <Paper variant="outlined" sx={{ p: 2 }}>
-                {p.categoriesPanel ? (
-                  p.categoriesPanel
-                ) : (
-                  <Stack spacing={2}>
-                    <Typography variant="subtitle2">Categories (read-only)</Typography>
-
-                    <Tabs value={catView} onChange={(_, v) => setCatView(v)} variant="fullWidth">
-                      <Tab value="sliders" label="Sliders" />
-                      <Tab value="pentagon" label="Pentagon" />
-                    </Tabs>
-
-                    {catView === "sliders" ? (
-                      <Stack spacing={2}>
-                        <ReadonlySlider
-                          label="Creativity"
-                          value={computed.scores.creativity}
-                          sx={catInfluenceSx("creativity")}
-                        />
-
-                        <ReadonlySlider
-                          label="Prompt faithfulness"
-                          value={computed.scores.promptFaithfulness}
-                          sx={catInfluenceSx("promptFaithfulness")}
-                        />
-
-                        <ReadonlySlider
-                          label="Motion"
-                          value={computed.scores.motion}
-                          sx={catInfluenceSx("motion")}
-                        />
-
-                        <ReadonlySlider
-                          label="Transition Smoothness"
-                          value={computed.scores.transitionSmoothness}
-                          sx={catInfluenceSx("transitionSmoothness")}
-                        />
-
-                        <ReadonlySlider
-                          label="Video Faithfulness"
-                          value={computed.scores.videoFaithfulness}
-                          sx={catInfluenceSx("videoFaithfulness")}
-                        />
-                      </Stack>
-                    ) : (
-                      <PentagonMap scores={computed.scores} size={260} showRadarPolygon />
-                    )}
-                  </Stack>
-                )}
-              </Paper>
-            </Box>
-
-            {p.generating && <LinearProgress />}
-
-            {p.statusText && (
-              <Typography variant="body2" color="text.secondary">
-                {p.statusText}
-              </Typography>
-            )}
-
-            {p.previewUrl && (
-              <video src={p.previewUrl} controls style={{ width: "100%", borderRadius: 8 }} />
-            )}
-          </Stack>
-        )}
-
-        {p.tab === "advanced" && (
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12 }}>
               <TextField
                 label="Prompt"
                 value={p.prompt}
@@ -773,146 +718,498 @@ export function ClipDialog(p: ClipDialogProps) {
                 minRows={4}
                 fullWidth
               />
-            </Grid>
 
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <TextField
                 type="number"
-                label="Low Noise CFG"
-                value={p.advanced.lowNoiseCfg}
-                onChange={(e) => p.onAdvancedChange({ lowNoiseCfg: Number(e.target.value) })}
+                label="Length in frames (FPS = 16)"
+                value={p.length}
+                onChange={(e) => p.onLengthChange(Number(e.target.value))}
                 fullWidth
               />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <TextField
-                type="number"
-                label="High Noise CFG"
-                value={p.advanced.highNoiseCfg}
-                onChange={(e) => p.onAdvancedChange({ highNoiseCfg: Number(e.target.value) })}
-                fullWidth
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <TextField
-                type="number"
-                label="Low Noise Model Strength"
-                value={p.advanced.lowNoiseModelStrength}
-                onChange={(e) =>
-                  p.onAdvancedChange({ lowNoiseModelStrength: Number(e.target.value) })
-                }
-                fullWidth
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <TextField
-                type="number"
-                label="High Noise Model Strength"
-                value={p.advanced.highNoiseModelStrength}
-                onChange={(e) =>
-                  p.onAdvancedChange({ highNoiseModelStrength: Number(e.target.value) })
-                }
-                fullWidth
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <TextField
-                type="number"
-                label="Low Noise Shift"
-                value={p.advanced.lowNoiseShift}
-                onChange={(e) => p.onAdvancedChange({ lowNoiseShift: Number(e.target.value) })}
-                fullWidth
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <TextField
-                type="number"
-                label="High Noise Shift"
-                value={p.advanced.highNoiseShift}
-                onChange={(e) => p.onAdvancedChange({ highNoiseShift: Number(e.target.value) })}
-                fullWidth
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <TextField
-                type="number"
-                label="Low Noise Steps"
-                value={p.advanced.lowNoiseSteps}
-                onChange={(e) => p.onAdvancedChange({ lowNoiseSteps: Number(e.target.value) })}
-                fullWidth
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <TextField
-                type="number"
-                label="High Noise Steps"
-                value={p.advanced.highNoiseSteps}
-                onChange={(e) => p.onAdvancedChange({ highNoiseSteps: Number(e.target.value) })}
-                fullWidth
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <TextField
-                type="number"
-                label="Low Noise Start Step"
-                value={p.advanced.lowNoiseStartStep}
-                onChange={(e) => p.onAdvancedChange({ lowNoiseStartStep: Number(e.target.value) })}
-                fullWidth
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <TextField
-                type="number"
-                label="High Noise Start Step"
-                value={p.advanced.highNoiseStartStep}
-                onChange={(e) => p.onAdvancedChange({ highNoiseStartStep: Number(e.target.value) })}
-                fullWidth
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <TextField
-                type="number"
-                label="Low Noise End Step"
-                value={p.advanced.lowNoiseEndStep}
-                onChange={(e) => p.onAdvancedChange({ lowNoiseEndStep: Number(e.target.value) })}
-                fullWidth
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <TextField
-                type="number"
-                label="High Noise End Step"
-                value={p.advanced.highNoiseEndStep}
-                onChange={(e) => p.onAdvancedChange({ highNoiseEndStep: Number(e.target.value) })}
-                fullWidth
-              />
-            </Grid>
 
-            {p.generating && <LinearProgress />}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr auto 1fr",
+                  gap: 2,
+                  alignItems: "stretch",
+                }}
+              >
+                {/* LEFT */}
+                <Stack spacing={2}>
+                  <Stack spacing={2.5}>
+                    <Stack spacing={0.5}>
+                      <Typography gutterBottom>
+                        <Typography gutterBottom>
+                          Steps total: <b>{p.simple.totalSteps}</b>
+                        </Typography>
+                      </Typography>
+                      <PressableSlider
+                        sliderKey="totalSteps"
+                        onBegin={beginDrag}
+                        onEnd={endDrag}
+                        value={p.simple.totalSteps}
+                        min={cfg.totalSteps.min}
+                        max={cfg.totalSteps.max}
+                        step={cfg.totalSteps.step}
+                        marks={
+                          activeSafeKey && activeSafeKey !== "totalSteps"
+                            ? marksFor(safeBounds?.totalSteps, 2)
+                            : undefined
+                        }
+                        onChange={p.onChangeTotalSteps}
+                      />
+                      {safeBounds?.totalSteps && activeSafeKey !== "totalSteps" && (
+                        <SafeRangeBar
+                          min={safeBounds.totalSteps.min}
+                          max={safeBounds.totalSteps.max}
+                          sliderMin={cfg.totalSteps.min}
+                          sliderMax={cfg.totalSteps.max}
+                        />
+                      )}
+                    </Stack>
 
-            {p.statusText && (
-              <Typography variant="body2" color="text.secondary">
-                {p.statusText}
-              </Typography>
-            )}
+                    <Stack spacing={0.5}>
+                      <Typography gutterBottom>
+                        Ratio: <b>{p.simple.stepRatioPct}%</b>
+                      </Typography>
+                      <PressableSlider
+                        sliderKey="stepRatioPct"
+                        onBegin={beginDrag}
+                        onEnd={endDrag}
+                        value={p.simple.stepRatioPct}
+                        min={cfg.stepRatioPct.min}
+                        max={cfg.stepRatioPct.max}
+                        step={cfg.stepRatioPct.step}
+                        marks={
+                          activeSafeKey && activeSafeKey !== "stepRatioPct"
+                            ? marksFor(safeBounds?.stepRatioPct, 2)
+                            : undefined
+                        }
+                        onChange={p.onChangeStepRatio}
+                      />
+                      {safeBounds?.stepRatioPct && activeSafeKey !== "stepRatioPct" && (
+                        <SafeRangeBar
+                          min={safeBounds.stepRatioPct.min}
+                          max={safeBounds.stepRatioPct.max}
+                          sliderMin={cfg.stepRatioPct.min}
+                          sliderMax={cfg.stepRatioPct.max}
+                        />
+                      )}
+                    </Stack>
 
-            {p.previewUrl && (
-              <video src={p.previewUrl} controls style={{ width: "100%", borderRadius: 8 }} />
-            )}
-          </Grid>
-        )}
-      </DialogContent>
+                    <Stack spacing={0.5}>
+                      <Typography gutterBottom>
+                        High shift: <b>{p.simple.highShift.toFixed(2)}</b>
+                      </Typography>
+                      <PressableSlider
+                        sliderKey="highShift"
+                        onBegin={beginDrag}
+                        onEnd={endDrag}
+                        value={p.simple.highShift}
+                        min={cfg.highShift.min}
+                        max={cfg.highShift.max}
+                        step={cfg.highShift.step}
+                        marks={
+                          activeSafeKey && activeSafeKey !== "highShift"
+                            ? marksFor(safeBounds?.highShift, 2)
+                            : undefined
+                        }
+                        onChange={p.onChangeHighShift}
+                      />
+                      {safeBounds?.highShift && activeSafeKey !== "highShift" && (
+                        <SafeRangeBar
+                          min={safeBounds.highShift.min}
+                          max={safeBounds.highShift.max}
+                          sliderMin={cfg.highShift.min}
+                          sliderMax={cfg.highShift.max}
+                        />
+                      )}
+                    </Stack>
 
-      <DialogActions>
-        <Button onClick={p.onClose}>Close</Button>
-        <Button
-          variant="contained"
-          onClick={p.onStart}
-          disabled={p.startDisabled ?? !p.prompt.trim()}
-        >
-          Start COMFYUI Generation
-        </Button>
-      </DialogActions>
-    </Dialog>
+                    <Stack spacing={0.5}>
+                      <Typography gutterBottom>
+                        High CFG: <b>{p.simple.highCfg.toFixed(2)}</b>
+                      </Typography>
+                      <PressableSlider
+                        sliderKey="highCfg"
+                        onBegin={beginDrag}
+                        onEnd={endDrag}
+                        value={p.simple.highCfg}
+                        min={cfg.highCfg.min}
+                        max={cfg.highCfg.max}
+                        step={cfg.highCfg.step}
+                        marks={
+                          activeSafeKey && activeSafeKey !== "highCfg"
+                            ? marksFor(safeBounds?.highCfg, 2)
+                            : undefined
+                        }
+                        onChange={p.onChangeHighCfg}
+                      />
+                      {safeBounds?.highCfg && activeSafeKey !== "highCfg" && (
+                        <SafeRangeBar
+                          min={safeBounds.highCfg.min}
+                          max={safeBounds.highCfg.max}
+                          sliderMin={cfg.highCfg.min}
+                          sliderMax={cfg.highCfg.max}
+                        />
+                      )}
+                    </Stack>
+
+                    <Stack spacing={0.5}>
+                      <Typography gutterBottom>
+                        High strength: <b>{p.simple.highStrength.toFixed(2)}</b>
+                      </Typography>
+                      <PressableSlider
+                        sliderKey="highStrength"
+                        onBegin={beginDrag}
+                        onEnd={endDrag}
+                        value={p.simple.highStrength}
+                        min={cfg.highStrength.min}
+                        max={cfg.highStrength.max}
+                        step={cfg.highStrength.step}
+                        marks={
+                          activeSafeKey && activeSafeKey !== "highStrength"
+                            ? marksFor(safeBounds?.highStrength, 2)
+                            : undefined
+                        }
+                        onChange={p.onChangeHighStrength}
+                      />
+                      {safeBounds?.highStrength && activeSafeKey !== "highStrength" && (
+                        <SafeRangeBar
+                          min={safeBounds.highStrength.min}
+                          max={safeBounds.highStrength.max}
+                          sliderMin={cfg.highStrength.min}
+                          sliderMax={cfg.highStrength.max}
+                        />
+                      )}
+                    </Stack>
+                  </Stack>
+
+                  <Paper
+                    variant="outlined"
+                    sx={{ p: 2, borderRadius: 3, borderColor: "warning.main" }}
+                  >
+                    Parameter combinations are limited to ensure video quality. Swich tabs to the
+                    advanced mode in order to generate videos without any restrictions
+                  </Paper>
+
+                  {/* Computed params — mega-file style */}
+                </Stack>
+
+                <Divider orientation="vertical" flexItem />
+
+                {/* RIGHT */}
+                <Paper
+                  variant="outlined"
+                  sx={{ p: 2, borderRadius: 3, borderColor: "secondary.main" }}
+                >
+                  {p.categoriesPanel ? (
+                    p.categoriesPanel
+                  ) : (
+                    <Stack spacing={2}>
+                      <Typography variant="subtitle2">Categories (read-only)</Typography>
+
+                      <Tabs value={catView} onChange={(_, v) => setCatView(v)} variant="fullWidth">
+                        <Tab value="sliders" label="Sliders" />
+                        <Tab value="pentagon" label="Pentagon" />
+                      </Tabs>
+
+                      {catView === "sliders" ? (
+                        <>
+                          <Stack spacing={2}>
+                            <ReadonlySlider
+                              label="Creativity"
+                              value={computed.scores.creativity}
+                              sx={catInfluenceSx("creativity")}
+                              onLabelClick={() => openWeights("creativity")}
+                            />
+
+                            <ReadonlySlider
+                              label="Prompt faithfulness"
+                              value={computed.scores.promptFaithfulness}
+                              sx={catInfluenceSx("promptFaithfulness")}
+                              onLabelClick={() => openWeights("promptFaithfulness")}
+                            />
+
+                            <ReadonlySlider
+                              label="Motion"
+                              value={computed.scores.motion}
+                              sx={catInfluenceSx("motion")}
+                              onLabelClick={() => openWeights("motion")}
+                            />
+
+                            <ReadonlySlider
+                              label="Transition Smoothness"
+                              value={computed.scores.transitionSmoothness}
+                              sx={catInfluenceSx("transitionSmoothness")}
+                              onLabelClick={() => openWeights("transitionSmoothness")}
+                            />
+
+                            <ReadonlySlider
+                              label="Video Faithfulness"
+                              value={computed.scores.videoFaithfulness}
+                              sx={catInfluenceSx("videoFaithfulness")}
+                              onLabelClick={() => openWeights("videoFaithfulness")}
+                            />
+
+                            {customSliders.length > 0 && (
+                              <>
+                                <Divider />
+                                <Typography variant="subtitle2">Custom sliders</Typography>
+
+                                {customSliders.map((cs) => (
+                                  <ReadonlySlider
+                                    key={cs.id}
+                                    label={cs.name}
+                                    value={computed.allScores[cs.id] ?? 0}
+                                    // ⚠️ custom hat kein catInfluenceSx (das ist nur für die 5)
+                                    // optional: später eigener edit dialog
+                                    onLabelClick={() => {
+                                      openCustomEdit(cs.id);
+                                    }}
+                                  />
+                                ))}
+                              </>
+                            )}
+                          </Stack>
+
+                          <Button
+                            variant="outlined"
+                            onClick={() => {
+                              setDraftName("");
+                              setDraftW(DEFAULT_CUSTOM_W);
+                              setNewOpen(true);
+                            }}
+                          >
+                            New slider
+                          </Button>
+                        </>
+                      ) : (
+                        <PentagonMap scores={computed.scores} size={260} showRadarPolygon />
+                      )}
+                    </Stack>
+                  )}
+                </Paper>
+              </Box>
+
+              {p.generating && <LinearProgress />}
+
+              {p.statusText && (
+                <Typography variant="body2" color="text.secondary">
+                  {p.statusText}
+                </Typography>
+              )}
+
+              {p.previewUrl && (
+                <video src={p.previewUrl} controls style={{ width: "100%", borderRadius: 8 }} />
+              )}
+            </Stack>
+          )}
+
+          {p.tab === "advanced" && (
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12 }}>
+                <TextField
+                  label="Prompt"
+                  value={p.prompt}
+                  onChange={(e) => p.onPromptChange(e.target.value)}
+                  multiline
+                  minRows={4}
+                  fullWidth
+                />
+              </Grid>
+
+              <TextField
+                type="number"
+                label="Length in frames (FPS = 16)"
+                value={p.length}
+                onChange={(e) => p.onLengthChange(Number(e.target.value))}
+                fullWidth
+              />
+
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <TextField
+                  type="number"
+                  label="Low Noise CFG"
+                  value={p.advanced.lowNoiseCfg}
+                  onChange={(e) => p.onAdvancedChange({ lowNoiseCfg: Number(e.target.value) })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <TextField
+                  type="number"
+                  label="High Noise CFG"
+                  value={p.advanced.highNoiseCfg}
+                  onChange={(e) => p.onAdvancedChange({ highNoiseCfg: Number(e.target.value) })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <TextField
+                  type="number"
+                  label="Low Noise Model Strength"
+                  value={p.advanced.lowNoiseModelStrength}
+                  onChange={(e) =>
+                    p.onAdvancedChange({ lowNoiseModelStrength: Number(e.target.value) })
+                  }
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <TextField
+                  type="number"
+                  label="High Noise Model Strength"
+                  value={p.advanced.highNoiseModelStrength}
+                  onChange={(e) =>
+                    p.onAdvancedChange({ highNoiseModelStrength: Number(e.target.value) })
+                  }
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <TextField
+                  type="number"
+                  label="Low Noise Shift"
+                  value={p.advanced.lowNoiseShift}
+                  onChange={(e) => p.onAdvancedChange({ lowNoiseShift: Number(e.target.value) })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <TextField
+                  type="number"
+                  label="High Noise Shift"
+                  value={p.advanced.highNoiseShift}
+                  onChange={(e) => p.onAdvancedChange({ highNoiseShift: Number(e.target.value) })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <TextField
+                  type="number"
+                  label="Low Noise Steps"
+                  value={p.advanced.lowNoiseSteps}
+                  onChange={(e) => p.onAdvancedChange({ lowNoiseSteps: Number(e.target.value) })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <TextField
+                  type="number"
+                  label="High Noise Steps"
+                  value={p.advanced.highNoiseSteps}
+                  onChange={(e) => p.onAdvancedChange({ highNoiseSteps: Number(e.target.value) })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <TextField
+                  type="number"
+                  label="Low Noise Start Step"
+                  value={p.advanced.lowNoiseStartStep}
+                  onChange={(e) =>
+                    p.onAdvancedChange({ lowNoiseStartStep: Number(e.target.value) })
+                  }
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <TextField
+                  type="number"
+                  label="High Noise Start Step"
+                  value={p.advanced.highNoiseStartStep}
+                  onChange={(e) =>
+                    p.onAdvancedChange({ highNoiseStartStep: Number(e.target.value) })
+                  }
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <TextField
+                  type="number"
+                  label="Low Noise End Step"
+                  value={p.advanced.lowNoiseEndStep}
+                  onChange={(e) => p.onAdvancedChange({ lowNoiseEndStep: Number(e.target.value) })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <TextField
+                  type="number"
+                  label="High Noise End Step"
+                  value={p.advanced.highNoiseEndStep}
+                  onChange={(e) => p.onAdvancedChange({ highNoiseEndStep: Number(e.target.value) })}
+                  fullWidth
+                />
+              </Grid>
+
+              {p.generating && <LinearProgress />}
+
+              {p.statusText && (
+                <Typography variant="body2" color="text.secondary">
+                  {p.statusText}
+                </Typography>
+              )}
+
+              {p.previewUrl && (
+                <video src={p.previewUrl} controls style={{ width: "100%", borderRadius: 8 }} />
+              )}
+            </Grid>
+          )}
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={p.onClose}>Close</Button>
+          <Button
+            variant="contained"
+            onClick={p.onStart}
+            disabled={p.startDisabled ?? !p.prompt.trim()}
+          >
+            Start COMFYUI Generation
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <WeightsDialog
+        open={weightsOpen}
+        cat={weightsCat}
+        weights={formulaWeights}
+        onClose={closeWeights}
+        onPatch={patchFormulaWeights}
+        onReset={resetWeights}
+      />
+
+     {/* CREATE */}
+<NewCustomSliderDialog
+  open={newOpen}
+  title="New slider"
+  primaryLabel="Create"
+  name={draftName}
+  w={draftW}
+  onName={setDraftName}
+  onW={(patch) => setDraftW((prev) => ({ ...prev, ...patch }))}
+  onClose={() => setNewOpen(false)}
+  onPrimary={createCustomSlider}
+  primaryDisabled={!draftName.trim()}
+/>
+
+{/* EDIT */}
+<NewCustomSliderDialog
+  open={editOpen}
+  title="Edit slider"
+  primaryLabel="Save"
+  secondaryLabel="Delete"
+  onSecondary={() => editId && deleteCustom(editId)}
+  name={editName}
+  w={editW}
+  onName={setEditName}
+  onW={(patch) => setEditW((prev) => ({ ...prev, ...patch }))}
+  onClose={closeCustomEdit}
+  onPrimary={saveCustomEdit}
+  primaryDisabled={!editName.trim()}
+/>
+    </>
   );
 }

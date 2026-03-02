@@ -283,7 +283,7 @@
   },
   "122:84": {
     "inputs": {
-      "clip_name": "umt5_xxl_fp16.safetensors",
+      "clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
       "type": "wan",
       "device": "default"
     },
@@ -294,7 +294,7 @@
   },
   "122:96": {
     "inputs": {
-      "unet_name": "wan2.2_i2v_low_noise_14B_fp16.safetensors",
+      "unet_name": "wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -304,7 +304,7 @@
   },
   "122:95": {
     "inputs": {
-      "unet_name": "wan2.2_i2v_high_noise_14B_fp16.safetensors",
+      "unet_name": "wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",

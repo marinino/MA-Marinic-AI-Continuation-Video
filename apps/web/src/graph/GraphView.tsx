@@ -202,6 +202,7 @@ export function GraphView(props: {
   // ---------- V2V state ----------
   const [v2vParentClipId, setV2vParentClipId] = useState<string | null>(null);
   const [v2vPrompt, setV2vPrompt] = useState("");
+  const [v2vLength, setV2VLength] = useState(71);
 
   const paletteKey = genState === "idle" ? "success" : genState === "running" ? "warning" : "error";
 
@@ -404,6 +405,7 @@ export function GraphView(props: {
   function addAIGenerateFromParent(fromClipId: string) {
     setV2vParentClipId(fromClipId);
     setV2vPrompt("");
+    setV2VLength(71);
     setClipStatus("");
     setClipPreviewUrl(null);
 
@@ -479,6 +481,7 @@ export function GraphView(props: {
   ) {
     const parentId = v2vParentClipId!;
     const prompt = v2vPrompt;
+    const length = v2vLength;
 
     jobsApi.enqueue({
       label: `V2V: ${prompt.slice(0, 30)}${prompt.length > 30 ? "…" : ""}`,
@@ -486,6 +489,7 @@ export function GraphView(props: {
         comfyStartV2V({
           text: prompt,
           videoFile: parentFile,
+          length: length,
           ...params,
         } as any),
       onSuccess: (file) => {
@@ -722,6 +726,8 @@ export function GraphView(props: {
         onTabChange={v2v.setV2vTab}
         prompt={v2vPrompt}
         onPromptChange={setV2vPrompt}
+        length={v2vLength}
+        onLengthChange={setV2VLength}
         // ✅ NEW
         simple={v2v.simple}
         sliderCfg={v2v.sliderCfg}
