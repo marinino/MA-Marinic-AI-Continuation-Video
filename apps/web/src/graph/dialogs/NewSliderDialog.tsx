@@ -1,3 +1,4 @@
+import * as React from "react";
 import {
   TextField,
   Dialog,
@@ -10,7 +11,7 @@ import {
   Button,
   Box,
 } from "@mui/material";
-import { CustomScoreSlider } from "../hooks/useV2VParams";
+import type { CustomScoreSlider } from "../hooks/useV2VParams";
 
 export function NewCustomSliderDialog(props: {
   open: boolean;
@@ -30,20 +31,39 @@ export function NewCustomSliderDialog(props: {
   onSecondary?: () => void;
   primaryDisabled?: boolean;
 }) {
-  const Num = (p: { label: string; k: keyof CustomScoreSlider["w"] }) => (
-    <TextField
-      type="number"
-      label={p.label}
-      value={props.w[p.k]}
-      onChange={(e) => props.onW({ [p.k]: Number(e.target.value) } as any)}
-      inputProps={{ step: 0.05 }}
-      fullWidth
-    />
-  );
+  // kleine Helper-Funktion (keine Komponente), damit onChange überall gleich ist
+  const onNum = (k: keyof CustomScoreSlider["w"]) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    // erlaubt leeres Feld ohne NaN zu committen
+    if (v === "") return;
+    props.onW({ [k]: Number(v) } as any);
+  };
+
+  const numProps = {
+    type: "number" as const,
+    fullWidth: true,
+    // optional: damit label nicht über value liegt
+    InputLabelProps: { shrink: true },
+  };
+
+  function weightL2Norm(w: CustomScoreSlider["w"]) {
+    const values = Object.values(w);
+    const sumSq = values.reduce((acc, v) => acc + v * v, 0);
+    return Math.sqrt(sumSq);
+  }
+
+  function classifyNorm(norm: number) {
+    if (norm < 1.5) return "balanced";
+    if (norm < 3) return "strong";
+    return "very-strong";
+  }
+
+  const norm = weightL2Norm(props.w);
+  const level = classifyNorm(norm);
 
   return (
     <Dialog open={props.open} onClose={props.onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>New slider</DialogTitle>
+      <DialogTitle>{props.title ?? "New slider"}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField
@@ -57,43 +77,121 @@ export function NewCustomSliderDialog(props: {
             Formula = Σ(w * feature) + bias, then clamped to 0..1.
           </Typography>
 
-          <Num label="steps" k="steps" />
-          <Num label="ratio" k="ratio" />
-          <Num label="shift" k="shift" />
-          <Num label="cfg" k="cfg" />
-          <Num label="strength" k="strength" />
+          <TextField
+            {...numProps}
+            label="steps"
+            value={props.w.steps}
+            onChange={onNum("steps")}
+            slotProps={{ htmlInput: { step: 0.05 } }}
+          />
+          <TextField
+            {...numProps}
+            label="ratio"
+            value={props.w.ratio}
+            onChange={onNum("ratio")}
+            slotProps={{ htmlInput: { step: 0.05 } }}
+          />
+          <TextField
+            {...numProps}
+            label="shift"
+            value={props.w.shift}
+            onChange={onNum("shift")}
+            slotProps={{ htmlInput: { step: 0.05 } }}
+          />
+          <TextField
+            {...numProps}
+            label="cfg"
+            value={props.w.cfg}
+            onChange={onNum("cfg")}
+            slotProps={{ htmlInput: { step: 0.05 } }}
+          />
+          <TextField
+            {...numProps}
+            label="strength"
+            value={props.w.strength}
+            onChange={onNum("strength")}
+            slotProps={{ htmlInput: { step: 0.05 } }}
+          />
 
           <Divider />
 
-          <Num label="(1-steps)" k="invSteps" />
-          <Num label="(1-ratio)" k="invRatio" />
-          <Num label="(1-shift)" k="invShift" />
-          <Num label="(1-cfg)" k="invCfg" />
-          <Num label="(1-strength)" k="invStrength" />
+          <TextField
+            {...numProps}
+            label="(1-steps)"
+            value={props.w.invSteps}
+            onChange={onNum("invSteps")}
+            slotProps={{ htmlInput: { step: 0.05 } }}
+          />
+          <TextField
+            {...numProps}
+            label="(1-ratio)"
+            value={props.w.invRatio}
+            onChange={onNum("invRatio")}
+            slotProps={{ htmlInput: { step: 0.05 } }}
+          />
+          <TextField
+            {...numProps}
+            label="(1-shift)"
+            value={props.w.invShift}
+            onChange={onNum("invShift")}
+            slotProps={{ htmlInput: { step: 0.05 } }}
+          />
+          <TextField
+            {...numProps}
+            label="(1-cfg)"
+            value={props.w.invCfg}
+            onChange={onNum("invCfg")}
+            slotProps={{ htmlInput: { step: 0.05 } }}
+          />
+          <TextField
+            {...numProps}
+            label="(1-strength)"
+            value={props.w.invStrength}
+            onChange={onNum("invStrength")}
+            slotProps={{ htmlInput: { step: 0.05 } }}
+          />
 
           <Divider />
 
-          <Num label="bias" k="bias" />
+          <TextField
+            {...numProps}
+            label="bias"
+            value={props.w.bias}
+            onChange={onNum("bias")}
+            slotProps={{ htmlInput: { step: 0.05 } }}
+          />
+
+          <Divider />
+
+          <Typography
+            variant="caption"
+            color={
+              level === "balanced"
+                ? "text.secondary"
+                : level === "strong"
+                  ? "warning.main"
+                  : "error.main"
+            }
+          >
+            Weight magnitude: {norm.toFixed(2)} ({level})
+          </Typography>
         </Stack>
       </DialogContent>
+
       <DialogActions>
-  {props.onSecondary && (
-    <Button color="error" onClick={props.onSecondary}>
-      {props.secondaryLabel ?? "Delete"}
-    </Button>
-  )}
+        {props.onSecondary && (
+          <Button color="error" onClick={props.onSecondary}>
+            {props.secondaryLabel ?? "Delete"}
+          </Button>
+        )}
 
-  <Box sx={{ flex: 1 }} />
+        <Box sx={{ flex: 1 }} />
 
-  <Button onClick={props.onClose}>Cancel</Button>
-  <Button
-    variant="contained"
-    onClick={props.onPrimary}
-    disabled={props.primaryDisabled}
-  >
-    {props.primaryLabel ?? "Save"}
-  </Button>
-</DialogActions>
+        <Button onClick={props.onClose}>Cancel</Button>
+        <Button variant="contained" onClick={props.onPrimary} disabled={props.primaryDisabled}>
+          {props.primaryLabel ?? "Save"}
+        </Button>
+      </DialogActions>
     </Dialog>
   );
 }

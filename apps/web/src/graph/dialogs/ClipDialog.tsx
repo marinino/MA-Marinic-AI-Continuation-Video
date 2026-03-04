@@ -17,6 +17,8 @@ import {
   Slider,
   ButtonGroup,
   Grid,
+  Tooltip,
+  ButtonBase,
 } from "@mui/material";
 
 // ⬇️ falls dein PentagonMap woanders liegt: Pfad anpassen
@@ -118,6 +120,7 @@ export type ClipDialogProps = {
 
   getBounds: (k: SafeKey, v: number) => Record<SafeKey, { min: number; max: number }> | null;
   roundTo: (x: number, decimals: number) => number;
+  simulateSliderChange: (prev: SimpleReal, key: SafeKey, raw: number) => SimpleReal
 };
 
 type CatKey = keyof CategoryScores;
@@ -213,21 +216,49 @@ function ReadonlySlider(props: {
   sx?: any;
   onLabelClick?: () => void;
 }) {
+  const clickable = !!props.onLabelClick;
+
   return (
     <Box sx={props.sx}>
       <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-        <Typography
-          variant="body2"
-          onClick={props.onLabelClick}
-          sx={{
-            cursor: props.onLabelClick ? "pointer" : "default",
-            textDecoration: props.onLabelClick ? "underline" : "none",
-            textUnderlineOffset: "3px",
-            userSelect: "none",
-          }}
-        >
-          {props.label}
-        </Typography>
+        <Stack direction="row" spacing={1} alignItems="baseline">
+          {clickable ? (
+            <Tooltip title="Click to configure" arrow>
+              <ButtonBase
+                onClick={props.onLabelClick}
+                sx={{
+                  borderRadius: 1,
+                  px: 0.25,
+                  // macht es wie ein Link/Text
+                  "& .label": {
+                    fontSize: (theme) => theme.typography.body2.fontSize,
+                    fontWeight: (theme) => theme.typography.body2.fontWeight,
+                    lineHeight: (theme) => theme.typography.body2.lineHeight,
+                    color: "primary.main",
+                    textDecoration: "underline",
+                    textUnderlineOffset: "3px",
+                  },
+                  // schöner Fokus-Ring
+                  "&:focus-visible": {
+                    outline: "2px solid",
+                    outlineColor: "primary.main",
+                    outlineOffset: 2,
+                  },
+                }}
+              >
+                <span className="label">{props.label}</span>
+              </ButtonBase>
+            </Tooltip>
+          ) : (
+            <Typography variant="body2">{props.label}</Typography>
+          )}
+
+          {clickable && (
+            <Typography variant="caption" color="text.secondary" sx={{ userSelect: "none" }}>
+              (configure)
+            </Typography>
+          )}
+        </Stack>
 
         <Typography variant="body2" color="text.secondary">
           {props.value}
@@ -361,21 +392,32 @@ export function ClipDialog(p: ClipDialogProps) {
     setActiveEffects(null);
   }
 
-  React.useEffect(() => {
-    if (!activeSimple) return;
+React.useEffect(() => {
+  if (!activeSimple) return;
 
-    const onUp = () => {
-      setActiveSimple(null);
-      setActiveEffects(null);
-    };
+  const onEnd = () => {
+    setActiveSimple(null);
+    setActiveEffects(null);
+  };
 
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
-    return () => {
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-    };
-  }, [activeSimple]);
+  // Pointer (modern)
+  window.addEventListener("pointerup", onEnd);
+  window.addEventListener("pointercancel", onEnd);
+
+  // Fallbacks (wichtig für “manchmal”-Bugs)
+  window.addEventListener("mouseup", onEnd);
+  window.addEventListener("touchend", onEnd, { passive: true });
+  window.addEventListener("touchcancel", onEnd, { passive: true });
+
+  return () => {
+    window.removeEventListener("pointerup", onEnd);
+    window.removeEventListener("pointercancel", onEnd);
+
+    window.removeEventListener("mouseup", onEnd);
+    window.removeEventListener("touchend", onEnd);
+    window.removeEventListener("touchcancel", onEnd);
+  };
+}, [activeSimple]);
 
   // --- compute real values + derived params exactly like mega-file ---
   const computed = React.useMemo(() => {
@@ -458,36 +500,8 @@ export function ClipDialog(p: ClipDialogProps) {
     setEditId(null);
   }
 
-  function projectToSafe(current: SafePreset, temperature = 0.12): SafePreset {
-    const d2s = SAFE_PRESETS.map((p) => dist2Safe(current, p));
-    const w = softmaxWeights(d2s, temperature);
 
-    const mixed = SAFE_PRESETS.reduce(
-      (acc, p, i) => {
-        const wi = w[i];
-        acc.stepsTotal += wi * p.stepsTotal;
-        acc.lowRatio += wi * p.lowRatio;
-        acc.cfgHigh += wi * p.cfgHigh;
-        acc.shiftHigh += wi * p.shiftHigh;
-        acc.strengthHigh += wi * p.strengthHigh;
-        return acc;
-      },
-      { name: "Projected", stepsTotal: 0, lowRatio: 0, cfgHigh: 0, shiftHigh: 0, strengthHigh: 0 }
-    );
 
-    // clamp to safe bounds (extra safety)
-    mixed.stepsTotal = clamp(mixed.stepsTotal, SAFE_R.stepsTotal.min, SAFE_R.stepsTotal.max);
-    mixed.lowRatio = clamp(mixed.lowRatio, SAFE_R.lowRatio.min, SAFE_R.lowRatio.max);
-    mixed.cfgHigh = clamp(mixed.cfgHigh, SAFE_R.cfgHigh.min, SAFE_R.cfgHigh.max);
-    mixed.shiftHigh = clamp(mixed.shiftHigh, SAFE_R.shiftHigh.min, SAFE_R.shiftHigh.max);
-    mixed.strengthHigh = clamp(
-      mixed.strengthHigh,
-      SAFE_R.strengthHigh.min,
-      SAFE_R.strengthHigh.max
-    );
-
-    return quantizeSafe(mixed);
-  }
 
   function quantizeSafe(s: SafePreset): SafePreset {
     return {
@@ -500,20 +514,21 @@ export function ClipDialog(p: ClipDialogProps) {
     };
   }
 
-  function computeScoresFromReal(s: SimpleReal): CategoryScores {
-    const stepsRange = p.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
+function computeScoresFromReal(s: SimpleReal): CategoryScores {
+  const stepsRange = p.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
 
-    return computeCategoryScoresFromSimple(
-      {
-        totalSteps: Math.round(s.totalSteps),
-        stepRatio: s.stepRatioPct,
-        highShift: s.highShift,
-        highCfg: s.highCfg,
-        highStrength: s.highStrength,
-      },
-      stepsRange
-    );
-  }
+  return computeCategoryScoresFromSimple(
+    {
+      totalSteps: Math.round(s.totalSteps),
+      stepRatio: s.stepRatioPct,
+      highShift: s.highShift,
+      highCfg: s.highCfg,
+      highStrength: s.highStrength,
+    },
+    stepsRange,
+    formulaWeights // ✅ wichtig: gleiche weights wie UI
+  );
+}
 
   function clampToCfg<K extends keyof SimpleReal>(key: K, v: number) {
     const c = p.sliderCfg[key];
@@ -532,39 +547,36 @@ export function ClipDialog(p: ClipDialogProps) {
     return p.getBounds(activeSafeKey, v);
   }, [activeSafeKey, p.simple]);
 
-  function computeEffectsFor(key: keyof SimpleReal): Partial<Record<CatKey, number>> {
-    const base = p.simple;
+function computeEffectsFor(key: keyof SimpleReal): Partial<Record<CatKey, number>> {
+  const base = p.simple;
 
-    const step = p.sliderCfg[key].step;
+  const step = p.sliderCfg[key].step;
+  const epsSteps = key === "totalSteps" ? 1 : 3;
+  const eps = step * epsSteps;
 
-    // Mehrere Steps nehmen => stabiler gegen Quantisierung/Projection,
-    // aber am Ende wieder "pro 1 step" ausgeben.
-    const epsSteps = key === "totalSteps" ? 1 : 3; // totalSteps ist diskret; die anderen profitieren von 3
-    const eps = step * epsSteps;
+  const s0 = computeScoresFromReal(base);
 
-    const s0 = computeScoresFromReal(base);
+  // ✅ wandle keyof SimpleReal -> SafeKey (du hast toSafeKey schon)
+  const sk = toSafeKey(key as any);
+  if (!sk) return {};
 
-    const plus = {
-      ...base,
-      [key]: clampToCfg(key, (base[key] as number) + eps),
-    } as SimpleReal;
+  // ✅ “raw desired value” (noch ohne constraints)
+  const plusRaw = clampToCfg(key, (base[key] as number) + eps);
+  const minusRaw = clampToCfg(key, (base[key] as number) - eps);
 
-    const minus = {
-      ...base,
-      [key]: clampToCfg(key, (base[key] as number) - eps),
-    } as SimpleReal;
+  // ✅ hier passieren die passiven Effekte:
+  const plus = p.simulateSliderChange(base, sk, plusRaw);
+  const minus = p.simulateSliderChange(base, sk, minusRaw);
 
-    const sPlus = computeScoresFromReal(plus);
-    const sMinus = computeScoresFromReal(minus);
+  const sPlus = computeScoresFromReal(plus);
+  const sMinus = computeScoresFromReal(minus);
 
-    const out: Partial<Record<CatKey, number>> = {};
-    (Object.keys(s0) as CatKey[]).forEach((cat) => {
-      // central diff: change per 1 slider-step
-      out[cat] = (sPlus[cat] - sMinus[cat]) / (2 * epsSteps);
-    });
-
-    return out;
-  }
+  const out: Partial<Record<CatKey, number>> = {};
+  (Object.keys(s0) as CatKey[]).forEach((cat) => {
+    out[cat] = (sPlus[cat] - sMinus[cat]) / (2 * epsSteps);
+  });
+  return out;
+}
 
   function createCustomSlider() {
     const id = `custom:${Date.now()}`; // reicht völlig
@@ -636,7 +648,7 @@ export function ClipDialog(p: ClipDialogProps) {
     const d = activeEffects[cat] ?? 0;
 
     // threshold: tiny numerical noise ignorieren
-    const dead = 1e-6;
+    const dead = 0.02;
     const maxD = 0.5; // sehr sensibel: "0.5 score-points pro slider unit" ist schon stark
     const gamma = 0.7;
     if (Math.abs(d) < dead) {
@@ -1181,35 +1193,35 @@ export function ClipDialog(p: ClipDialogProps) {
         onReset={resetWeights}
       />
 
-     {/* CREATE */}
-<NewCustomSliderDialog
-  open={newOpen}
-  title="New slider"
-  primaryLabel="Create"
-  name={draftName}
-  w={draftW}
-  onName={setDraftName}
-  onW={(patch) => setDraftW((prev) => ({ ...prev, ...patch }))}
-  onClose={() => setNewOpen(false)}
-  onPrimary={createCustomSlider}
-  primaryDisabled={!draftName.trim()}
-/>
+      {/* CREATE */}
+      <NewCustomSliderDialog
+        open={newOpen}
+        title="New slider"
+        primaryLabel="Create"
+        name={draftName}
+        w={draftW}
+        onName={setDraftName}
+        onW={(patch) => setDraftW((prev) => ({ ...prev, ...patch }))}
+        onClose={() => setNewOpen(false)}
+        onPrimary={createCustomSlider}
+        primaryDisabled={!draftName.trim()}
+      />
 
-{/* EDIT */}
-<NewCustomSliderDialog
-  open={editOpen}
-  title="Edit slider"
-  primaryLabel="Save"
-  secondaryLabel="Delete"
-  onSecondary={() => editId && deleteCustom(editId)}
-  name={editName}
-  w={editW}
-  onName={setEditName}
-  onW={(patch) => setEditW((prev) => ({ ...prev, ...patch }))}
-  onClose={closeCustomEdit}
-  onPrimary={saveCustomEdit}
-  primaryDisabled={!editName.trim()}
-/>
+      {/* EDIT */}
+      <NewCustomSliderDialog
+        open={editOpen}
+        title="Edit slider"
+        primaryLabel="Save"
+        secondaryLabel="Delete"
+        onSecondary={() => editId && deleteCustom(editId)}
+        name={editName}
+        w={editW}
+        onName={setEditName}
+        onW={(patch) => setEditW((prev) => ({ ...prev, ...patch }))}
+        onClose={closeCustomEdit}
+        onPrimary={saveCustomEdit}
+        primaryDisabled={!editName.trim()}
+      />
     </>
   );
 }

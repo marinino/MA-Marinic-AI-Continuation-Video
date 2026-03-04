@@ -747,6 +747,7 @@ export function GraphView(props: {
         onSimpleSpeedModeChange={v2v.setSimpleSpeedMode}
         getBounds={v2v.getBounds}
         roundTo={v2v.roundTo}
+        simulateSliderChange={v2v.simulateSliderChange}
       />
 
       <NamingConventionDialog

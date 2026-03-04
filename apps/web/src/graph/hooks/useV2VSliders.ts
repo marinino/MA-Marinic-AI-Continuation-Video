@@ -136,6 +136,16 @@ export function useV2VSliders() {
     return Math.round(x * f) / f;
   }
 
+  function simulateSliderChange(prev: SimpleReal, key: SafeKey, raw: number): SimpleReal {
+  const patched = { ...prev, [key]: raw };
+  const clamped = clampSimple(simpleSpeedMode, patched);
+
+  if (simpleSpeedMode === "quick") return clamped;
+
+  const constrained = applySafeConstraints(clamped, key);
+  return clampSimple(simpleSpeedMode, constrained);
+}
+
   function edgeCandidates(activeKey: SafeKey, activeValue: number): MixCandidate[] {
     const out: MixCandidate[] = [];
 
@@ -325,5 +335,6 @@ export function useV2VSliders() {
 
     getBounds,
     roundTo,
+    simulateSliderChange,
   };
 }
