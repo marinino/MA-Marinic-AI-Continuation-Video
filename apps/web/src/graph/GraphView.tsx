@@ -63,7 +63,9 @@ import {
   findFreePosition,
   getDefaultNodeSize,
 } from "./graph_helpers/layout";
-import { buildIncomingMap, findPrevParamsId } from "./graph_helpers/selectors";
+import { buildIncomingMap, findPrevParamsId, collectSubtreeNodeIds } from "./graph_helpers/selectors";
+import { useManualTimelineImport } from "./hooks/useManualTimelineImport";
+import { DeleteNodeDialog } from "./dialogs/DeleteNodeDialog";
 
 // edgeTypes
 const edgeTypes = { labeled: LabeledEdge };
@@ -79,6 +81,7 @@ export function GraphView(props: {
   // ---------- reactflow instance ----------
   const rf = useReactFlow();
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
+  const vp = useViewport(props.project.id, rfInstance);
 
   // ---------- graph state ----------
   const g = useProjectGraph({
@@ -141,6 +144,240 @@ export function GraphView(props: {
   );
 
   // ✅ inject onAdd handler for the "+" button inside nodes
+
+  // keep selection in project uiState (same behavior)
+  useEffect(() => {
+    const sel = props.project.uiState?.selectedNodeId ?? null;
+    g.setClickedNodeId(sel);
+  }, [props.project.uiState?.selectedNodeId]);
+
+  // ---------- viewport ----------
+
+  // do the “restore OR fitView once rfInstance exists” behavior like mega-file
+  const didInitRef = useRef(false);
+  useEffect(() => {
+    if (!rfInstance) return;
+    if (didInitRef.current) return;
+
+    requestAnimationFrame(() => {
+      const restored = vp.restoreViewport();
+      if (!restored) {
+        rfInstance.fitView({ padding: 0.5, duration: 200 });
+        requestAnimationFrame(vp.saveViewport);
+      }
+      didInitRef.current = true;
+    });
+  }, [rfInstance, props.project.id]);
+
+  // ---------- comfy jobs ----------
+  const jobsApi = useComfyJobs(); // must support onSuccess(file) internally
+  const jobs = jobsApi.jobs;
+
+  const anyBusy = useMemo(
+    () => jobs.some((j) => ["queued", "connecting", "running", "finalizing"].includes(j.status)),
+    [jobs]
+  );
+
+  const genState = jobs.some((j) => j.status === "error") ? "error" : anyBusy ? "running" : "idle";
+
+  // ---------- dialogs ----------
+  const [jobsOpen, setJobsOpen] = useState(false);
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+
+  const [rootDialogOpen, setRootDialogOpen] = useState(false);
+  const [rootMode, setRootMode] = useState<RootMode>("generate");
+  const [rootPrompt, setRootPrompt] = useState("");
+  const [rootUploadFile, setRootUploadFile] = useState<File | null>(null);
+  const [rootUploading, setRootUploading] = useState(false);
+  const [rootUploadStatus, setRootUploadStatus] = useState("");
+
+  const [clipDialogOpen, setClipDialogOpen] = useState(false);
+  const [clipGenerating, setClipGenerating] = useState(false); // just UI; generation is job-based
+  const [clipStatus, setClipStatus] = useState("");
+  const [clipPreviewUrl, setClipPreviewUrl] = useState<string | null>(null);
+
+  const [namingConventionOpen, setNamingConventionOpen] = useState(false);
+  const [davinciActionOpen, setDavinciActionOpen] = useState(false);
+  const [timelineUploadOpen, setTimelineUploadOpen] = useState(false);
+
+  const [errorDialog, setErrorDialog] = useState<{ title: string; message: string } | null>(null);
+
+  // ---------- V2V state ----------
+  const [v2vParentClipId, setV2vParentClipId] = useState<string | null>(null);
+  const [v2vPrompt, setV2vPrompt] = useState("");
+  const [v2vLength, setV2VLength] = useState(71);
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [nodeToDeleteId, setNodeToDeleteId] = useState<string | null>(null);
+
+const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([]);
+
+  const paletteKey = genState === "idle" ? "success" : genState === "running" ? "warning" : "error";
+
+  // advanced raw params (same as mega-file)
+  const [advanced, setAdvanced] = useState({
+    lowNoiseCfg: 1,
+    highNoiseCfg: 1,
+    lowNoiseModelStrength: 1,
+    highNoiseModelStrength: 1,
+    lowNoiseShift: 5,
+    highNoiseShift: 5,
+    lowNoiseSteps: 4,
+    highNoiseSteps: 4,
+    lowNoiseStartStep: 2,
+    highNoiseStartStep: 0,
+    lowNoiseEndStep: 4,
+    highNoiseEndStep: 2,
+  });
+
+  // simple sliders hook (your preference)
+  const v2v = useV2VSliders();
+
+  const stepsRange = v2v.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
+
+  const scores = useCategoryScores(
+    {
+      totalSteps: v2v.simple.totalSteps,
+      stepRatio: v2v.simple.stepRatioPct, // % 50..80
+      highShift: v2v.simple.highShift,
+      highCfg: v2v.simple.highCfg,
+      highStrength: v2v.simple.highStrength,
+    },
+    stepsRange
+  );
+
+  // ---------- davinci timeline helper ----------
+
+  // manual edit draft
+  const [manualEditDraft, setManualEditDraft] = useState<ManualEditDraft | null>(null);
+  const [uploadedTimelineFile, setUploadedTimelineFile] = useState<File | null>(null);
+  const [editedVideoFile, setEditedVideoFile] = useState<File | null>(null);
+
+  // ---------- helpers ----------
+  function getNodeVideoFile(nodeId: string): StoredMediaFile | null {
+    const n = g.rfNodes.find((x) => x.id === nodeId);
+    return ((n?.data as any)?.videoFile as StoredMediaFile | null) ?? null;
+  }
+
+  function hasChildren(nodeId: string, edges: RFEdge[]) {
+  return edges.some((e) => e.source === nodeId);
+}
+
+  const nodeToDeleteLabel = useMemo(() => {
+    if (!nodeToDeleteId) return undefined;
+    const node = g.rfNodes.find((n) => n.id === nodeToDeleteId);
+    return (node?.data as any)?.label ?? undefined;
+  }, [nodeToDeleteId, g.rfNodes]);
+
+  const { finishManualTimelineImport } = useManualTimelineImport({
+    project: props.project,
+    onChange: props.onChange,
+    showEdgeLabels: props.showEdgeLabels,
+
+    rfInstance,
+    saveViewport: vp.saveViewport,
+
+    g,
+
+    uploadedTimelineFile,
+    editedVideoFile,
+    manualEditDraft,
+
+    setUploadedTimelineFile,
+    setEditedVideoFile,
+    setManualEditDraft,
+    setTimelineUploadOpen,
+    setErrorDialog,
+  });
+
+  const clickedClipFilename = useMemo(() => {
+    if (!g.clickedNodeId) return null;
+    const node = g.rfNodes.find((n) => n.id === g.clickedNodeId) as any;
+    if (!node || node.type !== "clip") return null;
+    return (node.data?.videoFile?.filename as string | undefined) ?? null;
+  }, [g.clickedNodeId, g.rfNodes]);
+
+  const davinci = useDavinciTimeline({
+    project: props.project,
+    clickedClipFilename,
+  });
+
+  // helper (z.B. in GraphView oder in einer kleinen utils-Datei)
+  function jobStateStyle(state: "idle" | "running" | "error") {
+    const paletteKey = state === "idle" ? "success" : state === "running" ? "warning" : "error";
+
+    return {
+      borderColor: `${paletteKey}.main`,
+      bgColor: `${paletteKey}.50`, // sehr dezent
+    } as const;
+  }
+
+const handleDeleteNode = useCallback(
+  (nodeId: string) => {
+    const nodeToDelete = g.rfNodes.find((n) => n.id === nodeId);
+    if (!nodeToDelete) return;
+
+    if ((nodeToDelete.data as any)?.isRoot) {
+      setErrorDialog({
+        title: "Cannot delete root node",
+        message: "The root clip cannot be deleted.",
+      });
+      return;
+    }
+
+const subtreeIds = Array.from(collectSubtreeNodeIds(nodeId, g.rfEdges));
+setDeleteTargetId(nodeId);
+setDeleteTargetIds(subtreeIds);
+setDeleteDialogOpen(true);
+  },
+  [g.rfNodes, g.rfEdges]
+);
+
+const confirmDeleteNode = useCallback(() => {
+  if (!deleteTargetId || deleteTargetIds.length === 0) return;
+
+  const idsToDelete = new Set(deleteTargetIds);
+
+  const nextNodes = g.rfNodes.filter((n) => !idsToDelete.has(n.id));
+  const nextEdges = g.rfEdges.filter(
+    (e) => !idsToDelete.has(e.source) && !idsToDelete.has(e.target)
+  );
+
+  g.setRfNodes(nextNodes);
+  g.setRfEdges(nextEdges);
+  g.commit(nextNodes, nextEdges);
+
+  if (g.clickedNodeId && idsToDelete.has(g.clickedNodeId)) {
+    g.setClickedNodeId(null);
+    setActionDialogOpen(false);
+  }
+
+  props.onChange((prev) => {
+    const wasSelected =
+      prev.uiState?.selectedNodeId && idsToDelete.has(prev.uiState.selectedNodeId);
+
+    return {
+      ...prev,
+      uiState: {
+        ...(prev.uiState ?? {}),
+        selectedNodeId: wasSelected ? undefined : prev.uiState?.selectedNodeId,
+      },
+    };
+  });
+
+  setDeleteDialogOpen(false);
+  setDeleteTargetId(null);
+  setDeleteTargetIds([]);
+
+  requestAnimationFrame(vp.saveViewport);
+}, [deleteTargetId, deleteTargetIds, g, props.onChange, vp.saveViewport]);
+
+  const cancelDeleteNode = useCallback(() => {
+    setDeleteDialogOpen(false);
+    setNodeToDeleteId(null);
+  }, []);
+
   const nodesForUI = useMemo(() => {
     const nodes = g.nodesWithRootFlag as Node[];
     const edges = g.rfEdges as Edge[];
@@ -173,6 +410,7 @@ export function GraphView(props: {
         videoOpened: Boolean(baseData?.videoOpened),
         onSaveNote: saveNodeNote,
         markVideoOpened,
+        onDelete: handleDeleteNode,
         onAdd: (nodeId: string) => {
           g.setClickedNodeId(nodeId);
           props.onChange((prev) => ({
@@ -275,139 +513,8 @@ export function GraphView(props: {
     props.onChange,
     markVideoOpened,
     saveNodeNote,
+    handleDeleteNode,
   ]);
-
-  // keep selection in project uiState (same behavior)
-  useEffect(() => {
-    const sel = props.project.uiState?.selectedNodeId ?? null;
-    g.setClickedNodeId(sel);
-  }, [props.project.uiState?.selectedNodeId]);
-
-  // ---------- viewport ----------
-  const vp = useViewport(props.project.id, rfInstance);
-
-  // do the “restore OR fitView once rfInstance exists” behavior like mega-file
-  const didInitRef = useRef(false);
-  useEffect(() => {
-    if (!rfInstance) return;
-    if (didInitRef.current) return;
-
-    requestAnimationFrame(() => {
-      const restored = vp.restoreViewport();
-      if (!restored) {
-        rfInstance.fitView({ padding: 0.5, duration: 200 });
-        requestAnimationFrame(vp.saveViewport);
-      }
-      didInitRef.current = true;
-    });
-  }, [rfInstance, props.project.id]);
-
-  // ---------- comfy jobs ----------
-  const jobsApi = useComfyJobs(); // must support onSuccess(file) internally
-  const jobs = jobsApi.jobs;
-
-  const anyBusy = useMemo(
-    () => jobs.some((j) => ["queued", "connecting", "running", "finalizing"].includes(j.status)),
-    [jobs]
-  );
-
-  const genState = jobs.some((j) => j.status === "error") ? "error" : anyBusy ? "running" : "idle";
-
-  // ---------- dialogs ----------
-  const [jobsOpen, setJobsOpen] = useState(false);
-  const [actionDialogOpen, setActionDialogOpen] = useState(false);
-
-  const [rootDialogOpen, setRootDialogOpen] = useState(false);
-  const [rootMode, setRootMode] = useState<RootMode>("generate");
-  const [rootPrompt, setRootPrompt] = useState("");
-  const [rootUploadFile, setRootUploadFile] = useState<File | null>(null);
-  const [rootUploading, setRootUploading] = useState(false);
-  const [rootUploadStatus, setRootUploadStatus] = useState("");
-
-  const [clipDialogOpen, setClipDialogOpen] = useState(false);
-  const [clipGenerating, setClipGenerating] = useState(false); // just UI; generation is job-based
-  const [clipStatus, setClipStatus] = useState("");
-  const [clipPreviewUrl, setClipPreviewUrl] = useState<string | null>(null);
-
-  const [namingConventionOpen, setNamingConventionOpen] = useState(false);
-  const [davinciActionOpen, setDavinciActionOpen] = useState(false);
-  const [timelineUploadOpen, setTimelineUploadOpen] = useState(false);
-
-  const [errorDialog, setErrorDialog] = useState<{ title: string; message: string } | null>(null);
-
-  // ---------- V2V state ----------
-  const [v2vParentClipId, setV2vParentClipId] = useState<string | null>(null);
-  const [v2vPrompt, setV2vPrompt] = useState("");
-  const [v2vLength, setV2VLength] = useState(71);
-
-  const paletteKey = genState === "idle" ? "success" : genState === "running" ? "warning" : "error";
-
-  // advanced raw params (same as mega-file)
-  const [advanced, setAdvanced] = useState({
-    lowNoiseCfg: 1,
-    highNoiseCfg: 1,
-    lowNoiseModelStrength: 1,
-    highNoiseModelStrength: 1,
-    lowNoiseShift: 5,
-    highNoiseShift: 5,
-    lowNoiseSteps: 4,
-    highNoiseSteps: 4,
-    lowNoiseStartStep: 2,
-    highNoiseStartStep: 0,
-    lowNoiseEndStep: 4,
-    highNoiseEndStep: 2,
-  });
-
-  // simple sliders hook (your preference)
-  const v2v = useV2VSliders();
-
-  const stepsRange = v2v.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
-
-  const scores = useCategoryScores(
-    {
-      totalSteps: v2v.simple.totalSteps,
-      stepRatio: v2v.simple.stepRatioPct, // % 50..80
-      highShift: v2v.simple.highShift,
-      highCfg: v2v.simple.highCfg,
-      highStrength: v2v.simple.highStrength,
-    },
-    stepsRange
-  );
-
-  // ---------- davinci timeline helper ----------
-
-  // manual edit draft
-  const [manualEditDraft, setManualEditDraft] = useState<ManualEditDraft | null>(null);
-  const [uploadedTimelineFile, setUploadedTimelineFile] = useState<File | null>(null);
-  const [editedVideoFile, setEditedVideoFile] = useState<File | null>(null);
-
-  // ---------- helpers ----------
-  function getNodeVideoFile(nodeId: string): StoredMediaFile | null {
-    const n = g.rfNodes.find((x) => x.id === nodeId);
-    return ((n?.data as any)?.videoFile as StoredMediaFile | null) ?? null;
-  }
-
-  const clickedClipFilename = useMemo(() => {
-    if (!g.clickedNodeId) return null;
-    const node = g.rfNodes.find((n) => n.id === g.clickedNodeId) as any;
-    if (!node || node.type !== "clip") return null;
-    return (node.data?.videoFile?.filename as string | undefined) ?? null;
-  }, [g.clickedNodeId, g.rfNodes]);
-
-  const davinci = useDavinciTimeline({
-    project: props.project,
-    clickedClipFilename,
-  });
-
-  // helper (z.B. in GraphView oder in einer kleinen utils-Datei)
-  function jobStateStyle(state: "idle" | "running" | "error") {
-    const paletteKey = state === "idle" ? "success" : state === "running" ? "warning" : "error";
-
-    return {
-      borderColor: `${paletteKey}.main`,
-      bgColor: `${paletteKey}.50`, // sehr dezent
-    } as const;
-  }
 
   // ---------- Root create ----------
   function createRoot() {
@@ -967,13 +1074,25 @@ export function GraphView(props: {
         onTimelineFileChange={setUploadedTimelineFile}
         onEditedVideoFileChange={setEditedVideoFile}
         onCancel={() => setTimelineUploadOpen(false)}
-        onFinish={async () => {
-          // keep your old mega-file finish logic here or move into a hook.
-          setTimelineUploadOpen(false);
-        }}
+        onFinish={finishManualTimelineImport}
       />
 
       <ErrorDialog error={errorDialog} onClose={() => setErrorDialog(null)} />
+
+<DeleteNodeDialog
+  open={deleteDialogOpen}
+  nodeLabel={deleteTargetId ? (g.rfNodes.find((n) => n.id === deleteTargetId)?.data as any)?.label : undefined}
+  affectedCount={deleteTargetIds.length}
+  onClose={() => {
+    setDeleteDialogOpen(false);
+    setDeleteTargetId(null);
+    setDeleteTargetIds([]);
+  }}
+  onConfirm={confirmDeleteNode}
+/>
     </div>
   );
 }
+
+
+

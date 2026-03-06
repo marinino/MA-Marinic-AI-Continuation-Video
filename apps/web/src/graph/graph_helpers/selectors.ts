@@ -137,3 +137,28 @@ export function findPrevParamsId(
 
   return prevNode.type === "params" ? prevNodeId : null;
 }
+
+export function collectSubtreeNodeIds(nodeId: string, rfEdges: RFEdge[]): Set<string> {
+  const result = new Set<string>();
+  const stack: string[] = [nodeId];
+
+  while (stack.length > 0) {
+    const currentId = stack.pop();
+    if (!currentId) continue;
+
+    if (result.has(currentId)) continue;
+    result.add(currentId);
+
+    const childIds = rfEdges
+      .filter((e) => e.source === currentId)
+      .map((e) => e.target);
+
+    for (const childId of childIds) {
+      if (!result.has(childId)) {
+        stack.push(childId);
+      }
+    }
+  }
+
+  return result;
+}

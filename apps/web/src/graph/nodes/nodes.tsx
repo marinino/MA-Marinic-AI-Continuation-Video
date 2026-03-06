@@ -107,6 +107,8 @@ function NodeCard(props: {
   promptChanged?: boolean;
   note?: string;
   onSaveNote?: (nodeId: string, note: string) => void;
+  onDelete?: (nodeId: string) => void;
+  canDelete?: boolean;
 }) {
   const theme = useTheme();
   const [infoOpen, setInfoOpen] = useState(false);
@@ -620,32 +622,52 @@ function NodeCard(props: {
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
+        <DialogActions sx={{ justifyContent: "space-between" }}>
+          <Box>
+            {props.canDelete !== false && (
+              <Button
+                color="error"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  props.onDelete?.(props.nodeId);
+                  setInfoOpen(false);
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
+                Delete node
+              </Button>
+            )}
+          </Box>
 
-              props.onSaveNote?.(props.nodeId, localNote);
-
-              setInfoOpen(false);
-            }}
-          >
-            Save Notes and close
-          </Button>
-          <Button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setInfoOpen(false);
-            }}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          >
-            Close
-          </Button>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                props.onSaveNote?.(props.nodeId, localNote);
+                setInfoOpen(false);
+              }}
+            >
+              Save Notes and close
+            </Button>
+            <Button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setInfoOpen(false);
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
+              Close
+            </Button>
+          </Box>
         </DialogActions>
       </Dialog>
     </>
@@ -682,6 +704,8 @@ export function ClipNode(props: NodeProps<any>) {
         onVideoOpened={(id) => markVideoOpened?.(id)}
         note={props.data?.note}
         onSaveNote={props.data?.onSaveNote}
+        onDelete={(props.data as any)?.onDelete}
+        canDelete={!props.data?.isRoot}
       >
         <Typography variant="body2">{props.data?.label}</Typography>
       </NodeCard>
@@ -722,6 +746,8 @@ export function ParamNode(props: NodeProps<any>) {
         promptChanged={props.data?.promptChanged}
         note={props.data?.note}
         onSaveNote={props.data?.onSaveNote}
+        onDelete={(props.data as any)?.onDelete}
+        canDelete={!props.data?.isRoot}
       >
         <Typography variant="body2">{props.data?.label}</Typography>
       </NodeCard>
@@ -847,6 +873,8 @@ export function EditNode(props: NodeProps<any>) {
         }
         note={props.data?.note}
         onSaveNote={props.data?.onSaveNote}
+        onDelete={(props.data as any)?.onDelete}
+        canDelete={!props.data?.isRoot}
       >
         <Typography variant="body2">{props.data?.label}</Typography>
         <Stack gap={1} mt={1}>
