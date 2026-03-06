@@ -28,6 +28,7 @@ export const ParamNodeDataSchema = z
     status: z.enum(["idle", "queued", "running", "done", "error"]).optional(),
     promptId: z.string().optional(),
     error: z.string().optional(),
+    note: z.string().optional(),
   })
   .passthrough();
 
@@ -36,6 +37,7 @@ export const EditNodeDataSchema = z
     label: z.string(),
     tool: z.string().optional(),
     notes: z.string().optional(),
+    note: z.string().optional(),
 
     // optional: strukturierter Platz für Timeline-Import
     timeline: z
@@ -77,6 +79,7 @@ export const ClipNodeDataSchema = z.object({
   videoFile: StoredMediaFileSchema.optional(),
 
   videoOpened: z.boolean().optional(),
+  note: z.string().optional(),
 });
 
 export const NodeSchema = z.discriminatedUnion("type", [

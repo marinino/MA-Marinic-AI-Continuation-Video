@@ -13,6 +13,8 @@ import {
   DialogContent,
   DialogActions,
   LinearProgress,
+  TextField,
+  Divider,
 } from "@mui/material";
 import MovieIcon from "@mui/icons-material/Movie";
 import TuneIcon from "@mui/icons-material/Tune";
@@ -21,7 +23,7 @@ import type { NodeProps } from "reactflow";
 import { Handle, Position } from "reactflow";
 import "reactflow/dist/style.css";
 import { NodeType, StoredMediaFile } from "@ma/shared";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import { comfyBuildVideoUrl } from "../../api";
 import { parsedChangelogLines } from "../../utils/parseTimelineChangelog";
@@ -77,9 +79,42 @@ function NodeCard(props: {
     transitionSmoothness: number;
     videoFaithfulness: number;
   };
+
+  prevParamsId?: string | null;
+  paramDeltas?: Partial<
+    Record<
+      | "highNoiseCfg"
+      | "lowNoiseCfg"
+      | "highNoiseShift"
+      | "lowNoiseShift"
+      | "highNoiseModelStrength"
+      | "lowNoiseModelStrength"
+      | "highNoiseSteps"
+      | "lowNoiseSteps"
+      | "highNoiseStartStep"
+      | "lowNoiseStartStep"
+      | "highNoiseEndStep"
+      | "lowNoiseEndStep",
+      number | null
+    >
+  > | null;
+  categoryScoreDeltas?: Partial<
+    Record<
+      "creativity" | "promptFaithfulness" | "motion" | "transitionSmoothness" | "videoFaithfulness",
+      number | null
+    >
+  > | null;
+  promptChanged?: boolean;
+  note?: string;
+  onSaveNote?: (nodeId: string, note: string) => void;
 }) {
   const theme = useTheme();
   const [infoOpen, setInfoOpen] = useState(false);
+  const [localNote, setLocalNote] = useState(props.note ?? "");
+
+  useEffect(() => {
+    setLocalNote(props.note ?? "");
+  }, [props.note, infoOpen]);
 
   const base = getNodeColors(props.type, props.isRoot);
 
@@ -87,6 +122,26 @@ function NodeCard(props: {
   const borderColor = base.border;
 
   const shouldHighlightUnseen = props.type === "clip" && !props.videoOpened && !props.selected;
+
+  const d = props.paramDeltas;
+  const sd = props.categoryScoreDeltas;
+
+  function fmt(d: number | null | undefined, decimals = 2) {
+    if (typeof d !== "number" || !Number.isFinite(d) || d === 0) return "";
+    const sign = d > 0 ? "+" : "−";
+    return `(${sign}${Math.abs(d).toFixed(decimals)})`;
+  }
+
+  function deltaChipSx(delta: number | null | undefined) {
+    if (typeof delta !== "number" || !Number.isFinite(delta) || delta === 0) return undefined;
+
+    return {
+      border: "1px solid",
+      borderColor: delta > 0 ? "#3333cc" : "#990000", // blau vs rot
+      // optional: bisschen stärker sichtbar
+      boxShadow: delta > 0 ? "0 0 0 1px rgba(2,136,209,0.15)" : "0 0 0 1px rgba(211,47,47,0.15)",
+    } as const;
+  }
 
   return (
     <>
@@ -99,7 +154,7 @@ function NodeCard(props: {
           borderColor,
           backgroundColor: bg,
           outline: "none",
-          minWidth: 180,
+          minWidth: props.type === "params" ? 420 : props.type === "edit" ? 300 : 220,
           boxShadow: props.selected ? `0 0 0 5px ${borderColor}` : undefined,
 
           ...(shouldHighlightUnseen
@@ -165,6 +220,157 @@ function NodeCard(props: {
             )}
           </Stack>
           <Box sx={{ mt: 0.5 }}>{props.children}</Box>
+          {(() => {
+            const summaryChips = [
+              props.promptChanged
+                ? {
+                    key: "prompt-changed",
+                    label: "Prompt changed",
+                    sx: {
+                      border: "1px solid",
+                      borderColor: "#990000",
+                      boxShadow: "0 0 0 1px rgba(211,47,47,0.15)",
+                    },
+                  }
+                : null,
+              d && fmt(d.highNoiseCfg, 2) !== ""
+                ? {
+                    key: "high-cfg",
+                    label: `High CFG: ${props.highNoiseCfg} ${fmt(d.highNoiseCfg, 2)}`,
+                    sx: deltaChipSx(d.highNoiseCfg),
+                  }
+                : null,
+
+              d && fmt(d.lowNoiseCfg, 2) !== ""
+                ? {
+                    key: "low-cfg",
+                    label: `Low CFG: ${props.lowNoiseCfg} ${fmt(d.lowNoiseCfg, 2)}`,
+                    sx: deltaChipSx(d.lowNoiseCfg),
+                  }
+                : null,
+
+              d && fmt(d.highNoiseShift, 2) !== ""
+                ? {
+                    key: "high-shift",
+                    label: `High Shift: ${props.highNoiseShift} ${fmt(d.highNoiseShift, 2)}`,
+                    sx: deltaChipSx(d.highNoiseShift),
+                  }
+                : null,
+
+              d && fmt(d.lowNoiseShift, 2) !== ""
+                ? {
+                    key: "low-shift",
+                    label: `Low Shift: ${props.lowNoiseShift} ${fmt(d.lowNoiseShift, 2)}`,
+                    sx: deltaChipSx(d.lowNoiseShift),
+                  }
+                : null,
+
+              d && fmt(d.highNoiseModelStrength, 2) !== ""
+                ? {
+                    key: "high-strength",
+                    label: `High Strength: ${props.highNoiseModelStrength} ${fmt(d.highNoiseModelStrength, 2)}`,
+                    sx: deltaChipSx(d.highNoiseModelStrength),
+                  }
+                : null,
+
+              d && fmt(d.lowNoiseModelStrength, 2) !== ""
+                ? {
+                    key: "low-strength",
+                    label: `Low Strength: ${props.lowNoiseModelStrength} ${fmt(d.lowNoiseModelStrength, 2)}`,
+                    sx: deltaChipSx(d.lowNoiseModelStrength),
+                  }
+                : null,
+
+              d && fmt(d.highNoiseEndStep! - d.highNoiseStartStep!, 0) !== ""
+                ? {
+                    key: "high-steps",
+                    label: `High Steps: ${props.highNoiseStartStep}→${props.highNoiseEndStep} ${fmt(
+                      d.highNoiseEndStep! - d.highNoiseStartStep!,
+                      0
+                    )}`,
+                    sx: deltaChipSx(d.highNoiseEndStep! - d.highNoiseStartStep!),
+                  }
+                : null,
+
+              d && fmt(d.lowNoiseEndStep! - d.lowNoiseStartStep!, 0) !== ""
+                ? {
+                    key: "low-steps",
+                    label: `Low Steps: ${props.lowNoiseStartStep}→${props.lowNoiseEndStep} ${fmt(
+                      d.lowNoiseEndStep! - d.lowNoiseStartStep!,
+                      0
+                    )}`,
+                    sx: deltaChipSx(d.lowNoiseEndStep! - d.lowNoiseStartStep!),
+                  }
+                : null,
+            ].filter(Boolean) as Array<{
+              key: string;
+              label: string;
+              sx?: any;
+            }>;
+
+            const hasNote = Boolean(props.note?.trim());
+
+            if (summaryChips.length === 0 && !hasNote) return null;
+
+            return (
+              <>
+                {summaryChips.length > 0 && (
+                  <Box
+                    sx={{
+                      mt: 1,
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                      gap: 0.75,
+                    }}
+                  >
+                    {summaryChips.map((chip) => (
+                      <Chip
+                        key={chip.key}
+                        size="small"
+                        label={chip.label}
+                        sx={{
+                          ...chip.sx,
+                          width: "100%",
+                          justifyContent: "flex-start",
+                          "& .MuiChip-label": {
+                            display: "block",
+                            width: "100%",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          },
+                        }}
+                      />
+                    ))}
+                  </Box>
+                )}
+
+                {hasNote && (
+                  <Box sx={{ mt: summaryChips.length > 0 ? 0.75 : 1 }}>
+                    <Chip
+                      size="small"
+                      label={`Note: ${
+                        props.note!.trim().length > 20
+                          ? `${props.note!.trim().slice(0, 20)}…`
+                          : props.note!.trim()
+                      }`}
+                      sx={{
+                        width: "100%",
+                        justifyContent: "flex-start",
+                        "& .MuiChip-label": {
+                          display: "block",
+                          width: "100%",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        },
+                      }}
+                    />
+                  </Box>
+                )}
+              </>
+            );
+          })()}
         </CardContent>
       </Card>
 
@@ -203,6 +409,20 @@ function NodeCard(props: {
               )
             ) : props.type === "params" ? (
               <>
+                {props.prevParamsId && props.promptChanged && (
+                  <Chip
+                    size="small"
+                    label="Prompt changed"
+                    sx={{
+                      mt: 1,
+                      alignSelf: "flex-start",
+                      border: "1px solid",
+                      borderColor: "#990000", // blau vs rot
+                      // optional: bisschen stärker sichtbar
+                      boxShadow: "0 0 0 1px rgba(211,47,47,0.15)",
+                    }}
+                  />
+                )}
                 {/* Prompt */}
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                   <strong>Prompt:</strong>{" "}
@@ -257,6 +477,121 @@ function NodeCard(props: {
                   />
                   <Chip size="small" label={`Video: ${props.categoryScores?.videoFaithfulness}`} />
                 </Stack>
+
+                {props.prevParamsId && d && (
+                  <>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      display="block"
+                      sx={{ mt: 1 }}
+                    >
+                      <strong>Parameters</strong>
+                    </Typography>
+
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                        gap: 0.75,
+                        mt: 0.25,
+                      }}
+                    >
+                      <Chip
+                        size="small"
+                        label={`High CFG: ${props.highNoiseCfg} ${fmt(d.highNoiseCfg, 2)}`}
+                        sx={deltaChipSx(d.highNoiseCfg)}
+                      />
+
+                      <Chip
+                        size="small"
+                        label={`Low CFG: ${props.lowNoiseCfg} ${fmt(d.lowNoiseCfg, 2)}`}
+                        sx={deltaChipSx(d.lowNoiseCfg)}
+                      />
+
+                      <Chip
+                        size="small"
+                        label={`High Shift: ${props.highNoiseShift} ${fmt(d.highNoiseShift, 2)}`}
+                        sx={deltaChipSx(d.highNoiseShift)}
+                      />
+
+                      <Chip
+                        size="small"
+                        label={`Low Shift: ${props.lowNoiseShift} ${fmt(d.lowNoiseShift, 2)}`}
+                        sx={deltaChipSx(d.lowNoiseShift)}
+                      />
+
+                      <Chip
+                        size="small"
+                        label={`High Strength: ${props.highNoiseModelStrength} ${fmt(d.highNoiseModelStrength, 2)}`}
+                        sx={deltaChipSx(d.highNoiseModelStrength)}
+                      />
+
+                      <Chip
+                        size="small"
+                        label={`Low Strength: ${props.lowNoiseModelStrength} ${fmt(d.lowNoiseModelStrength, 2)}`}
+                        sx={deltaChipSx(d.lowNoiseModelStrength)}
+                      />
+
+                      <Chip
+                        size="small"
+                        label={`High Steps: ${props.highNoiseStartStep}→${props.highNoiseEndStep} ${fmt(d.highNoiseEndStep! - d.highNoiseStartStep!, 0)}`}
+                        sx={deltaChipSx(d.highNoiseEndStep! - d.highNoiseStartStep!)}
+                      />
+
+                      <Chip
+                        size="small"
+                        label={`Low Steps: ${props.lowNoiseStartStep}→${props.lowNoiseEndStep} ${fmt(d.lowNoiseEndStep! - d.lowNoiseStartStep!, 0)}`}
+                        sx={deltaChipSx(d.lowNoiseEndStep! - d.lowNoiseStartStep!)}
+                      />
+                    </Box>
+                  </>
+                )}
+
+                {props.prevParamsId && sd && (
+                  <>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      display="block"
+                      sx={{ mt: 1 }}
+                    >
+                      <strong>Category scores</strong>
+                    </Typography>
+
+                    <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                      <Chip
+                        size="small"
+                        label={`Creativity: ${props.categoryScores?.creativity} ${fmt(sd.creativity, 2)}`}
+                        sx={deltaChipSx(sd.creativity)}
+                      />
+
+                      <Chip
+                        size="small"
+                        label={`Prompt: ${props.categoryScores?.promptFaithfulness} ${fmt(sd.promptFaithfulness, 2)}`}
+                        sx={deltaChipSx(sd.promptFaithfulness)}
+                      />
+
+                      <Chip
+                        size="small"
+                        label={`Motion: ${props.categoryScores?.motion} ${fmt(sd.motion, 2)}`}
+                        sx={deltaChipSx(sd.motion)}
+                      />
+
+                      <Chip
+                        size="small"
+                        label={`Transition: ${props.categoryScores?.transitionSmoothness} ${fmt(sd.transitionSmoothness, 2)}`}
+                        sx={deltaChipSx(sd.transitionSmoothness)}
+                      />
+
+                      <Chip
+                        size="small"
+                        label={`Video: ${props.categoryScores?.videoFaithfulness} ${fmt(sd.videoFaithfulness, 2)}`}
+                        sx={deltaChipSx(sd.videoFaithfulness)}
+                      />
+                    </Stack>
+                  </>
+                )}
               </>
             ) : props.videoUrl ? (
               <>
@@ -272,9 +607,32 @@ function NodeCard(props: {
                 No video attached to this clip yet.
               </Typography>
             )}
+
+            <Divider />
+
+            <TextField
+              multiline
+              minRows={3}
+              fullWidth
+              value={localNote}
+              onChange={(e) => setLocalNote(e.target.value)}
+              placeholder="Add notes for this node..."
+            />
           </Stack>
         </DialogContent>
         <DialogActions>
+          <Button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+
+              props.onSaveNote?.(props.nodeId, localNote);
+
+              setInfoOpen(false);
+            }}
+          >
+            Save Notes and close
+          </Button>
           <Button
             onClick={(e) => {
               e.preventDefault();
@@ -322,6 +680,8 @@ export function ClipNode(props: NodeProps<any>) {
         videoStatus={videoStatus}
         videoOpened={videoOpened}
         onVideoOpened={(id) => markVideoOpened?.(id)}
+        note={props.data?.note}
+        onSaveNote={props.data?.onSaveNote}
       >
         <Typography variant="body2">{props.data?.label}</Typography>
       </NodeCard>
@@ -356,6 +716,12 @@ export function ParamNode(props: NodeProps<any>) {
         highNoiseEndStep={props.data?.highNoiseEndStep}
         lowNoiseEndStep={props.data?.lowNoiseEndStep}
         categoryScores={props.data?.categoryScores}
+        prevParamsId={props.data?.prevParamsId}
+        paramDeltas={props.data?.paramDeltas}
+        categoryScoreDeltas={props.data?.categoryScoreDeltas}
+        promptChanged={props.data?.promptChanged}
+        note={props.data?.note}
+        onSaveNote={props.data?.onSaveNote}
       >
         <Typography variant="body2">{props.data?.label}</Typography>
       </NodeCard>
@@ -479,6 +845,8 @@ export function EditNode(props: NodeProps<any>) {
             )}
           </Stack>
         }
+        note={props.data?.note}
+        onSaveNote={props.data?.onSaveNote}
       >
         <Typography variant="body2">{props.data?.label}</Typography>
         <Stack gap={1} mt={1}>

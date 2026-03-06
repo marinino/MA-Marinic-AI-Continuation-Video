@@ -10,8 +10,14 @@ export type CategoryScores = {
   videoFaithfulness: number;
 };
 
+export type RadarAxis = {
+  id: string; // z.B. "creativity" oder "custom:123"
+  label: string; // Text am Rand
+  value: number; // 0..100
+};
+
 export function PentagonMap(props: {
-  scores: CategoryScores;
+  axes: RadarAxis[]; // ✅ MUSS 5 sein
   size?: number;
   showRadarPolygon?: boolean;
 }) {
@@ -20,6 +26,8 @@ export function PentagonMap(props: {
 
   const size = props.size ?? 260;
   const showRadarPolygon = props.showRadarPolygon ?? true;
+
+  const axes = props.axes.slice(0, 5);
 
   // --- theme-aware colors (tweak to taste) ---
   const gridStroke = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.14)";
@@ -34,22 +42,14 @@ export function PentagonMap(props: {
   const dotFill = isDark ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.85)";
   const dotGlow = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)";
 
-  const labels = [
-    { key: "creativity", label: "Creativity" },
-    { key: "promptFaithfulness", label: "Prompt\nFaithfulness" },
-    { key: "motion", label: "Motion" },
-    { key: "transitionSmoothness", label: "Transition\nSmoothness" },
-    { key: "videoFaithfulness", label: "Video\nFaithfulness" },
-  ] as const;
-
-  const values = labels.map((l) => props.scores[l.key]);
+  const values = axes.map((a) => a.value);
 
   const pad = 22;
   const cx = size / 2;
   const cy = size / 2;
   const R = size / 2 - pad;
 
-  const verts = labels.map((_, i) => {
+  const verts = axes.map((_, i) => {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
     return { x: cx + R * Math.cos(a), y: cy + R * Math.sin(a), a };
   });
@@ -150,12 +150,12 @@ export function PentagonMap(props: {
         </svg>
 
         {/* Labels */}
-        {labels.map((l, i) => {
+        {axes.map((l, i) => {
           const pos = labelPos[i];
           const a = anchorFor(i);
           return (
             <Box
-              key={l.key}
+              key={axes[i].id}
               sx={{
                 ...labelStyle,
                 left: pos.x,
@@ -164,7 +164,7 @@ export function PentagonMap(props: {
                 textAlign: a.textAlign,
               }}
             >
-              {l.label}
+              {axes[i].label}
             </Box>
           );
         })}

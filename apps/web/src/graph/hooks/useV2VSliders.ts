@@ -137,14 +137,14 @@ export function useV2VSliders() {
   }
 
   function simulateSliderChange(prev: SimpleReal, key: SafeKey, raw: number): SimpleReal {
-  const patched = { ...prev, [key]: raw };
-  const clamped = clampSimple(simpleSpeedMode, patched);
+    const patched = { ...prev, [key]: raw };
+    const clamped = clampSimple(simpleSpeedMode, patched);
 
-  if (simpleSpeedMode === "quick") return clamped;
+    if (simpleSpeedMode === "quick") return clamped;
 
-  const constrained = applySafeConstraints(clamped, key);
-  return clampSimple(simpleSpeedMode, constrained);
-}
+    const constrained = applySafeConstraints(clamped, key);
+    return clampSimple(simpleSpeedMode, constrained);
+  }
 
   function edgeCandidates(activeKey: SafeKey, activeValue: number): MixCandidate[] {
     const out: MixCandidate[] = [];

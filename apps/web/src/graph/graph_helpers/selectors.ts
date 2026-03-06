@@ -1,4 +1,5 @@
 import type { Project } from "@ma/shared";
+import type { Edge as RFEdge, Node as RFNode } from "reactflow";
 
 /**
  * EXACT behavior from mega-file:
@@ -106,4 +107,33 @@ export function getBaselineStoredTimelineFilenameForClip(
 
   const editNode = project.nodes.find((n) => n.id === editId) as any;
   return editNode?.data?.timeline?.storedTimelineFilename ?? null;
+}
+
+export function buildIncomingMap(edges: RFEdge[]) {
+  const m = new Map<string, RFEdge>();
+  for (const e of edges) {
+    // eindeutig: pro target genau 1 incoming
+    m.set(e.target, e);
+  }
+  return m;
+}
+
+export function findPrevParamsId(
+  paramsNodeId: string,
+  nodesById: Map<string, RFNode>,
+  incoming: Map<string, RFEdge>
+) {
+  // params <- clip <- params
+  const e0 = incoming.get(paramsNodeId);
+  if (!e0) return null;
+  const parentClipId = e0.source;
+
+  const e1 = incoming.get(parentClipId);
+  if (!e1) return null;
+  const prevNodeId = e1.source;
+
+  const prevNode = nodesById.get(prevNodeId);
+  if (!prevNode) return null;
+
+  return prevNode.type === "params" ? prevNodeId : null;
 }

@@ -9,7 +9,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-import type { Project, StoredMediaFile } from "@ma/shared";
+import type { Edge, Node, Project, StoredMediaFile } from "@ma/shared";
 import { useReactFlow } from "reactflow";
 import type { ReactFlowInstance } from "reactflow";
 
@@ -57,7 +57,13 @@ import { JobsPanel } from "./components/JobsPanel";
 
 // MUI
 import { Box, Button, Paper, Stack } from "@mui/material";
-import { centerOnNode, countBranches, findFreePosition } from "./graph_helpers/layout";
+import {
+  centerOnNode,
+  countBranches,
+  findFreePosition,
+  getDefaultNodeSize,
+} from "./graph_helpers/layout";
+import { buildIncomingMap, findPrevParamsId } from "./graph_helpers/selectors";
 
 // edgeTypes
 const edgeTypes = { labeled: LabeledEdge };
@@ -116,30 +122,160 @@ export function GraphView(props: {
     [g]
   );
 
+  const saveNodeNote = useCallback(
+    (nodeId: string, note: string) => {
+      g.setRfNodes((prev) => {
+        const next = prev.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...(n.data as any), note } } : n
+        );
+
+        g.setRfEdges((prevE) => {
+          g.commit(next, prevE);
+          return prevE;
+        });
+
+        return next;
+      });
+    },
+    [g]
+  );
+
   // ✅ inject onAdd handler for the "+" button inside nodes
   const nodesForUI = useMemo(() => {
-    return g.nodesWithRootFlag.map((n) => ({
-      ...n,
-      data: {
-        ...(n.data as any),
-        videoOpened: Boolean((n.data as any)?.videoOpened),
+    const nodes = g.nodesWithRootFlag as Node[];
+    const edges = g.rfEdges as Edge[];
 
-        // ✅ callback für den MovieIcon-click im Node
+    const nodesById = new Map(nodes.map((n) => [n.id, n]));
+    const incoming = buildIncomingMap(edges);
+
+    function numDelta(cur: any, prev: any, key: string) {
+      const a = cur?.[key];
+      const b = prev?.[key];
+      if (typeof a !== "number" || typeof b !== "number") return null;
+      const d = a - b;
+      return Number.isFinite(d) ? d : null;
+    }
+
+    function scoreDelta(curScores: any, prevScores: any, key: string) {
+      const a = curScores?.[key];
+      const b = prevScores?.[key];
+      if (typeof a !== "number" || typeof b !== "number") return null;
+      const d = a - b;
+      return Number.isFinite(d) ? d : null;
+    }
+
+    return nodes.map((n) => {
+      const baseData = (n.data as any) ?? {};
+
+      // common injections (dein existing stuff)
+      const injectedCommon = {
+        ...baseData,
+        videoOpened: Boolean(baseData?.videoOpened),
+        onSaveNote: saveNodeNote,
         markVideoOpened,
         onAdd: (nodeId: string) => {
-          // selection persistieren
           g.setClickedNodeId(nodeId);
           props.onChange((prev) => ({
             ...prev,
             uiState: { ...(prev.uiState ?? {}), selectedNodeId: nodeId },
           }));
-
-          // ✅ Plus => ActionDialog
           setActionDialogOpen(true);
         },
-      },
-    }));
-  }, [g.nodesWithRootFlag, g.setClickedNodeId, props.onChange, markVideoOpened]);
+      };
+
+      if (n.type !== "params") {
+        return { ...n, data: injectedCommon };
+      }
+
+      const prevParamsId = findPrevParamsId(n.id, nodesById, incoming);
+      const prevParamsData = prevParamsId ? (nodesById.get(prevParamsId)?.data as any) : null;
+
+      if (n.type === "params") {
+        const cur = injectedCommon;
+        const prevId = prevParamsId;
+        const prev = prevParamsData;
+
+        console.log("[PARAM DELTA DBG]", {
+          curId: n.id,
+          prevId,
+          curHighCfg: cur.highNoiseCfg,
+          prevHighCfg: prev?.highNoiseCfg,
+          curHighShift: cur.highNoiseShift,
+          prevHighShift: prev?.highNoiseShift,
+        });
+      }
+
+      const curPrompt = injectedCommon.prompt ?? "";
+      const prevPrompt = prevParamsData?.prompt ?? "";
+
+      const promptChanged =
+        typeof curPrompt === "string" &&
+        typeof prevPrompt === "string" &&
+        curPrompt.trim() !== prevPrompt.trim();
+
+      const deltas = prevParamsData
+        ? {
+            // high/low cfg
+            highNoiseCfg: numDelta(injectedCommon, prevParamsData, "highNoiseCfg"),
+            lowNoiseCfg: numDelta(injectedCommon, prevParamsData, "lowNoiseCfg"),
+
+            // shift/strength
+            highNoiseShift: numDelta(injectedCommon, prevParamsData, "highNoiseShift"),
+            lowNoiseShift: numDelta(injectedCommon, prevParamsData, "lowNoiseShift"),
+            highNoiseModelStrength: numDelta(
+              injectedCommon,
+              prevParamsData,
+              "highNoiseModelStrength"
+            ),
+            lowNoiseModelStrength: numDelta(
+              injectedCommon,
+              prevParamsData,
+              "lowNoiseModelStrength"
+            ),
+
+            // steps / ranges
+            highNoiseSteps: numDelta(injectedCommon, prevParamsData, "highNoiseSteps"),
+            lowNoiseSteps: numDelta(injectedCommon, prevParamsData, "lowNoiseSteps"),
+            highNoiseStartStep: numDelta(injectedCommon, prevParamsData, "highNoiseStartStep"),
+            lowNoiseStartStep: numDelta(injectedCommon, prevParamsData, "lowNoiseStartStep"),
+            highNoiseEndStep: numDelta(injectedCommon, prevParamsData, "highNoiseEndStep"),
+            lowNoiseEndStep: numDelta(injectedCommon, prevParamsData, "lowNoiseEndStep"),
+          }
+        : null;
+
+      const curScores = injectedCommon.categoryScores;
+      const prevScores = prevParamsData?.categoryScores;
+
+      const categoryScoreDeltas =
+        curScores && prevScores
+          ? {
+              creativity: scoreDelta(curScores, prevScores, "creativity"),
+              promptFaithfulness: scoreDelta(curScores, prevScores, "promptFaithfulness"),
+              motion: scoreDelta(curScores, prevScores, "motion"),
+              transitionSmoothness: scoreDelta(curScores, prevScores, "transitionSmoothness"),
+              videoFaithfulness: scoreDelta(curScores, prevScores, "videoFaithfulness"),
+            }
+          : null;
+
+      return {
+        ...n,
+        data: {
+          ...injectedCommon,
+          prevParamsId,
+          paramDeltas: deltas,
+          categoryScoreDeltas,
+          promptChanged,
+        },
+      };
+    });
+  }, [
+    g.nodesWithRootFlag,
+    g.rfEdges,
+    g.setClickedNodeId,
+    props.onChange,
+    markVideoOpened,
+    saveNodeNote,
+  ]);
 
   // keep selection in project uiState (same behavior)
   useEffect(() => {
@@ -547,17 +683,49 @@ export function GraphView(props: {
             // If not: import from graph_helpers/layout (same as mega-file).
 
             const branchIndex = countBranches(nextEdges, parentId);
-            // nextEdges enthält edge1 schon -> branchIndex ist damit praktisch "neue Anzahl"
+
+            const PARAM_OFFSET_X = 260;
+            const PARAM_BRANCH_SPACING = 140;
+            const NODE_GAP_X = 60;
+
+            const paramSize = getDefaultNodeSize("params");
+            const clipSize = getDefaultNodeSize("clip");
 
             const desiredParam: { x: number; y: number } = {
-              x: baseX + 260,
-              y: baseY + (branchIndex - 1) * 160, // -1 weil edge1 schon drin ist
+              x: baseX + PARAM_OFFSET_X,
+              y: baseY + (branchIndex - 1) * PARAM_BRANCH_SPACING,
             };
 
-            const paramPos = findFreePosition(desiredParam, prevNodes, { stepY: 160 });
+            const paramPos = findFreePosition(desiredParam, prevNodes, {
+              stepY: 50,
+              pad: 40,
+              newNodeType: "params",
+              newNodeWidth: paramSize.w,
+              newNodeHeight: paramSize.h,
+              extraBottom: 20,
+            });
 
-            const clipPos = findFreePosition({ x: baseX + 520, y: paramPos.y }, prevNodes, {
-              stepY: 160,
+            const desiredClip: { x: number; y: number } = {
+              x: paramPos.x + paramSize.w + NODE_GAP_X,
+              y: paramPos.y,
+            };
+
+            const tempParamNode: RFNode = {
+              id: paramId,
+              type: "params",
+              position: paramPos,
+              data: {} as any,
+              width: paramSize.w,
+              height: paramSize.h + 20,
+            };
+
+            const clipPos = findFreePosition(desiredClip, [...prevNodes, tempParamNode], {
+              stepY: 50,
+              pad: 30,
+              newNodeType: "clip",
+              newNodeWidth: clipSize.w,
+              newNodeHeight: clipSize.h,
+              extraBottom: 20,
             });
 
             const paramNode: RFNode = {

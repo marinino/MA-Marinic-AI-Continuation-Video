@@ -19,6 +19,8 @@ import {
   Grid,
   Tooltip,
   ButtonBase,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 
 // ⬇️ falls dein PentagonMap woanders liegt: Pfad anpassen
@@ -47,6 +49,7 @@ import {
   saveFormulaWeights,
 } from "../../utils/weightsStorage";
 import { NewCustomSliderDialog } from "./NewSliderDialog";
+import { PentagonAxesDialog } from "./PentagonAxesDialog";
 
 export type V2VTab = "simple" | "advanced";
 type CatView = "sliders" | "pentagon";
@@ -120,12 +123,24 @@ export type ClipDialogProps = {
 
   getBounds: (k: SafeKey, v: number) => Record<SafeKey, { min: number; max: number }> | null;
   roundTo: (x: number, decimals: number) => number;
-  simulateSliderChange: (prev: SimpleReal, key: SafeKey, raw: number) => SimpleReal
+  simulateSliderChange: (prev: SimpleReal, key: SafeKey, raw: number) => SimpleReal;
 };
 
 type CatKey = keyof CategoryScores;
 
 type SpeedMode = "quick" | "quality";
+
+type AxisId = keyof CategoryScores | string; // "creativity" | ... | "custom:..."
+
+const DEFAULT_AXIS_IDS: AxisId[] = [
+  "creativity",
+  "promptFaithfulness",
+  "motion",
+  "transitionSmoothness",
+  "videoFaithfulness",
+];
+
+const AXIS_STORAGE_KEY = "v2v.pentagonAxes.v1";
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -356,6 +371,14 @@ export function ClipDialog(p: ClipDialogProps) {
   const [editName, setEditName] = React.useState("");
   const [editW, setEditW] = React.useState(DEFAULT_CUSTOM_W);
 
+  const [pentagonAxes, setPentagonAxes] = React.useState<AxisId[]>(() => loadAxes());
+
+  const [axesOpen, setAxesOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    localStorage.setItem(AXIS_STORAGE_KEY, JSON.stringify(pentagonAxes));
+  }, [pentagonAxes]);
+
   function openWeights(cat: CatKey) {
     setWeightsCat(cat);
     setWeightsOpen(true);
@@ -392,32 +415,32 @@ export function ClipDialog(p: ClipDialogProps) {
     setActiveEffects(null);
   }
 
-React.useEffect(() => {
-  if (!activeSimple) return;
+  React.useEffect(() => {
+    if (!activeSimple) return;
 
-  const onEnd = () => {
-    setActiveSimple(null);
-    setActiveEffects(null);
-  };
+    const onEnd = () => {
+      setActiveSimple(null);
+      setActiveEffects(null);
+    };
 
-  // Pointer (modern)
-  window.addEventListener("pointerup", onEnd);
-  window.addEventListener("pointercancel", onEnd);
+    // Pointer (modern)
+    window.addEventListener("pointerup", onEnd);
+    window.addEventListener("pointercancel", onEnd);
 
-  // Fallbacks (wichtig für “manchmal”-Bugs)
-  window.addEventListener("mouseup", onEnd);
-  window.addEventListener("touchend", onEnd, { passive: true });
-  window.addEventListener("touchcancel", onEnd, { passive: true });
+    // Fallbacks (wichtig für “manchmal”-Bugs)
+    window.addEventListener("mouseup", onEnd);
+    window.addEventListener("touchend", onEnd, { passive: true });
+    window.addEventListener("touchcancel", onEnd, { passive: true });
 
-  return () => {
-    window.removeEventListener("pointerup", onEnd);
-    window.removeEventListener("pointercancel", onEnd);
+    return () => {
+      window.removeEventListener("pointerup", onEnd);
+      window.removeEventListener("pointercancel", onEnd);
 
-    window.removeEventListener("mouseup", onEnd);
-    window.removeEventListener("touchend", onEnd);
-    window.removeEventListener("touchcancel", onEnd);
-  };
-}, [activeSimple]);
+      window.removeEventListener("mouseup", onEnd);
+      window.removeEventListener("touchend", onEnd);
+      window.removeEventListener("touchcancel", onEnd);
+    };
+  }, [activeSimple]);
 
   // --- compute real values + derived params exactly like mega-file ---
   const computed = React.useMemo(() => {
@@ -470,6 +493,21 @@ React.useEffect(() => {
     }));
   }
 
+  const availableAxisIds: AxisId[] = React.useMemo(() => {
+    // built-ins + custom ids
+    const builtins: AxisId[] = DEFAULT_AXIS_IDS;
+    const customs: AxisId[] = customSliders.map((c) => c.id);
+    return [...builtins, ...customs];
+  }, [customSliders]);
+
+  function setAxisAt(i: number, id: AxisId) {
+    setPentagonAxes((prev) => {
+      const next = [...prev];
+      next[i] = id;
+      return next;
+    });
+  }
+
   function openCustomEdit(id: string) {
     const cs = customSliders.find((x) => x.id === id);
     if (!cs) return;
@@ -500,35 +538,21 @@ React.useEffect(() => {
     setEditId(null);
   }
 
+  function computeScoresFromReal(s: SimpleReal): CategoryScores {
+    const stepsRange = p.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
 
-
-
-  function quantizeSafe(s: SafePreset): SafePreset {
-    return {
-      ...s,
-      stepsTotal: p.roundTo(s.stepsTotal, 0), // int
-      lowRatio: p.roundTo(s.lowRatio, 2), // 0.01 = 1%
-      cfgHigh: p.roundTo(s.cfgHigh, 2),
-      shiftHigh: p.roundTo(s.shiftHigh, 2),
-      strengthHigh: p.roundTo(s.strengthHigh, 2),
-    };
+    return computeCategoryScoresFromSimple(
+      {
+        totalSteps: Math.round(s.totalSteps),
+        stepRatio: s.stepRatioPct,
+        highShift: s.highShift,
+        highCfg: s.highCfg,
+        highStrength: s.highStrength,
+      },
+      stepsRange,
+      formulaWeights // ✅ wichtig: gleiche weights wie UI
+    );
   }
-
-function computeScoresFromReal(s: SimpleReal): CategoryScores {
-  const stepsRange = p.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
-
-  return computeCategoryScoresFromSimple(
-    {
-      totalSteps: Math.round(s.totalSteps),
-      stepRatio: s.stepRatioPct,
-      highShift: s.highShift,
-      highCfg: s.highCfg,
-      highStrength: s.highStrength,
-    },
-    stepsRange,
-    formulaWeights // ✅ wichtig: gleiche weights wie UI
-  );
-}
 
   function clampToCfg<K extends keyof SimpleReal>(key: K, v: number) {
     const c = p.sliderCfg[key];
@@ -547,36 +571,45 @@ function computeScoresFromReal(s: SimpleReal): CategoryScores {
     return p.getBounds(activeSafeKey, v);
   }, [activeSafeKey, p.simple]);
 
-function computeEffectsFor(key: keyof SimpleReal): Partial<Record<CatKey, number>> {
-  const base = p.simple;
+  const pentagonAxisObjects = React.useMemo(() => {
+    const ids = (pentagonAxes?.length === 5 ? pentagonAxes : DEFAULT_AXIS_IDS).slice(0, 5);
+    return ids.map((id) => ({
+      id: String(id),
+      label: axisLabel(id),
+      value: axisValue(id),
+    }));
+  }, [pentagonAxes, computed.allScores, customSliders]);
 
-  const step = p.sliderCfg[key].step;
-  const epsSteps = key === "totalSteps" ? 1 : 3;
-  const eps = step * epsSteps;
+  function computeEffectsFor(key: keyof SimpleReal): Partial<Record<CatKey, number>> {
+    const base = p.simple;
 
-  const s0 = computeScoresFromReal(base);
+    const step = p.sliderCfg[key].step;
+    const epsSteps = key === "totalSteps" ? 1 : 3;
+    const eps = step * epsSteps;
 
-  // ✅ wandle keyof SimpleReal -> SafeKey (du hast toSafeKey schon)
-  const sk = toSafeKey(key as any);
-  if (!sk) return {};
+    const s0 = computeScoresFromReal(base);
 
-  // ✅ “raw desired value” (noch ohne constraints)
-  const plusRaw = clampToCfg(key, (base[key] as number) + eps);
-  const minusRaw = clampToCfg(key, (base[key] as number) - eps);
+    // ✅ wandle keyof SimpleReal -> SafeKey (du hast toSafeKey schon)
+    const sk = toSafeKey(key as any);
+    if (!sk) return {};
 
-  // ✅ hier passieren die passiven Effekte:
-  const plus = p.simulateSliderChange(base, sk, plusRaw);
-  const minus = p.simulateSliderChange(base, sk, minusRaw);
+    // ✅ “raw desired value” (noch ohne constraints)
+    const plusRaw = clampToCfg(key, (base[key] as number) + eps);
+    const minusRaw = clampToCfg(key, (base[key] as number) - eps);
 
-  const sPlus = computeScoresFromReal(plus);
-  const sMinus = computeScoresFromReal(minus);
+    // ✅ hier passieren die passiven Effekte:
+    const plus = p.simulateSliderChange(base, sk, plusRaw);
+    const minus = p.simulateSliderChange(base, sk, minusRaw);
 
-  const out: Partial<Record<CatKey, number>> = {};
-  (Object.keys(s0) as CatKey[]).forEach((cat) => {
-    out[cat] = (sPlus[cat] - sMinus[cat]) / (2 * epsSteps);
-  });
-  return out;
-}
+    const sPlus = computeScoresFromReal(plus);
+    const sMinus = computeScoresFromReal(minus);
+
+    const out: Partial<Record<CatKey, number>> = {};
+    (Object.keys(s0) as CatKey[]).forEach((cat) => {
+      out[cat] = (sPlus[cat] - sMinus[cat]) / (2 * epsSteps);
+    });
+    return out;
+  }
 
   function createCustomSlider() {
     const id = `custom:${Date.now()}`; // reicht völlig
@@ -679,19 +712,92 @@ function computeEffectsFor(key: keyof SimpleReal): Partial<Record<CatKey, number
 
   const cfg = p.sliderCfg;
 
+  function axisLabel(id: AxisId) {
+    if (id === "creativity") return "Creativity";
+    if (id === "promptFaithfulness") return "Prompt\nFaithfulness";
+    if (id === "motion") return "Motion";
+    if (id === "transitionSmoothness") return "Transition\nSmoothness";
+    if (id === "videoFaithfulness") return "Video\nFaithfulness";
+
+    // custom:
+    const cs = customSliders.find((x) => x.id === id);
+    return cs?.name ?? String(id);
+  }
+
+  function axisValue(id: AxisId) {
+    // computed.allScores enthält built-ins + custom (so wie du es baust)
+    return computed.allScores[String(id)] ?? 0;
+  }
+
+  function loadAxes(): AxisId[] {
+    try {
+      const raw = localStorage.getItem(AXIS_STORAGE_KEY);
+      const arr = raw ? (JSON.parse(raw) as AxisId[]) : null;
+      return Array.isArray(arr) && arr.length ? arr : DEFAULT_AXIS_IDS;
+    } catch {
+      return DEFAULT_AXIS_IDS;
+    }
+  }
+
   return (
     <>
       <Dialog open={p.open} onClose={p.onClose} maxWidth="lg" fullWidth>
-        <DialogTitle>Set your parameters for the generated continuation</DialogTitle>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Box sx={{ flex: 1 }}>Set your parameters</Box>
+
+          <ButtonGroup
+            variant="contained"
+            aria-label="Basic button group"
+            sx={{
+              boxShadow: "none",
+              "& .MuiButton-root:first-of-type": {
+                borderTopLeftRadius: 100,
+                borderBottomLeftRadius: 100,
+              },
+              "& .MuiButton-root:last-of-type": {
+                borderTopRightRadius: 100,
+                borderBottomRightRadius: 100,
+              },
+            }}
+          >
+            <Button
+              disableElevation
+              variant={p.tab === "simple" ? "contained" : "outlined"}
+              onClick={() => p.onTabChange("simple")}
+            >
+              Assisted
+            </Button>
+
+            <Button
+              disableElevation
+              variant={p.tab === "advanced" ? "contained" : "outlined"}
+              onClick={() => p.onTabChange("advanced")}
+            >
+              Raw
+            </Button>
+          </ButtonGroup>
+        </DialogTitle>
 
         <DialogContent sx={{ overscrollBehavior: "contain", touchAction: "none" }}>
-          <Tabs value={p.tab} onChange={(_, v) => p.onTabChange(v)} sx={{ mb: 2 }}>
-            <Tab value="simple" label="Simple (Sliders)" />
-            <Tab value="advanced" label="Advanced (Raw)" />
-          </Tabs>
-
           {p.tab === "simple" && (
             <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField
+                label="Prompt"
+                value={p.prompt}
+                onChange={(e) => p.onPromptChange(e.target.value)}
+                multiline
+                minRows={4}
+                fullWidth
+              />
+
+              <TextField
+                type="number"
+                label="Length in frames (FPS = 16)"
+                value={p.length}
+                onChange={(e) => p.onLengthChange(Number(e.target.value))}
+                fullWidth
+              />
+
               <ButtonGroup
                 fullWidth
                 variant="contained"
@@ -721,23 +827,6 @@ function computeEffectsFor(key: keyof SimpleReal): Partial<Record<CatKey, number
                   Quality mode (20–24 steps)
                 </Button>
               </ButtonGroup>
-
-              <TextField
-                label="Prompt"
-                value={p.prompt}
-                onChange={(e) => p.onPromptChange(e.target.value)}
-                multiline
-                minRows={4}
-                fullWidth
-              />
-
-              <TextField
-                type="number"
-                label="Length in frames (FPS = 16)"
-                value={p.length}
-                onChange={(e) => p.onLengthChange(Number(e.target.value))}
-                fullWidth
-              />
 
               <Box
                 sx={{
@@ -998,7 +1087,13 @@ function computeEffectsFor(key: keyof SimpleReal): Partial<Record<CatKey, number
                           </Button>
                         </>
                       ) : (
-                        <PentagonMap scores={computed.scores} size={260} showRadarPolygon />
+                        <Stack spacing={3} alignItems="center">
+                          <Button variant="outlined" onClick={() => setAxesOpen(true)}>
+                            Configure pentagon axes
+                          </Button>
+
+                          <PentagonMap axes={pentagonAxisObjects} size={260} showRadarPolygon />
+                        </Stack>
                       )}
                     </Stack>
                   )}
@@ -1029,6 +1124,7 @@ function computeEffectsFor(key: keyof SimpleReal): Partial<Record<CatKey, number
                   multiline
                   minRows={4}
                   fullWidth
+                  sx={{ mt: 1 }}
                 />
               </Grid>
 
@@ -1221,6 +1317,16 @@ function computeEffectsFor(key: keyof SimpleReal): Partial<Record<CatKey, number
         onClose={closeCustomEdit}
         onPrimary={saveCustomEdit}
         primaryDisabled={!editName.trim()}
+      />
+
+      <PentagonAxesDialog
+        open={axesOpen}
+        onClose={() => setAxesOpen(false)}
+        axes={pentagonAxes}
+        onAxesChange={setPentagonAxes}
+        availableAxisIds={availableAxisIds.map(String)}
+        axisLabel={(id) => axisLabel(id)}
+        defaultAxes={DEFAULT_AXIS_IDS.map(String)}
       />
     </>
   );
