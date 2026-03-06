@@ -886,8 +886,6 @@ const confirmDeleteNode = useCallback(() => {
 
           return nextEdges;
         });
-
-        setClipDialogOpen(false);
       },
     });
   }
