@@ -344,12 +344,12 @@ export function useV2VSliders() {
     return out;
   }
 
-function getBounds(activeKey: SafeKey, activeValue: number): SafeBounds | null {
-  const cands = edgeCandidates(activeKey, activeValue);
-  if (!cands.length) return null;
-  const raw = boundsFromCandidates(cands);
-  return quantizeBounds(simpleSpeedMode, raw);
-}
+  function getBounds(activeKey: SafeKey, activeValue: number): SafeBounds | null {
+    const cands = edgeCandidates(activeKey, activeValue);
+    if (!cands.length) return null;
+    const raw = boundsFromCandidates(cands);
+    return quantizeBounds(simpleSpeedMode, raw);
+  }
 
   return {
     v2vTab,

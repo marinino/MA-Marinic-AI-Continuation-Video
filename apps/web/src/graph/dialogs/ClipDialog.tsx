@@ -723,7 +723,7 @@ export function ClipDialog(p: ClipDialogProps) {
       };
     }
 
-    const color = d > 0 ? "#3333cc" : "#990000";
+    const color = d > 0 ? "#4dabf5" : "#f73378";
 
     // Intensität: clamp + gamma für deutliche Abstufungen
 
@@ -1118,11 +1118,11 @@ export function ClipDialog(p: ClipDialogProps) {
                         </>
                       ) : (
                         <Stack spacing={3} alignItems="center">
+                          <PentagonMap axes={pentagonAxisObjects} size={260} showRadarPolygon />
+
                           <Button variant="outlined" onClick={() => setAxesOpen(true)}>
                             Configure pentagon axes
                           </Button>
-
-                          <PentagonMap axes={pentagonAxisObjects} size={260} showRadarPolygon />
                         </Stack>
                       )}
                     </Stack>

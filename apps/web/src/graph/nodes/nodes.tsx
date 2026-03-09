@@ -139,7 +139,7 @@ function NodeCard(props: {
 
     return {
       border: "1px solid",
-      borderColor: delta > 0 ? "#3333cc" : "#990000", // blau vs rot
+      borderColor: delta > 0 ? "#4dabf5" : "#f73378", // blau vs rot
       // optional: bisschen stärker sichtbar
       boxShadow: delta > 0 ? "0 0 0 1px rgba(2,136,209,0.15)" : "0 0 0 1px rgba(211,47,47,0.15)",
     } as const;
@@ -230,7 +230,7 @@ function NodeCard(props: {
                     label: "Prompt changed",
                     sx: {
                       border: "1px solid",
-                      borderColor: "#990000",
+                      borderColor: "#f73378",
                       boxShadow: "0 0 0 1px rgba(211,47,47,0.15)",
                     },
                   }
@@ -419,7 +419,7 @@ function NodeCard(props: {
                       mt: 1,
                       alignSelf: "flex-start",
                       border: "1px solid",
-                      borderColor: "#990000", // blau vs rot
+                      borderColor: "#f73378", // blau vs rot
                       // optional: bisschen stärker sichtbar
                       boxShadow: "0 0 0 1px rgba(211,47,47,0.15)",
                     }}
