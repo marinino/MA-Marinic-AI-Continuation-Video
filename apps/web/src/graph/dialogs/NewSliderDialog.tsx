@@ -117,44 +117,6 @@ export function NewCustomSliderDialog(props: {
 
           <TextField
             {...numProps}
-            label="(1-steps)"
-            value={props.w.invSteps}
-            onChange={onNum("invSteps")}
-            slotProps={{ htmlInput: { step: 0.05 } }}
-          />
-          <TextField
-            {...numProps}
-            label="(1-ratio)"
-            value={props.w.invRatio}
-            onChange={onNum("invRatio")}
-            slotProps={{ htmlInput: { step: 0.05 } }}
-          />
-          <TextField
-            {...numProps}
-            label="(1-shift)"
-            value={props.w.invShift}
-            onChange={onNum("invShift")}
-            slotProps={{ htmlInput: { step: 0.05 } }}
-          />
-          <TextField
-            {...numProps}
-            label="(1-cfg)"
-            value={props.w.invCfg}
-            onChange={onNum("invCfg")}
-            slotProps={{ htmlInput: { step: 0.05 } }}
-          />
-          <TextField
-            {...numProps}
-            label="(1-strength)"
-            value={props.w.invStrength}
-            onChange={onNum("invStrength")}
-            slotProps={{ htmlInput: { step: 0.05 } }}
-          />
-
-          <Divider />
-
-          <TextField
-            {...numProps}
             label="bias"
             value={props.w.bias}
             onChange={onNum("bias")}
