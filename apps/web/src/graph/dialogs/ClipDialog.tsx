@@ -40,6 +40,7 @@ import {
   DEFAULT_FORMULA_WEIGHTS,
   deriveV2VParamsFromSimple,
   FormulaWeights,
+  getScoreRanges,
 } from "../hooks/useV2VParams";
 import { WeightsDialog } from "./WeightsDialog";
 import {
@@ -453,7 +454,7 @@ export function ClipDialog(p: ClipDialogProps) {
       highStrength: s.highStrength,
     });
 
-    const stepsRange = p.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
+    const scoreRanges = getScoreRanges(p.simpleSpeedMode);
 
     const scores = computeCategoryScoresFromSimple(
       {
@@ -463,7 +464,7 @@ export function ClipDialog(p: ClipDialogProps) {
         highCfg: s.highCfg,
         highStrength: s.highStrength,
       },
-      stepsRange,
+      scoreRanges,
       formulaWeights
     );
 
@@ -475,7 +476,7 @@ export function ClipDialog(p: ClipDialogProps) {
         highCfg: s.highCfg,
         highStrength: s.highStrength,
       },
-      stepsRange,
+      scoreRanges,
       formulaWeights,
       customSliders
     );
@@ -539,7 +540,7 @@ export function ClipDialog(p: ClipDialogProps) {
   }
 
   function computeScoresFromReal(s: SimpleReal): CategoryScores {
-    const stepsRange = p.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
+    const scoreRanges = getScoreRanges(p.simpleSpeedMode);
 
     return computeCategoryScoresFromSimple(
       {
@@ -549,8 +550,8 @@ export function ClipDialog(p: ClipDialogProps) {
         highCfg: s.highCfg,
         highStrength: s.highStrength,
       },
-      stepsRange,
-      formulaWeights // ✅ wichtig: gleiche weights wie UI
+      scoreRanges,
+      formulaWeights
     );
   }
 
@@ -625,17 +626,46 @@ export function ClipDialog(p: ClipDialogProps) {
       highCfg: number;
       highStrength: number;
     },
-    stepsRange: { min: number; max: number },
+    ranges: {
+      steps: { min: number; max: number };
+      ratio: { min: number; max: number };
+      shift: { min: number; max: number };
+      cfg: { min: number; max: number };
+      strength: { min: number; max: number };
+    },
     formulaWeights: FormulaWeights,
     custom: CustomScoreSlider[]
   ): Record<string, number> {
-    const denom = Math.max(1e-6, stepsRange.max - stepsRange.min);
-    const steps01 = clamp((s.totalSteps - stepsRange.min) / denom, 0, 1);
+    const steps01 = clamp(
+      (s.totalSteps - ranges.steps.min) / Math.max(1e-6, ranges.steps.max - ranges.steps.min),
+      0,
+      1
+    );
 
-    const ratio01 = clamp((s.stepRatio - 50) / (80 - 50), 0, 1);
-    const shift01 = clamp((s.highShift - 2.3) / (3 - 2.3), 0, 1);
-    const cfg01 = clamp((s.highCfg - 2.2) / (3.0 - 2.2), 0, 1);
-    const strength01 = clamp((s.highStrength - 0.2) / (0.45 - 0.2), 0, 1);
+    const ratio01 = clamp(
+      (s.stepRatio - ranges.ratio.min) / Math.max(1e-6, ranges.ratio.max - ranges.ratio.min),
+      0,
+      1
+    );
+
+    const shift01 = clamp(
+      (s.highShift - ranges.shift.min) / Math.max(1e-6, ranges.shift.max - ranges.shift.min),
+      0,
+      1
+    );
+
+    const cfg01 = clamp(
+      (s.highCfg - ranges.cfg.min) / Math.max(1e-6, ranges.cfg.max - ranges.cfg.min),
+      0,
+      1
+    );
+
+    const strength01 = clamp(
+      (s.highStrength - ranges.strength.min) /
+        Math.max(1e-6, ranges.strength.max - ranges.strength.min),
+      0,
+      1
+    );
 
     // ✅ built-ins (deine vorhandene Funktion)
     const builtIn = computeCategoryScoresFromSimple(
@@ -646,7 +676,7 @@ export function ClipDialog(p: ClipDialogProps) {
         highCfg: s.highCfg,
         highStrength: s.highStrength,
       },
-      stepsRange,
+      ranges,
       formulaWeights
     );
 

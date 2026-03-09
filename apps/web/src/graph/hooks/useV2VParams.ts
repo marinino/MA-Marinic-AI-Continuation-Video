@@ -138,24 +138,79 @@ export type CategoryScores = {
   videoFaithfulness: number;
 };
 
+export type ScoreRanges = {
+  steps: { min: number; max: number };
+  ratio: { min: number; max: number };
+  shift: { min: number; max: number };
+  cfg: { min: number; max: number };
+  strength: { min: number; max: number };
+};
+
+export function getScoreRanges(mode: "quick" | "quality"): ScoreRanges {
+  return mode === "quick"
+    ? {
+        steps: { min: 4, max: 5 },
+        ratio: { min: 50, max: 80 },
+        shift: { min: 4.5, max: 5.0 },
+        cfg: { min: 0.7, max: 1.15 },
+        strength: { min: 0.6, max: 1.0 },
+      }
+    : {
+        steps: { min: 20, max: 24 },
+        ratio: { min: 50, max: 80 },
+        shift: { min: 2.3, max: 3.0 },
+        cfg: { min: 2.2, max: 3.0 },
+        strength: { min: 0.2, max: 0.45 },
+      };
+}
+
 export function computeCategoryScoresFromSimple(
   s: {
     totalSteps: number;
-    stepRatio: number; // 0..100 (low%)
+    stepRatio: number;
     highShift: number;
     highCfg: number;
     highStrength: number;
   },
-  stepsRange: { min: number; max: number } = { min: 20, max: 24 },
-  fw: FormulaWeights = DEFAULT_FORMULA_WEIGHTS // default = Simple behavior
+  ranges: {
+    steps: { min: number; max: number };
+    ratio: { min: number; max: number };
+    shift: { min: number; max: number };
+    cfg: { min: number; max: number };
+    strength: { min: number; max: number };
+  },
+  fw: FormulaWeights = DEFAULT_FORMULA_WEIGHTS
 ): CategoryScores {
-  const denom = Math.max(1e-6, stepsRange.max - stepsRange.min);
-  const steps01 = clamp((s.totalSteps - stepsRange.min) / denom, 0, 1);
+  const steps01 = clamp(
+    (s.totalSteps - ranges.steps.min) / Math.max(1e-6, ranges.steps.max - ranges.steps.min),
+    0,
+    1
+  );
 
-  const ratio01 = clamp((s.stepRatio - 50) / (80 - 50), 0, 1); // keep exact formula
-  const shift01 = clamp((s.highShift - 2.3) / (3 - 2.3), 0, 1);
-  const cfg01 = clamp((s.highCfg - 2.2) / (3.0 - 2.2), 0, 1);
-  const strength01 = clamp((s.highStrength - 0.2) / (0.45 - 0.2), 0, 1);
+  const ratio01 = clamp(
+    (s.stepRatio - ranges.ratio.min) / Math.max(1e-6, ranges.ratio.max - ranges.ratio.min),
+    0,
+    1
+  );
+
+  const shift01 = clamp(
+    (s.highShift - ranges.shift.min) / Math.max(1e-6, ranges.shift.max - ranges.shift.min),
+    0,
+    1
+  );
+
+  const cfg01 = clamp(
+    (s.highCfg - ranges.cfg.min) / Math.max(1e-6, ranges.cfg.max - ranges.cfg.min),
+    0,
+    1
+  );
+
+  const strength01 = clamp(
+    (s.highStrength - ranges.strength.min) /
+      Math.max(1e-6, ranges.strength.max - ranges.strength.min),
+    0,
+    1
+  );
 
   const promptFaithfulness = clamp(
     fw.promptFaithfulness.cfg * cfg01 + fw.promptFaithfulness.ratio * ratio01,
@@ -216,18 +271,26 @@ export function useCategoryScores(
     highCfg: number;
     highStrength: number;
   },
-  stepsRange: { min: number; max: number } = { min: 20, max: 24 }
+  ranges: ScoreRanges = getScoreRanges("quality")
 ) {
   return useMemo(
-    () => computeCategoryScoresFromSimple(simpleReal, stepsRange),
+    () => computeCategoryScoresFromSimple(simpleReal, ranges),
     [
       simpleReal.totalSteps,
       simpleReal.stepRatio,
       simpleReal.highShift,
       simpleReal.highCfg,
       simpleReal.highStrength,
-      stepsRange.min,
-      stepsRange.max,
+      ranges.steps.min,
+      ranges.steps.max,
+      ranges.ratio.min,
+      ranges.ratio.max,
+      ranges.shift.min,
+      ranges.shift.max,
+      ranges.cfg.min,
+      ranges.cfg.max,
+      ranges.strength.min,
+      ranges.strength.max,
     ]
   );
 }

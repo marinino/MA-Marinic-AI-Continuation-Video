@@ -34,7 +34,7 @@ export type SimpleReal = {
 
 export type SafeBounds = Record<SafeKey, { min: number; max: number }>;
 
-export const SAFE_PRESETS: SafePreset[] = [
+export const SAFE_PRESETS_QUALITY: SafePreset[] = [
   {
     name: "Motion",
     stepsTotal: 20,
@@ -77,15 +77,65 @@ export const SAFE_PRESETS: SafePreset[] = [
   },
 ];
 
-const SAFE_PRESETS_U = SAFE_PRESETS.map(presetToSliderUnits);
+export const SAFE_PRESETS_QUICK: SafePreset[] = [
+  {
+    name: "Prompt",
+    stepsTotal: 4,
+    lowRatio: 2 / 4, // 50%
+    cfgHigh: 0.8,
+    shiftHigh: 5.0,
+    strengthHigh: 1.0,
+  },
+  {
+    name: "Transition",
+    stepsTotal: 5,
+    lowRatio: 4 / 5, // 80%
+    cfgHigh: 1.0,
+    shiftHigh: 5.0,
+    strengthHigh: 1.0,
+  },
+  {
+    name: "Creativity",
+    stepsTotal: 4,
+    lowRatio: 2 / 4, // 50%
+    cfgHigh: 1.15,
+    shiftHigh: 4.5,
+    strengthHigh: 1.0,
+  },
+  {
+    name: "Motion",
+    stepsTotal: 4,
+    lowRatio: 2 / 4, // 50%
+    cfgHigh: 1.0,
+    shiftHigh: 5.0,
+    strengthHigh: 0.6,
+  },
+  {
+    name: "Video",
+    stepsTotal: 4,
+    lowRatio: 3 / 4, // 50%
+    cfgHigh: 0.95,
+    shiftHigh: 4.8,
+    strengthHigh: 1.0,
+  },
+];
+
+export const SAFE_PRESETS: Record<SimpleSpeedMode, SafePreset[]> = {
+  quality: SAFE_PRESETS_QUALITY,
+  quick: SAFE_PRESETS_QUICK,
+};
+
+function getPresetSliderUnits(mode: SimpleSpeedMode) {
+  return SAFE_PRESETS[mode].map(presetToSliderUnits);
+}
 
 const cfgShift: Record<SimpleSpeedMode, Record<keyof SimpleReal, SliderConfig>> = {
   quick: {
     totalSteps: { min: 4, max: 5, step: 1, decimals: 0 },
     stepRatioPct: { min: 50, max: 80, step: 1, decimals: 0 },
-    highShift: { min: 2.3, max: 3.0, step: 0.01, decimals: 2 },
-    highCfg: { min: 2.2, max: 3.0, step: 0.01, decimals: 2 },
-    highStrength: { min: 0.2, max: 0.45, step: 0.01, decimals: 2 },
+    highShift: { min: 4.5, max: 5.0, step: 0.01, decimals: 2 },
+    highCfg: { min: 0.7, max: 1.15, step: 0.01, decimals: 2 },
+    highStrength: { min: 0.6, max: 1.0, step: 0.01, decimals: 2 },
   },
   quality: {
     totalSteps: { min: 20, max: 24, step: 1, decimals: 0 },
@@ -140,19 +190,18 @@ export function useV2VSliders() {
     const patched = { ...prev, [key]: raw };
     const clamped = clampSimple(simpleSpeedMode, patched);
 
-    if (simpleSpeedMode === "quick") return clamped;
-
     const constrained = applySafeConstraints(clamped, key);
     return clampSimple(simpleSpeedMode, constrained);
   }
 
   function edgeCandidates(activeKey: SafeKey, activeValue: number): MixCandidate[] {
     const out: MixCandidate[] = [];
+    const presetsU = getPresetSliderUnits(simpleSpeedMode);
 
-    for (let i = 0; i < SAFE_PRESETS_U.length; i++) {
-      for (let j = i + 1; j < SAFE_PRESETS_U.length; j++) {
-        const ai = SAFE_PRESETS_U[i][activeKey];
-        const aj = SAFE_PRESETS_U[j][activeKey];
+    for (let i = 0; i < presetsU.length; i++) {
+      for (let j = i + 1; j < presetsU.length; j++) {
+        const ai = presetsU[i][activeKey];
+        const aj = presetsU[j][activeKey];
         const denom = ai - aj;
 
         if (Math.abs(denom) < 1e-9) continue;
@@ -160,9 +209,9 @@ export function useV2VSliders() {
         const t = (activeValue - aj) / denom;
         if (t < 0 || t > 1) continue;
 
-        const v: any = {};
-        (Object.keys(SAFE_PRESETS_U[i]) as SafeKey[]).forEach((k) => {
-          v[k] = t * SAFE_PRESETS_U[i][k] + (1 - t) * SAFE_PRESETS_U[j][k];
+        const v = {} as Record<SafeKey, number>;
+        (Object.keys(presetsU[i]) as SafeKey[]).forEach((k) => {
+          v[k] = t * presetsU[i][k] + (1 - t) * presetsU[j][k];
         });
 
         out.push({ i, j, t, v });
@@ -229,7 +278,6 @@ export function useV2VSliders() {
   useEffect(() => {
     setSimple((prev) => {
       const c = clampSimple(simpleSpeedMode, prev);
-      if (simpleSpeedMode === "quick") return c;
       const constrained = applySafeConstraints(c, "totalSteps");
       return clampSimple(simpleSpeedMode, constrained);
     });
@@ -247,12 +295,6 @@ export function useV2VSliders() {
     setSimple((prev) => {
       const patched = { ...prev, [key]: raw };
       const clamped = clampSimple(simpleSpeedMode, patched);
-
-      if (simpleSpeedMode === "quick") {
-        // In quick: NUR cfg clampen, keine SAFE hull constraints
-        return clamped;
-      }
-
       const constrained = applySafeConstraints(clamped, key);
       return clampSimple(simpleSpeedMode, constrained);
     });
@@ -302,13 +344,12 @@ export function useV2VSliders() {
     return out;
   }
 
-  function getBounds(activeKey: SafeKey, activeValue: number): SafeBounds | null {
-    if (simpleSpeedMode === "quick") return null;
-    const cands = edgeCandidates(activeKey, activeValue);
-    if (!cands.length) return null;
-    const raw = boundsFromCandidates(cands);
-    return quantizeBounds(simpleSpeedMode, raw);
-  }
+function getBounds(activeKey: SafeKey, activeValue: number): SafeBounds | null {
+  const cands = edgeCandidates(activeKey, activeValue);
+  if (!cands.length) return null;
+  const raw = boundsFromCandidates(cands);
+  return quantizeBounds(simpleSpeedMode, raw);
+}
 
   return {
     v2vTab,

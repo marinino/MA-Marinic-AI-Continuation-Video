@@ -149,9 +149,7 @@ export function collectSubtreeNodeIds(nodeId: string, rfEdges: RFEdge[]): Set<st
     if (result.has(currentId)) continue;
     result.add(currentId);
 
-    const childIds = rfEdges
-      .filter((e) => e.source === currentId)
-      .map((e) => e.target);
+    const childIds = rfEdges.filter((e) => e.source === currentId).map((e) => e.target);
 
     for (const childId of childIds) {
       if (!result.has(childId)) {

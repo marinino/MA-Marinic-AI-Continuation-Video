@@ -38,6 +38,7 @@ import {
   sliderToRange,
   deriveV2VParamsFromSimple,
   useCategoryScores,
+  getScoreRanges,
 } from "./hooks/useV2VParams";
 import { useDavinciTimeline } from "./hooks/useDaVinciTimeline";
 import { useComfyJobs } from "./hooks/useComfyJobs"; // IMPORTANT: needs to call onSuccess(file)!
@@ -63,7 +64,11 @@ import {
   findFreePosition,
   getDefaultNodeSize,
 } from "./graph_helpers/layout";
-import { buildIncomingMap, findPrevParamsId, collectSubtreeNodeIds } from "./graph_helpers/selectors";
+import {
+  buildIncomingMap,
+  findPrevParamsId,
+  collectSubtreeNodeIds,
+} from "./graph_helpers/selectors";
 import { useManualTimelineImport } from "./hooks/useManualTimelineImport";
 import { DeleteNodeDialog } from "./dialogs/DeleteNodeDialog";
 
@@ -210,8 +215,8 @@ export function GraphView(props: {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [nodeToDeleteId, setNodeToDeleteId] = useState<string | null>(null);
 
-const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([]);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([]);
 
   const paletteKey = genState === "idle" ? "success" : genState === "running" ? "warning" : "error";
 
@@ -234,17 +239,17 @@ const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([]);
   // simple sliders hook (your preference)
   const v2v = useV2VSliders();
 
-  const stepsRange = v2v.simpleSpeedMode === "quick" ? { min: 4, max: 5 } : { min: 20, max: 24 };
+  const scoreRanges = getScoreRanges(v2v.simpleSpeedMode);
 
   const scores = useCategoryScores(
     {
       totalSteps: v2v.simple.totalSteps,
-      stepRatio: v2v.simple.stepRatioPct, // % 50..80
+      stepRatio: v2v.simple.stepRatioPct,
       highShift: v2v.simple.highShift,
       highCfg: v2v.simple.highCfg,
       highStrength: v2v.simple.highStrength,
     },
-    stepsRange
+    scoreRanges
   );
 
   // ---------- davinci timeline helper ----------
@@ -261,8 +266,8 @@ const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([]);
   }
 
   function hasChildren(nodeId: string, edges: RFEdge[]) {
-  return edges.some((e) => e.source === nodeId);
-}
+    return edges.some((e) => e.source === nodeId);
+  }
 
   const nodeToDeleteLabel = useMemo(() => {
     if (!nodeToDeleteId) return undefined;
@@ -313,65 +318,65 @@ const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([]);
     } as const;
   }
 
-const handleDeleteNode = useCallback(
-  (nodeId: string) => {
-    const nodeToDelete = g.rfNodes.find((n) => n.id === nodeId);
-    if (!nodeToDelete) return;
+  const handleDeleteNode = useCallback(
+    (nodeId: string) => {
+      const nodeToDelete = g.rfNodes.find((n) => n.id === nodeId);
+      if (!nodeToDelete) return;
 
-    if ((nodeToDelete.data as any)?.isRoot) {
-      setErrorDialog({
-        title: "Cannot delete root node",
-        message: "The root clip cannot be deleted.",
-      });
-      return;
-    }
+      if ((nodeToDelete.data as any)?.isRoot) {
+        setErrorDialog({
+          title: "Cannot delete root node",
+          message: "The root clip cannot be deleted.",
+        });
+        return;
+      }
 
-const subtreeIds = Array.from(collectSubtreeNodeIds(nodeId, g.rfEdges));
-setDeleteTargetId(nodeId);
-setDeleteTargetIds(subtreeIds);
-setDeleteDialogOpen(true);
-  },
-  [g.rfNodes, g.rfEdges]
-);
-
-const confirmDeleteNode = useCallback(() => {
-  if (!deleteTargetId || deleteTargetIds.length === 0) return;
-
-  const idsToDelete = new Set(deleteTargetIds);
-
-  const nextNodes = g.rfNodes.filter((n) => !idsToDelete.has(n.id));
-  const nextEdges = g.rfEdges.filter(
-    (e) => !idsToDelete.has(e.source) && !idsToDelete.has(e.target)
+      const subtreeIds = Array.from(collectSubtreeNodeIds(nodeId, g.rfEdges));
+      setDeleteTargetId(nodeId);
+      setDeleteTargetIds(subtreeIds);
+      setDeleteDialogOpen(true);
+    },
+    [g.rfNodes, g.rfEdges]
   );
 
-  g.setRfNodes(nextNodes);
-  g.setRfEdges(nextEdges);
-  g.commit(nextNodes, nextEdges);
+  const confirmDeleteNode = useCallback(() => {
+    if (!deleteTargetId || deleteTargetIds.length === 0) return;
 
-  if (g.clickedNodeId && idsToDelete.has(g.clickedNodeId)) {
-    g.setClickedNodeId(null);
-    setActionDialogOpen(false);
-  }
+    const idsToDelete = new Set(deleteTargetIds);
 
-  props.onChange((prev) => {
-    const wasSelected =
-      prev.uiState?.selectedNodeId && idsToDelete.has(prev.uiState.selectedNodeId);
+    const nextNodes = g.rfNodes.filter((n) => !idsToDelete.has(n.id));
+    const nextEdges = g.rfEdges.filter(
+      (e) => !idsToDelete.has(e.source) && !idsToDelete.has(e.target)
+    );
 
-    return {
-      ...prev,
-      uiState: {
-        ...(prev.uiState ?? {}),
-        selectedNodeId: wasSelected ? undefined : prev.uiState?.selectedNodeId,
-      },
-    };
-  });
+    g.setRfNodes(nextNodes);
+    g.setRfEdges(nextEdges);
+    g.commit(nextNodes, nextEdges);
 
-  setDeleteDialogOpen(false);
-  setDeleteTargetId(null);
-  setDeleteTargetIds([]);
+    if (g.clickedNodeId && idsToDelete.has(g.clickedNodeId)) {
+      g.setClickedNodeId(null);
+      setActionDialogOpen(false);
+    }
 
-  requestAnimationFrame(vp.saveViewport);
-}, [deleteTargetId, deleteTargetIds, g, props.onChange, vp.saveViewport]);
+    props.onChange((prev) => {
+      const wasSelected =
+        prev.uiState?.selectedNodeId && idsToDelete.has(prev.uiState.selectedNodeId);
+
+      return {
+        ...prev,
+        uiState: {
+          ...(prev.uiState ?? {}),
+          selectedNodeId: wasSelected ? undefined : prev.uiState?.selectedNodeId,
+        },
+      };
+    });
+
+    setDeleteDialogOpen(false);
+    setDeleteTargetId(null);
+    setDeleteTargetIds([]);
+
+    requestAnimationFrame(vp.saveViewport);
+  }, [deleteTargetId, deleteTargetIds, g, props.onChange, vp.saveViewport]);
 
   const cancelDeleteNode = useCallback(() => {
     setDeleteDialogOpen(false);
@@ -1077,20 +1082,21 @@ const confirmDeleteNode = useCallback(() => {
 
       <ErrorDialog error={errorDialog} onClose={() => setErrorDialog(null)} />
 
-<DeleteNodeDialog
-  open={deleteDialogOpen}
-  nodeLabel={deleteTargetId ? (g.rfNodes.find((n) => n.id === deleteTargetId)?.data as any)?.label : undefined}
-  affectedCount={deleteTargetIds.length}
-  onClose={() => {
-    setDeleteDialogOpen(false);
-    setDeleteTargetId(null);
-    setDeleteTargetIds([]);
-  }}
-  onConfirm={confirmDeleteNode}
-/>
+      <DeleteNodeDialog
+        open={deleteDialogOpen}
+        nodeLabel={
+          deleteTargetId
+            ? (g.rfNodes.find((n) => n.id === deleteTargetId)?.data as any)?.label
+            : undefined
+        }
+        affectedCount={deleteTargetIds.length}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setDeleteTargetId(null);
+          setDeleteTargetIds([]);
+        }}
+        onConfirm={confirmDeleteNode}
+      />
     </div>
   );
 }
-
-
-
