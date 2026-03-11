@@ -53,11 +53,21 @@ import { NewCustomSliderDialog } from "./NewSliderDialog";
 import { PentagonAxesDialog } from "./PentagonAxesDialog";
 import { TriangleMap } from "../components/TriangleMap";
 import { TriangleAxesDialog } from "./TriangleAxesDialog";
+import { PressableSlider } from "../components/PressableSlider";
+import { ReadonlySlider } from "../components/ReadOnlySlider";
+import { SafeRangeBar } from "../components/SafeRangeBar";
+import { clipDialogLogic } from "../graph_helpers/clipDialogLogic";
+import { customSliderLogic } from "../graph_helpers/customSliderLogic";
+import { pentagonLogic } from "../graph_helpers/pentagonLogic";
+import { sliderLogic } from "../graph_helpers/sliderLogict";
+import { trinagleLogic } from "../graph_helpers/triangleLogic";
+import { weightsLogic } from "../graph_helpers/weightsLogic";
+
 
 export type V2VTab = "simple" | "advanced";
 type CatView = "sliders" | "pentagon" | "triangle";
 
-type Mark = { value: number; label?: React.ReactNode };
+export type Mark = { value: number; label?: React.ReactNode };
 
 export type AdvancedParamsState = {
   lowNoiseCfg: number;
@@ -82,7 +92,7 @@ export type CategoryScores = {
   videoFaithfulness: number;
 };
 
-type SimpleSliderKey = keyof SimpleReal; // statt eigener keys, wenn du willst
+export type SimpleSliderKey = keyof SimpleReal; // statt eigener keys, wenn du willst
 
 export type ClipDialogProps = {
   open: boolean;
@@ -129,281 +139,89 @@ export type ClipDialogProps = {
   simulateSliderChange: (prev: SimpleReal, key: SafeKey, raw: number) => SimpleReal;
 };
 
-type CatKey = keyof CategoryScores;
+export type CatKey = keyof CategoryScores;
 
 type SpeedMode = "quick" | "quality";
 
 type AxisId = keyof CategoryScores | string; // "creativity" | ... | "custom:..."
 
-const DEFAULT_PENTAGON_AXIS_IDS: AxisId[] = [
-  "creativity",
-  "promptFaithfulness",
-  "motion",
-  "transitionSmoothness",
-  "videoFaithfulness",
-];
-
-const AXIS_STORAGE_KEY = "v2v.pentagonAxes.v1";
-
-const DEFAULT_TRIANGLE_AXIS_IDS: AxisId[] = ["creativity", "motion", "videoFaithfulness"];
-
-const TRIANGLE_AXIS_STORAGE_KEY = "v2v.triangleAxes.v1";
-
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-
 /* ========= helpers (wie im mega-file) ========= */
-
-const SAFE_R = {
-  stepsTotal: { min: 20, max: 24 },
-  lowRatio: { min: 0.5, max: 0.8 },
-  cfgHigh: { min: 2.2, max: 3.0 },
-  shiftHigh: { min: 2.3, max: 2.95 },
-  strengthHigh: { min: 0.2, max: 0.44 },
-};
-
-function toSafeKey(k: SimpleSliderKey): SafeKey | null {
-  if (k === "totalSteps") return "totalSteps";
-  if (k === "stepRatioPct") return "stepRatioPct";
-  if (k === "highShift") return "highShift";
-  if (k === "highCfg") return "highCfg";
-  if (k === "highStrength") return "highStrength";
-  return null;
-}
-
-function norm01(x: number, min: number, max: number) {
-  if (max === min) return 0;
-  return clamp((x - min) / (max - min), 0, 1);
-}
-
-function dist2Safe(a: SafePreset, b: SafePreset) {
-  return (
-    (norm01(a.stepsTotal, SAFE_R.stepsTotal.min, SAFE_R.stepsTotal.max) -
-      norm01(b.stepsTotal, SAFE_R.stepsTotal.min, SAFE_R.stepsTotal.max)) **
-      2 +
-    (norm01(a.lowRatio, SAFE_R.lowRatio.min, SAFE_R.lowRatio.max) -
-      norm01(b.lowRatio, SAFE_R.lowRatio.min, SAFE_R.lowRatio.max)) **
-      2 +
-    (norm01(a.cfgHigh, SAFE_R.cfgHigh.min, SAFE_R.cfgHigh.max) -
-      norm01(b.cfgHigh, SAFE_R.cfgHigh.min, SAFE_R.cfgHigh.max)) **
-      2 +
-    (norm01(a.shiftHigh, SAFE_R.shiftHigh.min, SAFE_R.shiftHigh.max) -
-      norm01(b.shiftHigh, SAFE_R.shiftHigh.min, SAFE_R.shiftHigh.max)) **
-      2 +
-    (norm01(a.strengthHigh, SAFE_R.strengthHigh.min, SAFE_R.strengthHigh.max) -
-      norm01(b.strengthHigh, SAFE_R.strengthHigh.min, SAFE_R.strengthHigh.max)) **
-      2
-  );
-}
-
-function softmaxWeights(d2s: number[], temperature = 0.12) {
-  const invT = 1 / Math.max(temperature, 1e-6);
-  const xs = d2s.map((d2) => Math.exp(-d2 * invT));
-  const sum = xs.reduce((a, b) => a + b, 0) || 1;
-  return xs.map((x) => x / sum);
-}
-
-function rangePct(value: number, min: number, max: number) {
-  if (max <= min) return 0;
-  return ((value - min) / (max - min)) * 100;
-}
-
-function SafeRangeBar(props: { min: number; max: number; sliderMin: number; sliderMax: number }) {
-  const left = rangePct(props.min, props.sliderMin, props.sliderMax);
-  const right = rangePct(props.max, props.sliderMin, props.sliderMax);
-  const width = Math.max(0, right - left);
-
-  return (
-    <Box sx={{ position: "relative", height: 6, borderRadius: 999, bgcolor: "action.hover" }}>
-      <Box
-        sx={{
-          position: "absolute",
-          left: `${left}%`,
-          width: `${width}%`,
-          top: 0,
-          bottom: 0,
-          borderRadius: 999,
-          bgcolor: "success.main",
-          opacity: 0.25,
-        }}
-      />
-    </Box>
-  );
-}
 
 /* ========= UI helpers ========= */
 
-function ReadonlySlider(props: {
-  label: string;
-  value: number;
-  sx?: any;
-  onLabelClick?: () => void;
-}) {
-  const clickable = !!props.onLabelClick;
 
-  return (
-    <Box sx={props.sx}>
-      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-        <Stack direction="row" spacing={1} alignItems="baseline">
-          {clickable ? (
-            <Tooltip title="Click to configure" arrow>
-              <ButtonBase
-                onClick={props.onLabelClick}
-                sx={{
-                  borderRadius: 1,
-                  px: 0.25,
-                  // macht es wie ein Link/Text
-                  "& .label": {
-                    fontSize: (theme) => theme.typography.body2.fontSize,
-                    fontWeight: (theme) => theme.typography.body2.fontWeight,
-                    lineHeight: (theme) => theme.typography.body2.lineHeight,
-                    color: "primary.main",
-                    textDecoration: "underline",
-                    textUnderlineOffset: "3px",
-                  },
-                  // schöner Fokus-Ring
-                  "&:focus-visible": {
-                    outline: "2px solid",
-                    outlineColor: "primary.main",
-                    outlineOffset: 2,
-                  },
-                }}
-              >
-                <span className="label">{props.label}</span>
-              </ButtonBase>
-            </Tooltip>
-          ) : (
-            <Typography variant="body2">{props.label}</Typography>
-          )}
-
-          {clickable && (
-            <Typography variant="caption" color="text.secondary" sx={{ userSelect: "none" }}>
-              (configure)
-            </Typography>
-          )}
-        </Stack>
-
-        <Typography variant="body2" color="text.secondary">
-          {props.value}
-        </Typography>
-      </Stack>
-
-      <Slider value={props.value} min={0} max={100} step={1} sx={{ pointerEvents: "none" }} />
-    </Box>
-  );
-}
-
-function marksFor(b?: { min: number; max: number }, decimals = 2): Mark[] | undefined {
-  if (!b) return undefined;
-
-  const fmt = (x: number) => Number(x.toFixed(decimals));
-
-  return [
-    { value: b.min, label: <Typography variant="caption">{fmt(b.min)}</Typography> },
-    { value: b.max, label: <Typography variant="caption">{fmt(b.max)}</Typography> },
-  ];
-}
-
-function PressableSlider(props: {
-  sliderKey: SimpleSliderKey;
-  onBegin: (k: SimpleSliderKey) => void;
-  onEnd: () => void;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  marks?: Mark[];
-  onChange: (e: Event, v: number | number[]) => void;
-}) {
-  const { sliderKey, onBegin, onEnd, value, onChange, min, max, step, marks } = props;
-  return (
-    <Box
-      onPointerDownCapture={() => onBegin(sliderKey)}
-      onMouseDownCapture={() => onBegin(sliderKey)}
-      onTouchStartCapture={() => onBegin(sliderKey)}
-      onPointerUpCapture={onEnd}
-      onPointerCancelCapture={onEnd}
-      sx={{ touchAction: "none" }}
-    >
-      <Slider
-        sx={{
-          "& .MuiSlider-mark": {
-            width: 4,
-            height: 16,
-            borderRadius: 2,
-            opacity: 1,
-            backgroundColor: "text.primary",
-          },
-          "& .MuiSlider-markLabel": {
-            mt: 1,
-            opacity: 0.95,
-            fontWeight: 700,
-          },
-        }}
-        value={value}
-        min={min}
-        max={max}
-        step={step}
-        marks={marks}
-        onChange={onChange}
-        onChangeCommitted={onEnd as any}
-      />
-    </Box>
-  );
-}
 
 export function ClipDialog(p: ClipDialogProps) {
   const [catView, setCatView] = React.useState<CatView>("sliders");
-  const [activeSimple, setActiveSimple] = React.useState<SimpleSliderKey | null>(null);
+
+  const {
+  customSliders,
+  editOpen,
+  editId,
+  editName,
+  editW,
+  setEditName,
+  setEditW,
+  newOpen,
+  draftName,
+  draftW,
+  setNewOpen,
+  setDraftName,
+  setDraftW,
+  deleteCustom,
+  openCustomEdit,
+  closeCustomEdit,
+  saveCustomEdit,
+  createCustomSlider,
+} = customSliderLogic();
+
+const {
+  activeEffects,
+  setActiveEffects,
+  activeSimple,
+  setActiveSimple,
+  axisLabel,
+  axisValue,
+  catInfluenceSx,
+  clampToCfg,
+  computeAllScores,
+  computeScoresFromReal,
+} = clipDialogLogic();
+
+
+
+const { beginDrag, computeEffectsFor, endDrag, marksFor, toSafeKey } = sliderLogic();
+
+const {
+  DEFAULT_TRIANGLE_AXIS_IDS,
+  TRIANGLE_AXIS_STORAGE_KEY,
+  triangleAxes,
+  triangleAxesOpen,
+  setTriangleAxes,
+  setTriangleAxesOpen,
+  loadTriangleAxes,
+} = trinagleLogic();
+
+const {
+  weightsOpen,
+  weightsCat,
+  formulaWeights,
+  setFormulaWeights,
+  setWeightsCat,
+  setWeightsOpen,
+  openWeights,
+  closeWeights,
+  resetWeights,
+  patchFormulaWeights,
+} = weightsLogic();
+
+
+
   const activeValue = activeSimple ? (p.simple[activeSimple] as number) : null;
-  const [formulaWeights, setFormulaWeights] = React.useState<FormulaWeights>(() =>
-    loadFormulaWeights()
-  );
-  const [customSliders, setCustomSliders] = React.useState<CustomScoreSlider[]>(() =>
-    loadCustomSliders()
-  );
-
-  const [activeEffects, setActiveEffects] = React.useState<Partial<Record<CatKey, number>> | null>(
-    null
-  );
-
-  const [weightsOpen, setWeightsOpen] = React.useState(false);
-  const [weightsCat, setWeightsCat] = React.useState<CatKey | null>(null);
-
-  const [newOpen, setNewOpen] = React.useState(false);
-  const [draftName, setDraftName] = React.useState("");
-  const [draftW, setDraftW] = React.useState(DEFAULT_CUSTOM_W);
-
-  const [editOpen, setEditOpen] = React.useState(false);
-  const [editId, setEditId] = React.useState<string | null>(null);
-  const [editName, setEditName] = React.useState("");
-  const [editW, setEditW] = React.useState(DEFAULT_CUSTOM_W);
-
-  const [pentagonAxes, setPentagonAxes] = React.useState<AxisId[]>(() => loadAxes());
-
-  const [pentagonAxesOpen, setPentagonAxesOpen] = React.useState(false);
-
-  const [triangleAxes, setTriangleAxes] = React.useState<AxisId[]>(() => loadTriangleAxes());
-  const [triangleAxesOpen, setTriangleAxesOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    localStorage.setItem(AXIS_STORAGE_KEY, JSON.stringify(pentagonAxes));
-  }, [pentagonAxes]);
 
   React.useEffect(() => {
     localStorage.setItem(TRIANGLE_AXIS_STORAGE_KEY, JSON.stringify(triangleAxes));
   }, [triangleAxes]);
-
-  function openWeights(cat: CatKey) {
-    setWeightsCat(cat);
-    setWeightsOpen(true);
-  }
-  function closeWeights() {
-    setWeightsOpen(false);
-    setWeightsCat(null);
-  }
-  function resetWeights() {
-    setFormulaWeights(DEFAULT_FORMULA_WEIGHTS);
-  }
 
   React.useEffect(() => {
     saveFormulaWeights(formulaWeights);
@@ -415,19 +233,9 @@ export function ClipDialog(p: ClipDialogProps) {
 
   React.useEffect(() => {
     if (!activeSimple) return;
-    setActiveEffects(computeEffectsFor(activeSimple));
+    setActiveEffects(computeEffectsFor(activeSimple, p));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSimple, activeValue, p.simpleSpeedMode]);
-
-  function beginDrag(key: SimpleSliderKey) {
-    setActiveSimple(key);
-    setActiveEffects(computeEffectsFor(key));
-  }
-
-  function endDrag() {
-    setActiveSimple(null);
-    setActiveEffects(null);
-  }
 
   React.useEffect(() => {
     if (!activeSimple) return;
@@ -497,82 +305,6 @@ export function ClipDialog(p: ClipDialogProps) {
     return { derived, scores, allScores };
   }, [p.simple, p.simpleSpeedMode, formulaWeights, customSliders]);
 
-  function patchFormulaWeights<K extends keyof FormulaWeights>(
-    cat: K,
-    patch: Partial<FormulaWeights[K]>
-  ) {
-    setFormulaWeights((prev) => ({
-      ...prev,
-      [cat]: { ...prev[cat], ...patch },
-    }));
-  }
-
-  const availableAxisIds: AxisId[] = React.useMemo(() => {
-    // built-ins + custom ids
-    const builtins: AxisId[] = DEFAULT_PENTAGON_AXIS_IDS;
-    const customs: AxisId[] = customSliders.map((c) => c.id);
-    return [...builtins, ...customs];
-  }, [customSliders]);
-
-  function setAxisAt(i: number, id: AxisId) {
-    setPentagonAxes((prev) => {
-      const next = [...prev];
-      next[i] = id;
-      return next;
-    });
-  }
-
-  function openCustomEdit(id: string) {
-    const cs = customSliders.find((x) => x.id === id);
-    if (!cs) return;
-
-    setEditId(id);
-    setEditName(cs.name);
-    setEditW(cs.w ?? DEFAULT_CUSTOM_W);
-    setEditOpen(true);
-  }
-
-  function closeCustomEdit() {
-    setEditOpen(false);
-    setEditId(null);
-  }
-
-  function saveCustomEdit() {
-    if (!editId) return;
-    setCustomSliders((prev) =>
-      prev.map((x) => (x.id === editId ? { ...x, name: editName.trim(), w: editW } : x))
-    );
-    setEditOpen(false);
-    setEditId(null);
-  }
-
-  function deleteCustom(id: string) {
-    setCustomSliders((prev) => prev.filter((x) => x.id !== id));
-    setEditOpen(false);
-    setEditId(null);
-  }
-
-  function computeScoresFromReal(s: SimpleReal): CategoryScores {
-    const scoreRanges = getScoreRanges(p.simpleSpeedMode);
-
-    return computeCategoryScoresFromSimple(
-      {
-        totalSteps: Math.round(s.totalSteps),
-        stepRatio: s.stepRatioPct,
-        highShift: s.highShift,
-        highCfg: s.highCfg,
-        highStrength: s.highStrength,
-      },
-      scoreRanges,
-      formulaWeights
-    );
-  }
-
-  function clampToCfg<K extends keyof SimpleReal>(key: K, v: number) {
-    const c = p.sliderCfg[key];
-    return clamp(v, c.min, c.max);
-  }
-
   const activeSafeKey = React.useMemo(
     () => (activeSimple ? toSafeKey(activeSimple) : null),
     [activeSimple]
@@ -585,222 +317,38 @@ export function ClipDialog(p: ClipDialogProps) {
     return p.getBounds(activeSafeKey, v);
   }, [activeSafeKey, p.simple]);
 
-  const pentagonAxisObjects = React.useMemo(() => {
-    const ids = (pentagonAxes?.length === 5 ? pentagonAxes : DEFAULT_PENTAGON_AXIS_IDS).slice(0, 5);
-    return ids.map((id) => ({
-      id: String(id),
-      label: axisLabel(id),
-      value: axisValue(id),
-    }));
-  }, [pentagonAxes, computed.allScores, customSliders]);
-
   const triangleAxisObjects = React.useMemo(() => {
     const ids = (triangleAxes?.length === 3 ? triangleAxes : DEFAULT_TRIANGLE_AXIS_IDS).slice(0, 3);
 
     return ids.map((id) => ({
       id: String(id),
-      label: axisLabel(id),
-      value: axisValue(id),
+      label: axisLabel(id, customSliders),
+      value: axisValue(id, computed.allScores),
     }));
   }, [triangleAxes, computed.allScores, customSliders]);
 
-  function computeEffectsFor(key: keyof SimpleReal): Partial<Record<CatKey, number>> {
-    const base = p.simple;
-
-    const step = p.sliderCfg[key].step;
-    const epsSteps = key === "totalSteps" ? 1 : 3;
-    const eps = step * epsSteps;
-
-    const s0 = computeScoresFromReal(base);
-
-    // ✅ wandle keyof SimpleReal -> SafeKey (du hast toSafeKey schon)
-    const sk = toSafeKey(key as any);
-    if (!sk) return {};
-
-    // ✅ “raw desired value” (noch ohne constraints)
-    const plusRaw = clampToCfg(key, (base[key] as number) + eps);
-    const minusRaw = clampToCfg(key, (base[key] as number) - eps);
-
-    // ✅ hier passieren die passiven Effekte:
-    const plus = p.simulateSliderChange(base, sk, plusRaw);
-    const minus = p.simulateSliderChange(base, sk, minusRaw);
-
-    const sPlus = computeScoresFromReal(plus);
-    const sMinus = computeScoresFromReal(minus);
-
-    const out: Partial<Record<CatKey, number>> = {};
-    (Object.keys(s0) as CatKey[]).forEach((cat) => {
-      out[cat] = (sPlus[cat] - sMinus[cat]) / (2 * epsSteps);
-    });
-    return out;
-  }
-
-  function createCustomSlider() {
-    const id = `custom:${Date.now()}`; // reicht völlig
-    setCustomSliders((prev) => [...prev, { id, name: draftName.trim(), w: draftW }]);
-    setNewOpen(false);
-  }
-
-  function computeAllScores(
-    s: {
-      totalSteps: number;
-      stepRatio: number;
-      highShift: number;
-      highCfg: number;
-      highStrength: number;
-    },
-    ranges: {
-      steps: { min: number; max: number };
-      ratio: { min: number; max: number };
-      shift: { min: number; max: number };
-      cfg: { min: number; max: number };
-      strength: { min: number; max: number };
-    },
-    formulaWeights: FormulaWeights,
-    custom: CustomScoreSlider[]
-  ): Record<string, number> {
-    const steps01 = clamp(
-      (s.totalSteps - ranges.steps.min) / Math.max(1e-6, ranges.steps.max - ranges.steps.min),
-      0,
-      1
-    );
-
-    const ratio01 = clamp(
-      (s.stepRatio - ranges.ratio.min) / Math.max(1e-6, ranges.ratio.max - ranges.ratio.min),
-      0,
-      1
-    );
-
-    const shift01 = clamp(
-      (s.highShift - ranges.shift.min) / Math.max(1e-6, ranges.shift.max - ranges.shift.min),
-      0,
-      1
-    );
-
-    const cfg01 = clamp(
-      (s.highCfg - ranges.cfg.min) / Math.max(1e-6, ranges.cfg.max - ranges.cfg.min),
-      0,
-      1
-    );
-
-    const strength01 = clamp(
-      (s.highStrength - ranges.strength.min) /
-        Math.max(1e-6, ranges.strength.max - ranges.strength.min),
-      0,
-      1
-    );
-
-    // ✅ built-ins (deine vorhandene Funktion)
-    const builtIn = computeCategoryScoresFromSimple(
-      {
-        totalSteps: s.totalSteps,
-        stepRatio: s.stepRatio,
-        highShift: s.highShift,
-        highCfg: s.highCfg,
-        highStrength: s.highStrength,
-      },
-      ranges,
-      formulaWeights
-    );
-
-    const out: Record<string, number> = { ...builtIn };
-
-    // ✅ custom sliders
-    for (const cs of custom) {
-      const w = cs.w;
-      const raw =
-        w.steps * steps01 +
-        w.ratio * ratio01 +
-        w.shift * shift01 +
-        w.cfg * cfg01 +
-        w.strength * strength01 +
-        w.invSteps * (1 - steps01) +
-        w.invRatio * (1 - ratio01) +
-        w.invShift * (1 - shift01) +
-        w.invCfg * (1 - cfg01) +
-        w.invStrength * (1 - strength01) +
-        w.bias;
-
-      const score01 = clamp(raw, 0, 1);
-      out[cs.id] = Math.round(score01 * 100);
-    }
-
-    return out;
-  }
-
-  function catInfluenceSx(cat: CatKey) {
-    if (!activeSimple || !activeEffects) return {};
-
-    const d = activeEffects[cat] ?? 0;
-
-    // threshold: tiny numerical noise ignorieren
-    const dead = 0.02;
-    const maxD = 0.5; // sehr sensibel: "0.5 score-points pro slider unit" ist schon stark
-    const gamma = 0.7;
-    if (Math.abs(d) < dead) {
-      return {
-        opacity: 0.25,
-        "& .MuiSlider-rail": { opacity: 0.12 },
-        "& .MuiSlider-track": { opacity: 0.12 },
-        "& .MuiSlider-thumb": { opacity: 0.12 },
-      };
-    }
-
-    const color = d > 0 ? "#4dabf5" : "#f73378";
-
-    // Intensität: clamp + gamma für deutliche Abstufungen
-
-    const t = Math.min(1, Math.abs(d) / maxD);
-    const mag = Math.pow(t, gamma);
-
-    const trackOpacity = 0.15 + 0.85 * mag;
-
-    return {
-      opacity: 1,
-      "& .MuiSlider-track": { bgcolor: color, opacity: trackOpacity },
-      "& .MuiSlider-thumb": { bgcolor: color, opacity: 0.15 + 0.85 * mag },
-      "& .MuiSlider-rail": { opacity: 0.06 + 0.2 * mag },
-    };
-  }
-
   const cfg = p.sliderCfg;
 
-  function axisLabel(id: AxisId) {
-    if (id === "creativity") return "Creativity";
-    if (id === "promptFaithfulness") return "Prompt\nFaithfulness";
-    if (id === "motion") return "Motion";
-    if (id === "transitionSmoothness") return "Transition\nSmoothness";
-    if (id === "videoFaithfulness") return "Video\nFaithfulness";
+  const handleBeginDrag = React.useCallback(
+  (key: SimpleSliderKey) => {
+    beginDrag(key, p);
+  },
+  [beginDrag, p]
+);
 
-    // custom:
-    const cs = customSliders.find((x) => x.id === id);
-    return cs?.name ?? String(id);
-  }
+const handleEndDrag = React.useCallback(() => {
+  endDrag();
+}, [endDrag]);
 
-  function axisValue(id: AxisId) {
-    // computed.allScores enthält built-ins + custom (so wie du es baust)
-    return computed.allScores[String(id)] ?? 0;
-  }
-
-  function loadAxes(): AxisId[] {
-    try {
-      const raw = localStorage.getItem(AXIS_STORAGE_KEY);
-      const arr = raw ? (JSON.parse(raw) as AxisId[]) : null;
-      return Array.isArray(arr) && arr.length ? arr : DEFAULT_PENTAGON_AXIS_IDS;
-    } catch {
-      return DEFAULT_PENTAGON_AXIS_IDS;
-    }
-  }
-
-  function loadTriangleAxes(): AxisId[] {
-    try {
-      const raw = localStorage.getItem(TRIANGLE_AXIS_STORAGE_KEY);
-      const arr = raw ? (JSON.parse(raw) as AxisId[]) : null;
-      return Array.isArray(arr) && arr.length ? arr : DEFAULT_TRIANGLE_AXIS_IDS;
-    } catch {
-      return DEFAULT_TRIANGLE_AXIS_IDS;
-    }
-  }
+const {    DEFAULT_PENTAGON_AXIS_IDS,
+    PENTAGON_AXIS_STORAGE_KEY,
+    loadPentagonAxes,
+    availableAxisIds,
+    pentagonAxisObjects,
+    pentagonAxes,
+    pentagonAxesOpen,
+    setPentagonAxes,
+    setPentagonAxesOpen,} = pentagonLogic(computed.allScores, customSliders)
 
   return (
     <>
@@ -910,8 +458,8 @@ export function ClipDialog(p: ClipDialogProps) {
                       </Typography>
                       <PressableSlider
                         sliderKey="totalSteps"
-                        onBegin={beginDrag}
-                        onEnd={endDrag}
+                        onBegin={handleBeginDrag}
+                        onEnd={handleEndDrag}
                         value={p.simple.totalSteps}
                         min={cfg.totalSteps.min}
                         max={cfg.totalSteps.max}
@@ -939,8 +487,8 @@ export function ClipDialog(p: ClipDialogProps) {
                       </Typography>
                       <PressableSlider
                         sliderKey="stepRatioPct"
-                        onBegin={beginDrag}
-                        onEnd={endDrag}
+                        onBegin={handleBeginDrag}
+                        onEnd={handleEndDrag}
                         value={p.simple.stepRatioPct}
                         min={cfg.stepRatioPct.min}
                         max={cfg.stepRatioPct.max}
@@ -968,8 +516,8 @@ export function ClipDialog(p: ClipDialogProps) {
                       </Typography>
                       <PressableSlider
                         sliderKey="highShift"
-                        onBegin={beginDrag}
-                        onEnd={endDrag}
+                        onBegin={handleBeginDrag}
+                        onEnd={handleEndDrag}
                         value={p.simple.highShift}
                         min={cfg.highShift.min}
                         max={cfg.highShift.max}
@@ -997,8 +545,8 @@ export function ClipDialog(p: ClipDialogProps) {
                       </Typography>
                       <PressableSlider
                         sliderKey="highCfg"
-                        onBegin={beginDrag}
-                        onEnd={endDrag}
+                        onBegin={handleBeginDrag}
+                        onEnd={handleEndDrag}
                         value={p.simple.highCfg}
                         min={cfg.highCfg.min}
                         max={cfg.highCfg.max}
@@ -1026,8 +574,8 @@ export function ClipDialog(p: ClipDialogProps) {
                       </Typography>
                       <PressableSlider
                         sliderKey="highStrength"
-                        onBegin={beginDrag}
-                        onEnd={endDrag}
+                        onBegin={handleBeginDrag}
+                        onEnd={handleEndDrag}
                         value={p.simple.highStrength}
                         min={cfg.highStrength.min}
                         max={cfg.highStrength.max}
@@ -1395,7 +943,7 @@ export function ClipDialog(p: ClipDialogProps) {
         axes={pentagonAxes}
         onAxesChange={setPentagonAxes}
         availableAxisIds={availableAxisIds.map(String)}
-        axisLabel={(id) => axisLabel(id)}
+        axisLabel={(id) => axisLabel(id, customSliders)}
         defaultAxes={DEFAULT_PENTAGON_AXIS_IDS.map(String)}
       />
 
@@ -1405,7 +953,7 @@ export function ClipDialog(p: ClipDialogProps) {
         axes={triangleAxes.map(String)}
         onAxesChange={(next) => setTriangleAxes(next as AxisId[])}
         availableAxisIds={availableAxisIds.map(String)}
-        axisLabel={(id) => axisLabel(id)}
+        axisLabel={(id) => axisLabel(id, customSliders)}
         defaultAxes={DEFAULT_TRIANGLE_AXIS_IDS.map(String)}
       />
     </>

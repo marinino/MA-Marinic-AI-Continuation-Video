@@ -274,16 +274,6 @@ export function GraphView(props: {
     return ((n?.data as any)?.videoFile as StoredMediaFile | null) ?? null;
   }
 
-  function hasChildren(nodeId: string, edges: RFEdge[]) {
-    return edges.some((e) => e.source === nodeId);
-  }
-
-  const nodeToDeleteLabel = useMemo(() => {
-    if (!nodeToDeleteId) return undefined;
-    const node = g.rfNodes.find((n) => n.id === nodeToDeleteId);
-    return (node?.data as any)?.label ?? undefined;
-  }, [nodeToDeleteId, g.rfNodes]);
-
   const hasRoot = useMemo(() => {
     return g.rfNodes.some((n) => {
       if (n.type !== "clip") return false;
