@@ -59,25 +59,25 @@ export function InformationDialog({ open, onClose }: InformationDialogProps) {
     {
       title: "Clip node",
       description: "Represents a video clip or an intermediate result in the workflow.",
-      color: "#66BB6A",
+      color: "#8bc34a",
       shape: "node",
     },
     {
       title: "Parameter node",
       description: "Represents the parameters used for an AI generation step.",
-      color: "#42A5F5",
+      color: "#3f51b5",
       shape: "node",
     },
     {
       title: "Edit node",
       description: "Represents a manual editing step performed in an external tool.",
-      color: "#AB47BC",
+      color: "#9c27b0",
       shape: "node",
     },
     {
       title: "Root node",
       description: "Represents the node fot initial video of the tree.",
-      color: "#FFB300",
+      color: "#ff9800",
       shape: "node",
     },
   ];

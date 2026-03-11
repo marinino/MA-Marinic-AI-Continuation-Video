@@ -14,7 +14,7 @@ import { useReactFlow } from "reactflow";
 import type { ReactFlowInstance } from "reactflow";
 
 // node/edge renderer
-import { nodeTypes } from "./nodes/nodes";
+import { nodeTypes } from "./nodes/Node";
 import { LabeledEdge } from "./edges/edges";
 
 // api
@@ -68,9 +68,15 @@ import {
   buildIncomingMap,
   findPrevParamsId,
   collectSubtreeNodeIds,
+  getHiddenDescendantIds,
 } from "./graph_helpers/selectors";
 import { useManualTimelineImport } from "./hooks/useManualTimelineImport";
 import { DeleteNodeDialog } from "./dialogs/DeleteNodeDialog";
+import {
+  collectParamBranchSteps,
+  detectParamWeightSuggestion,
+} from "./graph_helpers/branchSuggestions";
+import { HideNodeDialog } from "./dialogs/HideNodeDialog";
 
 // edgeTypes
 const edgeTypes = { labeled: LabeledEdge };
@@ -217,6 +223,9 @@ export function GraphView(props: {
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([]);
+  const [hideDialogOpen, setHideDialogOpen] = useState(false);
+  const [hideTargetId, setHideTargetId] = useState<string | null>(null);
+  const [hideTargetIds, setHideTargetIds] = useState<string[]>([]);
 
   const paletteKey = genState === "idle" ? "success" : genState === "running" ? "warning" : "error";
 
@@ -275,6 +284,35 @@ export function GraphView(props: {
     return (node?.data as any)?.label ?? undefined;
   }, [nodeToDeleteId, g.rfNodes]);
 
+  const hasRoot = useMemo(() => {
+    return g.rfNodes.some((n) => {
+      if (n.type !== "clip") return false;
+      const hasIncoming = g.rfEdges.some((e) => e.target === n.id);
+      return !hasIncoming;
+    });
+  }, [g.rfNodes, g.rfEdges]);
+
+  const handleHideNode = useCallback(
+    (nodeId: string) => {
+      const nodeToHide = g.rfNodes.find((n) => n.id === nodeId);
+      if (!nodeToHide) return;
+
+      if ((nodeToHide.data as any)?.isRoot) {
+        setErrorDialog({
+          title: "Cannot hide root node",
+          message: "The root clip cannot be hidden.",
+        });
+        return;
+      }
+
+      const subtreeIds = Array.from(collectSubtreeNodeIds(nodeId, g.rfEdges));
+      setHideTargetId(nodeId);
+      setHideTargetIds(subtreeIds);
+      setHideDialogOpen(true);
+    },
+    [g.rfNodes, g.rfEdges]
+  );
+
   const { finishManualTimelineImport } = useManualTimelineImport({
     project: props.project,
     onChange: props.onChange,
@@ -303,6 +341,16 @@ export function GraphView(props: {
     return (node.data?.videoFile?.filename as string | undefined) ?? null;
   }, [g.clickedNodeId, g.rfNodes]);
 
+  const selectedNodeHasHiddenChildren = useMemo(() => {
+    if (!g.clickedNodeId) return false;
+    return getHiddenDescendantIds(g.clickedNodeId, g.rfNodes, g.rfEdges).length > 0;
+  }, [g.clickedNodeId, g.rfNodes, g.rfEdges]);
+
+  const hiddenChildCount = useMemo(() => {
+    if (!g.clickedNodeId) return 0;
+    return getHiddenDescendantIds(g.clickedNodeId, g.rfNodes, g.rfEdges).length;
+  }, [g.clickedNodeId, g.rfNodes, g.rfEdges]);
+
   const davinci = useDavinciTimeline({
     project: props.project,
     clickedClipFilename,
@@ -317,6 +365,72 @@ export function GraphView(props: {
       bgColor: `${paletteKey}.50`, // sehr dezent
     } as const;
   }
+
+  const confirmHideNode = useCallback(() => {
+    if (!hideTargetId || hideTargetIds.length === 0) return;
+
+    const idsToHide = new Set(hideTargetIds);
+
+    const nextNodes = g.rfNodes.map((n) =>
+      idsToHide.has(n.id)
+        ? {
+            ...n,
+            hidden: true,
+            data: {
+              ...(n.data as any),
+              isHidden: true,
+            },
+          }
+        : n
+    );
+
+    const nextEdges = g.rfEdges.map((e) =>
+      idsToHide.has(e.source) || idsToHide.has(e.target)
+        ? {
+            ...e,
+            hidden: true,
+            data: {
+              ...(e.data as any),
+              isHidden: true,
+            },
+          }
+        : e
+    );
+
+    g.setRfNodes(nextNodes);
+    g.setRfEdges(nextEdges);
+    g.commit(nextNodes, nextEdges);
+
+    if (g.clickedNodeId && idsToHide.has(g.clickedNodeId)) {
+      g.setClickedNodeId(null);
+      setActionDialogOpen(false);
+    }
+
+    props.onChange((prev) => {
+      const wasSelected =
+        prev.uiState?.selectedNodeId && idsToHide.has(prev.uiState.selectedNodeId);
+
+      return {
+        ...prev,
+        uiState: {
+          ...(prev.uiState ?? {}),
+          selectedNodeId: wasSelected ? undefined : prev.uiState?.selectedNodeId,
+        },
+      };
+    });
+
+    setHideDialogOpen(false);
+    setHideTargetId(null);
+    setHideTargetIds([]);
+
+    requestAnimationFrame(vp.saveViewport);
+  }, [hideTargetId, hideTargetIds, g, props.onChange, vp.saveViewport]);
+
+  const cancelHideNode = useCallback(() => {
+    setHideDialogOpen(false);
+    setHideTargetId(null);
+    setHideTargetIds([]);
+  }, []);
 
   const handleDeleteNode = useCallback(
     (nodeId: string) => {
@@ -337,6 +451,55 @@ export function GraphView(props: {
       setDeleteDialogOpen(true);
     },
     [g.rfNodes, g.rfEdges]
+  );
+
+  const showHiddenChildren = useCallback(
+    (parentId: string) => {
+      const directHiddenChildIds = getHiddenDescendantIds(parentId, g.rfNodes, g.rfEdges);
+      if (directHiddenChildIds.length === 0) return;
+
+      const idsToShow = new Set<string>();
+
+      for (const childId of directHiddenChildIds) {
+        const subtreeIds = collectSubtreeNodeIds(childId, g.rfEdges);
+        for (const id of subtreeIds) {
+          idsToShow.add(id);
+        }
+      }
+
+      const nextNodes = g.rfNodes.map((n) =>
+        idsToShow.has(n.id)
+          ? {
+              ...n,
+              hidden: false,
+              data: {
+                ...(n.data as any),
+                isHidden: false,
+              },
+            }
+          : n
+      );
+
+      const nextEdges = g.rfEdges.map((e) =>
+        idsToShow.has(e.source) || idsToShow.has(e.target)
+          ? {
+              ...e,
+              hidden: false,
+              data: {
+                ...(e.data as any),
+                isHidden: false,
+              },
+            }
+          : e
+      );
+
+      g.setRfNodes(nextNodes);
+      g.setRfEdges(nextEdges);
+      g.commit(nextNodes, nextEdges);
+
+      requestAnimationFrame(vp.saveViewport);
+    },
+    [g, vp.saveViewport]
   );
 
   const confirmDeleteNode = useCallback(() => {
@@ -378,11 +541,6 @@ export function GraphView(props: {
     requestAnimationFrame(vp.saveViewport);
   }, [deleteTargetId, deleteTargetIds, g, props.onChange, vp.saveViewport]);
 
-  const cancelDeleteNode = useCallback(() => {
-    setDeleteDialogOpen(false);
-    setNodeToDeleteId(null);
-  }, []);
-
   const nodesForUI = useMemo(() => {
     const nodes = g.nodesWithRootFlag as Node[];
     const edges = g.rfEdges as Edge[];
@@ -406,16 +564,17 @@ export function GraphView(props: {
       return Number.isFinite(d) ? d : null;
     }
 
-    return nodes.map((n) => {
+    // 1) Erst alle Nodes für UI vorbereiten, aber branchSuggestion noch leer lassen
+    const precomputedNodes = nodes.map((n) => {
       const baseData = (n.data as any) ?? {};
 
-      // common injections (dein existing stuff)
       const injectedCommon = {
         ...baseData,
         videoOpened: Boolean(baseData?.videoOpened),
         onSaveNote: saveNodeNote,
         markVideoOpened,
         onDelete: handleDeleteNode,
+        onHide: handleHideNode,
         onAdd: (nodeId: string) => {
           g.setClickedNodeId(nodeId);
           props.onChange((prev) => ({
@@ -427,26 +586,11 @@ export function GraphView(props: {
       };
 
       if (n.type !== "params") {
-        return { ...n, data: injectedCommon };
+        return { ...n, data: injectedCommon, hidden: Boolean(baseData?.isHidden) };
       }
 
       const prevParamsId = findPrevParamsId(n.id, nodesById, incoming);
       const prevParamsData = prevParamsId ? (nodesById.get(prevParamsId)?.data as any) : null;
-
-      if (n.type === "params") {
-        const cur = injectedCommon;
-        const prevId = prevParamsId;
-        const prev = prevParamsData;
-
-        console.log("[PARAM DELTA DBG]", {
-          curId: n.id,
-          prevId,
-          curHighCfg: cur.highNoiseCfg,
-          prevHighCfg: prev?.highNoiseCfg,
-          curHighShift: cur.highNoiseShift,
-          prevHighShift: prev?.highNoiseShift,
-        });
-      }
 
       const curPrompt = injectedCommon.prompt ?? "";
       const prevPrompt = prevParamsData?.prompt ?? "";
@@ -458,13 +602,12 @@ export function GraphView(props: {
 
       const deltas = prevParamsData
         ? {
-            // high/low cfg
             highNoiseCfg: numDelta(injectedCommon, prevParamsData, "highNoiseCfg"),
             lowNoiseCfg: numDelta(injectedCommon, prevParamsData, "lowNoiseCfg"),
 
-            // shift/strength
             highNoiseShift: numDelta(injectedCommon, prevParamsData, "highNoiseShift"),
             lowNoiseShift: numDelta(injectedCommon, prevParamsData, "lowNoiseShift"),
+
             highNoiseModelStrength: numDelta(
               injectedCommon,
               prevParamsData,
@@ -476,11 +619,12 @@ export function GraphView(props: {
               "lowNoiseModelStrength"
             ),
 
-            // steps / ranges
             highNoiseSteps: numDelta(injectedCommon, prevParamsData, "highNoiseSteps"),
             lowNoiseSteps: numDelta(injectedCommon, prevParamsData, "lowNoiseSteps"),
+
             highNoiseStartStep: numDelta(injectedCommon, prevParamsData, "highNoiseStartStep"),
             lowNoiseStartStep: numDelta(injectedCommon, prevParamsData, "lowNoiseStartStep"),
+
             highNoiseEndStep: numDelta(injectedCommon, prevParamsData, "highNoiseEndStep"),
             lowNoiseEndStep: numDelta(injectedCommon, prevParamsData, "lowNoiseEndStep"),
           }
@@ -502,12 +646,50 @@ export function GraphView(props: {
 
       return {
         ...n,
+        hidden: Boolean(baseData?.isHidden),
         data: {
           ...injectedCommon,
           prevParamsId,
           paramDeltas: deltas,
           categoryScoreDeltas,
           promptChanged,
+          branchSuggestion: null,
+        },
+      };
+    });
+
+    // 2) Jetzt Map auf Basis der bereits angereicherten Nodes bauen
+    const precomputedById = new Map(precomputedNodes.map((n) => [n.id, n as RFNode]));
+
+    console.log(
+      "nodesWithRootFlag",
+      nodes.map((n: any) => ({
+        id: n.id,
+        type: n.type,
+        isHidden: n.data?.isHidden,
+      }))
+    );
+
+    // 3) Jetzt branchSuggestion wirklich berechnen
+    return precomputedNodes.map((n) => {
+      if (n.type !== "params") return n;
+
+      const branchSteps = collectParamBranchSteps(n.id, precomputedById, edges);
+
+      const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
+        minSteps: 5,
+        minCategoryDeltaAbs: 1,
+        minParamDeltaAbs: 0.01,
+        minHits: 7,
+        minStreak: 5,
+        recencyWindow: 15,
+      });
+
+      return {
+        ...n,
+        data: {
+          ...(n.data as any),
+          branchSuggestion,
         },
       };
     });
@@ -519,16 +701,11 @@ export function GraphView(props: {
     markVideoOpened,
     saveNodeNote,
     handleDeleteNode,
+    handleHideNode,
   ]);
 
   // ---------- Root create ----------
   function createRoot() {
-    const hasRoot = g.rfNodes.some((n) => {
-      if (n.type !== "clip") return false;
-      const hasIncoming = g.rfEdges.some((e) => e.target === n.id);
-      return !hasIncoming;
-    });
-
     if (hasRoot) {
       setErrorDialog({
         title: "Only one root allowed",
@@ -796,7 +973,6 @@ export function GraphView(props: {
 
             const branchIndex = countBranches(nextEdges, parentId);
 
-            const PARAM_OFFSET_X = 260;
             const PARAM_BRANCH_SPACING = 140;
             const NODE_GAP_X = 60;
 
@@ -804,7 +980,7 @@ export function GraphView(props: {
             const clipSize = getDefaultNodeSize("clip");
 
             const desiredParam: { x: number; y: number } = {
-              x: baseX + PARAM_OFFSET_X,
+              x: baseX + clipSize.w + NODE_GAP_X,
               y: baseY + (branchIndex - 1) * PARAM_BRANCH_SPACING,
             };
 
@@ -935,11 +1111,13 @@ export function GraphView(props: {
       </Paper>
 
       {/* Root */}
-      <Paper elevation={2} sx={{ position: "absolute", zIndex: 10, top: 12, left: 12, p: 1 }}>
-        <Button variant="contained" onClick={createRoot}>
-          Start Root
-        </Button>
-      </Paper>
+      {!hasRoot && (
+        <Paper elevation={2} sx={{ position: "absolute", zIndex: 10, top: 12, left: 12, p: 1 }}>
+          <Button variant="contained" onClick={createRoot}>
+            Start Root
+          </Button>
+        </Paper>
+      )}
 
       <ReactFlow
         onInit={(instance) => setRfInstance(instance)}
@@ -972,6 +1150,8 @@ export function GraphView(props: {
         open={actionDialogOpen}
         selectedLabel={(g.clickedNode as any)?.data?.label ?? "(none)"}
         canGenerate={!!g.clickedNodeId && !!getNodeVideoFile(g.clickedNodeId)}
+        showHiddenChildrenButton={selectedNodeHasHiddenChildren}
+        hiddenChildrenCount={hiddenChildCount}
         onClose={() => setActionDialogOpen(false)}
         onManualEdit={() => {
           if (g.clickedNodeId) addManualEdit(g.clickedNodeId);
@@ -979,6 +1159,10 @@ export function GraphView(props: {
         }}
         onGenerate={() => {
           if (g.clickedNodeId) addAIGenerateFromParent(g.clickedNodeId);
+          setActionDialogOpen(false);
+        }}
+        onShowHiddenChildren={() => {
+          if (g.clickedNodeId) showHiddenChildren(g.clickedNodeId);
           setActionDialogOpen(false);
         }}
       />
@@ -1096,6 +1280,22 @@ export function GraphView(props: {
           setDeleteTargetIds([]);
         }}
         onConfirm={confirmDeleteNode}
+      />
+
+      <HideNodeDialog
+        open={hideDialogOpen}
+        nodeLabel={
+          hideTargetId
+            ? (g.rfNodes.find((n) => n.id === hideTargetId)?.data as any)?.label
+            : undefined
+        }
+        affectedCount={hideTargetIds.length}
+        onClose={() => {
+          setHideDialogOpen(false);
+          setHideTargetId(null);
+          setHideTargetIds([]);
+        }}
+        onConfirm={confirmHideNode}
       />
     </div>
   );

@@ -51,9 +51,11 @@ import {
 } from "../../utils/weightsStorage";
 import { NewCustomSliderDialog } from "./NewSliderDialog";
 import { PentagonAxesDialog } from "./PentagonAxesDialog";
+import { TriangleMap } from "../components/TriangleMap";
+import { TriangleAxesDialog } from "./TriangleAxesDialog";
 
 export type V2VTab = "simple" | "advanced";
-type CatView = "sliders" | "pentagon";
+type CatView = "sliders" | "pentagon" | "triangle";
 
 type Mark = { value: number; label?: React.ReactNode };
 
@@ -133,7 +135,7 @@ type SpeedMode = "quick" | "quality";
 
 type AxisId = keyof CategoryScores | string; // "creativity" | ... | "custom:..."
 
-const DEFAULT_AXIS_IDS: AxisId[] = [
+const DEFAULT_PENTAGON_AXIS_IDS: AxisId[] = [
   "creativity",
   "promptFaithfulness",
   "motion",
@@ -142,6 +144,10 @@ const DEFAULT_AXIS_IDS: AxisId[] = [
 ];
 
 const AXIS_STORAGE_KEY = "v2v.pentagonAxes.v1";
+
+const DEFAULT_TRIANGLE_AXIS_IDS: AxisId[] = ["creativity", "motion", "videoFaithfulness"];
+
+const TRIANGLE_AXIS_STORAGE_KEY = "v2v.triangleAxes.v1";
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -374,11 +380,18 @@ export function ClipDialog(p: ClipDialogProps) {
 
   const [pentagonAxes, setPentagonAxes] = React.useState<AxisId[]>(() => loadAxes());
 
-  const [axesOpen, setAxesOpen] = React.useState(false);
+  const [pentagonAxesOpen, setPentagonAxesOpen] = React.useState(false);
+
+  const [triangleAxes, setTriangleAxes] = React.useState<AxisId[]>(() => loadTriangleAxes());
+  const [triangleAxesOpen, setTriangleAxesOpen] = React.useState(false);
 
   React.useEffect(() => {
     localStorage.setItem(AXIS_STORAGE_KEY, JSON.stringify(pentagonAxes));
   }, [pentagonAxes]);
+
+  React.useEffect(() => {
+    localStorage.setItem(TRIANGLE_AXIS_STORAGE_KEY, JSON.stringify(triangleAxes));
+  }, [triangleAxes]);
 
   function openWeights(cat: CatKey) {
     setWeightsCat(cat);
@@ -496,7 +509,7 @@ export function ClipDialog(p: ClipDialogProps) {
 
   const availableAxisIds: AxisId[] = React.useMemo(() => {
     // built-ins + custom ids
-    const builtins: AxisId[] = DEFAULT_AXIS_IDS;
+    const builtins: AxisId[] = DEFAULT_PENTAGON_AXIS_IDS;
     const customs: AxisId[] = customSliders.map((c) => c.id);
     return [...builtins, ...customs];
   }, [customSliders]);
@@ -573,13 +586,23 @@ export function ClipDialog(p: ClipDialogProps) {
   }, [activeSafeKey, p.simple]);
 
   const pentagonAxisObjects = React.useMemo(() => {
-    const ids = (pentagonAxes?.length === 5 ? pentagonAxes : DEFAULT_AXIS_IDS).slice(0, 5);
+    const ids = (pentagonAxes?.length === 5 ? pentagonAxes : DEFAULT_PENTAGON_AXIS_IDS).slice(0, 5);
     return ids.map((id) => ({
       id: String(id),
       label: axisLabel(id),
       value: axisValue(id),
     }));
   }, [pentagonAxes, computed.allScores, customSliders]);
+
+  const triangleAxisObjects = React.useMemo(() => {
+    const ids = (triangleAxes?.length === 3 ? triangleAxes : DEFAULT_TRIANGLE_AXIS_IDS).slice(0, 3);
+
+    return ids.map((id) => ({
+      id: String(id),
+      label: axisLabel(id),
+      value: axisValue(id),
+    }));
+  }, [triangleAxes, computed.allScores, customSliders]);
 
   function computeEffectsFor(key: keyof SimpleReal): Partial<Record<CatKey, number>> {
     const base = p.simple;
@@ -763,9 +786,19 @@ export function ClipDialog(p: ClipDialogProps) {
     try {
       const raw = localStorage.getItem(AXIS_STORAGE_KEY);
       const arr = raw ? (JSON.parse(raw) as AxisId[]) : null;
-      return Array.isArray(arr) && arr.length ? arr : DEFAULT_AXIS_IDS;
+      return Array.isArray(arr) && arr.length ? arr : DEFAULT_PENTAGON_AXIS_IDS;
     } catch {
-      return DEFAULT_AXIS_IDS;
+      return DEFAULT_PENTAGON_AXIS_IDS;
+    }
+  }
+
+  function loadTriangleAxes(): AxisId[] {
+    try {
+      const raw = localStorage.getItem(TRIANGLE_AXIS_STORAGE_KEY);
+      const arr = raw ? (JSON.parse(raw) as AxisId[]) : null;
+      return Array.isArray(arr) && arr.length ? arr : DEFAULT_TRIANGLE_AXIS_IDS;
+    } catch {
+      return DEFAULT_TRIANGLE_AXIS_IDS;
     }
   }
 
@@ -1044,6 +1077,7 @@ export function ClipDialog(p: ClipDialogProps) {
                       <Tabs value={catView} onChange={(_, v) => setCatView(v)} variant="fullWidth">
                         <Tab value="sliders" label="Sliders" />
                         <Tab value="pentagon" label="Pentagon" />
+                        <Tab value="triangle" label="Triangle" />
                       </Tabs>
 
                       {catView === "sliders" ? (
@@ -1094,8 +1128,6 @@ export function ClipDialog(p: ClipDialogProps) {
                                     key={cs.id}
                                     label={cs.name}
                                     value={computed.allScores[cs.id] ?? 0}
-                                    // ⚠️ custom hat kein catInfluenceSx (das ist nur für die 5)
-                                    // optional: später eigener edit dialog
                                     onLabelClick={() => {
                                       openCustomEdit(cs.id);
                                     }}
@@ -1116,12 +1148,20 @@ export function ClipDialog(p: ClipDialogProps) {
                             New slider
                           </Button>
                         </>
-                      ) : (
+                      ) : catView === "pentagon" ? (
                         <Stack spacing={3} alignItems="center">
                           <PentagonMap axes={pentagonAxisObjects} size={260} showRadarPolygon />
 
-                          <Button variant="outlined" onClick={() => setAxesOpen(true)}>
+                          <Button variant="outlined" onClick={() => setPentagonAxesOpen(true)}>
                             Configure pentagon axes
+                          </Button>
+                        </Stack>
+                      ) : (
+                        <Stack spacing={3} alignItems="center">
+                          <TriangleMap axes={triangleAxisObjects} size={260} showRadarPolygon />
+
+                          <Button variant="outlined" onClick={() => setTriangleAxesOpen(true)}>
+                            Configure triangle axes
                           </Button>
                         </Stack>
                       )}
@@ -1350,13 +1390,23 @@ export function ClipDialog(p: ClipDialogProps) {
       />
 
       <PentagonAxesDialog
-        open={axesOpen}
-        onClose={() => setAxesOpen(false)}
+        open={pentagonAxesOpen}
+        onClose={() => setPentagonAxesOpen(false)}
         axes={pentagonAxes}
         onAxesChange={setPentagonAxes}
         availableAxisIds={availableAxisIds.map(String)}
         axisLabel={(id) => axisLabel(id)}
-        defaultAxes={DEFAULT_AXIS_IDS.map(String)}
+        defaultAxes={DEFAULT_PENTAGON_AXIS_IDS.map(String)}
+      />
+
+      <TriangleAxesDialog
+        open={triangleAxesOpen}
+        onClose={() => setTriangleAxesOpen(false)}
+        axes={triangleAxes.map(String)}
+        onAxesChange={(next) => setTriangleAxes(next as AxisId[])}
+        availableAxisIds={availableAxisIds.map(String)}
+        axisLabel={(id) => axisLabel(id)}
+        defaultAxes={DEFAULT_TRIANGLE_AXIS_IDS.map(String)}
       />
     </>
   );

@@ -17,7 +17,7 @@ export function DeleteNodeDialog(props: {
   const isSubtreeDelete = props.affectedCount > 1;
 
   return (
-    <Dialog open={props.open} onClose={props.onClose} maxWidth="xs" fullWidth>
+    <Dialog open={props.open} onClose={props.onClose} maxWidth="sm" fullWidth>
       <DialogTitle>{isSubtreeDelete ? "Delete branch?" : "Delete node?"}</DialogTitle>
 
       <DialogContent>

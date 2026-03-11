@@ -160,3 +160,24 @@ export function collectSubtreeNodeIds(nodeId: string, rfEdges: RFEdge[]): Set<st
 
   return result;
 }
+
+export function getHiddenDescendantIds(nodeId: string, nodes: RFNode[], edges: RFEdge[]): string[] {
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const result = new Set<string>();
+  const queue = [nodeId];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const children = edges.filter((e) => e.source === current).map((e) => e.target);
+
+    for (const childId of children) {
+      queue.push(childId);
+      const child = nodeById.get(childId);
+      if (child?.hidden) {
+        result.add(childId);
+      }
+    }
+  }
+
+  return Array.from(result);
+}

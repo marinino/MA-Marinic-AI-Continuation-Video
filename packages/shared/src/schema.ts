@@ -29,6 +29,7 @@ export const ParamNodeDataSchema = z
     promptId: z.string().optional(),
     error: z.string().optional(),
     note: z.string().optional(),
+    isHidden: z.boolean().optional(),
   })
   .passthrough();
 
@@ -38,6 +39,7 @@ export const EditNodeDataSchema = z
     tool: z.string().optional(),
     notes: z.string().optional(),
     note: z.string().optional(),
+    isHidden: z.boolean().optional(),
 
     // optional: strukturierter Platz für Timeline-Import
     timeline: z
@@ -60,6 +62,12 @@ export const EdgeSchema = z.object({
   type: EdgeTypeSchema,
   source: z.string(),
   target: z.string(),
+  data: z
+    .object({
+      isHidden: z.boolean().optional(),
+    })
+    .passthrough()
+    .optional(),
 });
 
 export const StoredMediaFileSchema = z.object({
@@ -68,19 +76,22 @@ export const StoredMediaFileSchema = z.object({
   type: z.string(),
 });
 
-export const ClipNodeDataSchema = z.object({
-  label: z.string(),
-  mediaId: z.string().optional(),
-  durationSec: z.number().optional(),
+export const ClipNodeDataSchema = z
+  .object({
+    label: z.string(),
+    mediaId: z.string().optional(),
+    durationSec: z.number().optional(),
 
-  // ✅ neu: comfy outputs persistieren
-  videoStatus: z.enum(["idle", "generating", "done", "error"]).optional(),
-  videoUrl: z.string().optional(),
-  videoFile: StoredMediaFileSchema.optional(),
+    // ✅ neu: comfy outputs persistieren
+    videoStatus: z.enum(["idle", "generating", "done", "error"]).optional(),
+    videoUrl: z.string().optional(),
+    videoFile: StoredMediaFileSchema.optional(),
 
-  videoOpened: z.boolean().optional(),
-  note: z.string().optional(),
-});
+    videoOpened: z.boolean().optional(),
+    note: z.string().optional(),
+    isHidden: z.boolean().optional(),
+  })
+  .passthrough();
 
 export const NodeSchema = z.discriminatedUnion("type", [
   BaseNodeSchema.extend({ type: z.literal("clip"), data: ClipNodeDataSchema }),
