@@ -54,6 +54,7 @@ export function NodeCard(props: {
   videoStatus?: string;
   prompt?: string;
   metaSummary?: React.ReactNode;
+  highlightUnseenEnabled?: boolean;
 
   highNoiseCfg?: number;
   lowNoiseCfg?: number;
@@ -185,6 +186,7 @@ export function NodeCard(props: {
         onOpen={() => setInfoOpen(true)}
         onAdd={props.onAdd}
         onVideoOpened={props.onVideoOpened}
+        highlightUnseenEnabled={props.highlightUnseenEnabled}
       >
         {props.children}
       </GraphCard>

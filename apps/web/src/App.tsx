@@ -46,6 +46,7 @@ export default function App({
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("New Project");
   const [creating, setCreating] = useState(false);
+  const [highlightUnseenEnabled, setHighlightUnseenEnabled] = useState(true);
 
   const dirtyRef = useRef(false);
   const projectRef = useRef<Project | null>(null);
@@ -247,7 +248,12 @@ export default function App({
 
         <Box sx={{ flexGrow: 1 }}>
           <ReactFlowProvider>
-            <GraphView project={project} onChange={onChange} showEdgeLabels={showEdgeLabels} />
+            <GraphView
+              project={project}
+              onChange={onChange}
+              showEdgeLabels={showEdgeLabels}
+              highlightUnseenEnabled={highlightUnseenEnabled}
+            />
           </ReactFlowProvider>
         </Box>
       </Box>
@@ -257,6 +263,8 @@ export default function App({
         setSettingsOpen={setSettingsOpen}
         showEdgeLabels={showEdgeLabels}
         setShowEdgeLabels={setShowEdgeLabels}
+        highlightUnseenEnabled={highlightUnseenEnabled}
+        setHighlightUnseenEnabled={setHighlightUnseenEnabled}
       />
 
       <InformationDialog open={legendOpen} onClose={() => setLegendOpen(false)} />

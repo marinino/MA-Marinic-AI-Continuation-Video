@@ -90,6 +90,7 @@ export type NodeCardPreviewProps = {
   onVideoOpened?: (nodeId: string) => void;
 
   children?: React.ReactNode;
+  highlightUnseenEnabled?: boolean;
 };
 
 export function GraphCard(props: NodeCardPreviewProps) {
@@ -206,7 +207,7 @@ export function GraphCard(props: NodeCardPreviewProps) {
         minWidth,
         boxShadow: props.selected ? `0 0 0 5px ${props.borderColor}` : undefined,
 
-        ...(props.shouldHighlightUnseen
+        ...(props.highlightUnseenEnabled && props.shouldHighlightUnseen
           ? {
               boxShadow: `0 0 0 4px #ffffff55, 0 0 18px #ffffff55`,
               animation: "pulseGlow 1.6s ease-in-out infinite",

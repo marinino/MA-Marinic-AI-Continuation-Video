@@ -88,6 +88,7 @@ export function GraphView(props: {
   project: Project;
   onChange: (updater: Project | ((prev: Project) => Project)) => void;
   showEdgeLabels: boolean;
+  highlightUnseenEnabled: boolean;
 }) {
   // ---------- reactflow instance ----------
   const rf = useReactFlow();
@@ -562,6 +563,7 @@ export function GraphView(props: {
       const injectedCommon = {
         ...baseData,
         videoOpened: Boolean(baseData?.videoOpened),
+        highlightUnseenEnabled: props.highlightUnseenEnabled,
         onSaveNote: saveNodeNote,
         markVideoOpened,
         onDelete: handleDeleteNode,
@@ -693,6 +695,7 @@ export function GraphView(props: {
     saveNodeNote,
     handleDeleteNode,
     handleHideNode,
+    props.highlightUnseenEnabled,
   ]);
 
   // ---------- Root create ----------

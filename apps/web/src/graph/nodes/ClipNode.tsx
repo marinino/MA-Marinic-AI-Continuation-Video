@@ -39,6 +39,7 @@ export function ClipNode(props: NodeProps<any>) {
         canDelete={!props.data?.isRoot}
         onHide={(props.data as any)?.onHide}
         canHide={!props.data?.isRoot}
+        highlightUnseenEnabled={props.data.highlightUnseenEnabled}
       ></NodeCard>
     </div>
   );

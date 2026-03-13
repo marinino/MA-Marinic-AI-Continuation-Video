@@ -21,6 +21,7 @@ export function ParamNode(props: NodeProps<any>) {
         lowNoiseCfg={props.data?.lowNoiseCfg}
         highNoiseModelStrength={props.data?.highNoiseModelStrength}
         lowNoiseModelStrength={props.data?.lowNoiseModelStrength}
+        highlightUnseenEnabled={props.data.highlightUnseenEnabled}
         highNoiseShift={props.data?.highNoiseShift}
         lowNoiseShift={props.data?.lowNoiseShift}
         highNoiseSteps={props.data?.highNoiseSteps}

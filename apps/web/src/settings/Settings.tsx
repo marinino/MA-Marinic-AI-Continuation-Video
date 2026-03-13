@@ -14,6 +14,8 @@ type SettingsProps = {
   setSettingsOpen: (open: boolean) => void;
   showEdgeLabels: boolean;
   setShowEdgeLabels: (value: boolean) => void;
+  highlightUnseenEnabled: boolean;
+  setHighlightUnseenEnabled: (value: boolean) => void;
 };
 
 export function Settings({
@@ -21,6 +23,8 @@ export function Settings({
   setSettingsOpen,
   showEdgeLabels,
   setShowEdgeLabels,
+  highlightUnseenEnabled,
+  setHighlightUnseenEnabled,
 }: SettingsProps) {
   return (
     <Dialog
@@ -45,6 +49,16 @@ export function Settings({
             />
           }
           label="Show Edge Labels"
+        />
+
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={highlightUnseenEnabled}
+              onChange={(e) => setHighlightUnseenEnabled(e.target.checked)}
+            />
+          }
+          label="Highlight unseen nodes"
         />
       </DialogContent>
 
