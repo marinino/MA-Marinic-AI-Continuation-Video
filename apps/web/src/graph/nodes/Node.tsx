@@ -185,7 +185,9 @@ export function NodeCard(props: {
         onOpen={() => setInfoOpen(true)}
         onAdd={props.onAdd}
         onVideoOpened={props.onVideoOpened}
-      />
+      >
+        {props.children}
+      </GraphCard>
 
       {/* Info Popup */}
       <NodeDetailsDialog

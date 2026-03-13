@@ -39,9 +39,7 @@ export function ClipNode(props: NodeProps<any>) {
         canDelete={!props.data?.isRoot}
         onHide={(props.data as any)?.onHide}
         canHide={!props.data?.isRoot}
-      >
-        <Typography variant="body2">{props.data?.label}</Typography>
-      </NodeCard>
+      ></NodeCard>
     </div>
   );
 }

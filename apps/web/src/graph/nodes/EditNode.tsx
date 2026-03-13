@@ -30,10 +30,14 @@ export function EditNode(props: NodeProps<any>) {
   ): boolean {
     switch (kind) {
       case "clip_added":
-        return summaryLines.some((line) => line.startsWith("Added ") && line.includes("frames"));
+        return summaryLines.some(
+          (line) => line.startsWith("Added ") && line.endsWith("frames to video")
+        );
 
       case "clip_removed":
-        return summaryLines.some((line) => line.startsWith("Cut "));
+        return summaryLines.some(
+          (line) => line.startsWith("Cut ") && line.endsWith("frames from video")
+        );
 
       case "effect_added":
         return summaryLines.some((line) => line.startsWith("Added effect"));
@@ -127,7 +131,6 @@ export function EditNode(props: NodeProps<any>) {
         onHide={(props.data as any)?.onHide}
         canHide={!props.data?.isRoot}
       >
-        <Typography variant="body2">{props.data?.label}</Typography>
         <Stack gap={1} mt={1}>
           {checkInSummary("clip_added", summaryLines) && <Chip label="Added clip" />}
 

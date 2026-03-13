@@ -41,9 +41,7 @@ export function ParamNode(props: NodeProps<any>) {
         onHide={(props.data as any)?.onHide}
         canHide={!props.data?.isRoot}
         branchSuggestion={props.data?.branchSuggestion}
-      >
-        <Typography variant="body2">{props.data?.label}</Typography>
-      </NodeCard>
+      ></NodeCard>
     </div>
   );
 }

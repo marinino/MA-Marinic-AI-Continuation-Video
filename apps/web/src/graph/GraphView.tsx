@@ -344,6 +344,7 @@ export function GraphView(props: {
   const davinci = useDavinciTimeline({
     project: props.project,
     clickedClipFilename,
+    manualEditDraft,
   });
 
   // helper (z.B. in GraphView oder in einer kleinen utils-Datei)

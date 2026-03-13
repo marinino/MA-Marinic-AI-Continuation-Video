@@ -18,14 +18,16 @@ export function parsedChangelogLines(
   let removedFrames = 0;
   const newEffectsByName = new Map<string, number>();
 
-  changelog.forEach((e) => {
+  const normalized = cancelOutClipReadds(changelog);
+
+  normalized.forEach((e) => {
     if (e.type === "clip_added") {
-      if (e.clip.kind === "clip") {
+      if (e.clip?.kind === "clip") {
         addedFrames += e.clip.duration ?? 0;
         detailLines.push(`+ Clip "${e.clip.name ?? "Unnamed"}" (${e.clip.duration ?? 0} frames)`);
       }
 
-      if (e.clip.kind === "effect") {
+      if (e.clip?.kind === "effect") {
         const key = effectKey(e);
         const name = e.clip.name ?? "Unnamed effect";
         const frames = e.clip.duration ?? 0;
@@ -40,16 +42,18 @@ export function parsedChangelogLines(
       }
     }
 
-    if (e.type === "clip_removed" && e.clip.kind === "clip") {
+    if (e.type === "clip_removed" && e.clip?.kind === "clip") {
       removedFrames += e.clip.duration ?? 0;
       detailLines.push(`- Clip "${e.clip.name ?? "Unnamed"}" (${e.clip.duration ?? 0} frames)`);
     }
   });
 
-  if (removedFrames > 0) {
-    summaryLines.push(`Cut ${removedFrames - addedFrames} frames from video`);
-  } else if (addedFrames > 0) {
-    summaryLines.push(`Added ${addedFrames} frames to video`);
+  const netFrames = addedFrames - removedFrames;
+
+  if (netFrames < 0) {
+    summaryLines.push(`Cut ${Math.abs(netFrames)} frames from video`);
+  } else if (netFrames > 0) {
+    summaryLines.push(`Added ${netFrames} frames to video`);
   }
 
   newEffectsByName.forEach((frames, name) => {
@@ -64,11 +68,72 @@ export function parsedChangelogLines(
 }
 
 function effectKey(e: any): string {
-  // passe die Felder an deine Daten an (lane/offset/start/ref)
   const name = e.clip?.name ?? "Unnamed effect";
   const lane = e.clip?.lane ?? "";
   const offset = e.clip?.offset ?? "";
   const start = e.clip?.start ?? "";
-  // duration NICHT unbedingt reinnehmen, weil sich die beim Trim ändert
   return `${name}::lane=${lane}::offset=${offset}::start=${start}`;
+}
+
+function clipKey(e: any): string | null {
+  if (e?.clip?.kind !== "clip") return null;
+
+  const name = e.clip?.name ?? "";
+  const frames = e.clip?.duration ?? "";
+  return `${name}__${frames}`;
+}
+
+function cancelOutClipReadds(entries: any[]) {
+  const added = new Map<string, number>();
+  const removed = new Map<string, number>();
+
+  for (const e of entries) {
+    const key = clipKey(e);
+    if (!key) continue;
+
+    if (e.type === "clip_added") {
+      added.set(key, (added.get(key) ?? 0) + 1);
+    }
+
+    if (e.type === "clip_removed") {
+      removed.set(key, (removed.get(key) ?? 0) + 1);
+    }
+  }
+
+  const cancelCounts = new Map<string, number>();
+  for (const [key, addCount] of added.entries()) {
+    const remCount = removed.get(key) ?? 0;
+    cancelCounts.set(key, Math.min(addCount, remCount));
+  }
+
+  const usedAdded = new Map<string, number>();
+  const usedRemoved = new Map<string, number>();
+
+  return entries.filter((e) => {
+    const key = clipKey(e);
+    if (!key) return true;
+
+    const maxCancel = cancelCounts.get(key) ?? 0;
+    if (maxCancel === 0) return true;
+
+    if (e.type === "clip_added") {
+      const current = usedAdded.get(key) ?? 0;
+      if (current < maxCancel) {
+        usedAdded.set(key, current + 1);
+        return false;
+      }
+      return true;
+    }
+
+    if (e.type === "clip_removed") {
+      const current = usedRemoved.get(key) ?? 0;
+      if (current < maxCancel) {
+        usedRemoved.set(key, current + 1);
+        return false;
+      }
+      return true;
+    }
+
+    return true;
+  });
 }

@@ -1,16 +1,50 @@
-import { useCallback, useState } from "react";
-import type { Project } from "@ma/shared";
-
+import { useState, useCallback } from "react";
+import { Project } from "@ma/shared";
+import { openTimelineInResolve } from "../../api";
+import {
+  getBaselineStoredTimelineFilenameForClip,
+  getCurrentEditId,
+} from "../graph_helpers/selectors";
 import { timelineUrl } from "../graph_helpers/urls";
-import { getCurrentEditId } from "../graph_helpers/selectors";
-import { openTimelineInResolve } from "../../api"; // <-- pfad ggf. anpassen
 
-export function useDavinciTimeline(args: { project: Project; clickedClipFilename: string | null }) {
-  const { project, clickedClipFilename } = args;
+type ManualEditDraft = {
+  fromClipId: string;
+  expectedBasename: string;
+};
+
+export function useDavinciTimeline(args: {
+  project: Project;
+  clickedClipFilename: string | null;
+  manualEditDraft: ManualEditDraft | null;
+}) {
+  const { project, clickedClipFilename, manualEditDraft } = args;
 
   const [errorDialog, setErrorDialog] = useState<{ title: string; message: string } | null>(null);
 
   function requireTimelineFromContext(): { stored: string; url: string } | null {
+    // 1) Für laufenden Manual-Edit immer Draft-Kontext bevorzugen
+    if (manualEditDraft) {
+      const stored = getBaselineStoredTimelineFilenameForClip(project, manualEditDraft.fromClipId);
+
+      if (!stored) {
+        const lines = [
+          "No baseline timeline was found for this manual edit.",
+          "",
+          "Use the clip file manually as highlighted in the file explorer:",
+          `- ${clickedClipFilename ?? "(unknown upload name)"}`,
+          "",
+          "Tip: Use the highlighted file, create/export a timeline in DaVinci Resolve, then upload it in the next dialog.",
+        ].filter(Boolean);
+
+        setErrorDialog({ title: "No timeline found", message: lines.join("\n") });
+        return null;
+      }
+
+      const url = `${window.location.origin}${timelineUrl(project.id, stored)}`;
+      return { stored, url };
+    }
+
+    // 2) Fallback: altes Verhalten über selected node
     const editId = getCurrentEditId(project);
 
     if (!editId) {
@@ -57,14 +91,14 @@ export function useDavinciTimeline(args: { project: Project; clickedClipFilename
     } catch {
       window.prompt("Copy this URL:", ctx.url);
     }
-  }, [project.id, clickedClipFilename]);
+  }, [project, clickedClipFilename, manualEditDraft]);
 
   const downloadTimelineFile = useCallback(() => {
     const ctx = requireTimelineFromContext();
     if (!ctx) return;
 
     window.open(timelineUrl(project.id, ctx.stored), "_blank", "noopener,noreferrer");
-  }, [project.id, clickedClipFilename]);
+  }, [project, clickedClipFilename, manualEditDraft]);
 
   const openTimelineFileInDavinciBackend = useCallback(async () => {
     const ctx = requireTimelineFromContext();
@@ -83,14 +117,11 @@ export function useDavinciTimeline(args: { project: Project; clickedClipFilename
         message: "Could not open timeline in Resolve",
       });
     }
-  }, [project.id, clickedClipFilename]);
+  }, [project, clickedClipFilename, manualEditDraft]);
 
   return {
-    // dialog
     errorDialog,
     setErrorDialog,
-
-    // core
     requireTimelineFromContext,
     copyTimelineFileURL,
     downloadTimelineFile,

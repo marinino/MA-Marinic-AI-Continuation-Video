@@ -3,7 +3,7 @@ import { loadFormulaWeights } from "../../utils/weightsStorage";
 import { FormulaWeights, DEFAULT_FORMULA_WEIGHTS } from "../hooks/useV2VParams";
 import { CatKey } from "../dialogs/ClipDialog";
 
-export function weightsLogic() {
+export function useWeightsLogic() {
   const [weightsOpen, setWeightsOpen] = React.useState(false);
   const [weightsCat, setWeightsCat] = React.useState<CatKey | null>(null);
   const [formulaWeights, setFormulaWeights] = React.useState<FormulaWeights>(() =>
@@ -14,10 +14,12 @@ export function weightsLogic() {
     setWeightsCat(cat);
     setWeightsOpen(true);
   }
+
   function closeWeights() {
     setWeightsOpen(false);
     setWeightsCat(null);
   }
+
   function resetWeights() {
     setFormulaWeights(DEFAULT_FORMULA_WEIGHTS);
   }

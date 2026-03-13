@@ -56,13 +56,12 @@ import { TriangleAxesDialog } from "./TriangleAxesDialog";
 import { PressableSlider } from "../components/PressableSlider";
 import { ReadonlySlider } from "../components/ReadOnlySlider";
 import { SafeRangeBar } from "../components/SafeRangeBar";
-import { clipDialogLogic } from "../graph_helpers/clipDialogLogic";
+import { useClipDialogLogic } from "../graph_helpers/clipDialogLogic";
 import { customSliderLogic } from "../graph_helpers/customSliderLogic";
 import { pentagonLogic } from "../graph_helpers/pentagonLogic";
 import { sliderLogic } from "../graph_helpers/sliderLogict";
 import { trinagleLogic } from "../graph_helpers/triangleLogic";
-import { weightsLogic } from "../graph_helpers/weightsLogic";
-
+import { useWeightsLogic } from "../graph_helpers/weightsLogic";
 
 export type V2VTab = "simple" | "advanced";
 type CatView = "sliders" | "pentagon" | "triangle";
@@ -149,73 +148,67 @@ type AxisId = keyof CategoryScores | string; // "creativity" | ... | "custom:...
 
 /* ========= UI helpers ========= */
 
-
-
 export function ClipDialog(p: ClipDialogProps) {
   const [catView, setCatView] = React.useState<CatView>("sliders");
 
   const {
-  customSliders,
-  editOpen,
-  editId,
-  editName,
-  editW,
-  setEditName,
-  setEditW,
-  newOpen,
-  draftName,
-  draftW,
-  setNewOpen,
-  setDraftName,
-  setDraftW,
-  deleteCustom,
-  openCustomEdit,
-  closeCustomEdit,
-  saveCustomEdit,
-  createCustomSlider,
-} = customSliderLogic();
+    customSliders,
+    editOpen,
+    editId,
+    editName,
+    editW,
+    setEditName,
+    setEditW,
+    newOpen,
+    draftName,
+    draftW,
+    setNewOpen,
+    setDraftName,
+    setDraftW,
+    deleteCustom,
+    openCustomEdit,
+    closeCustomEdit,
+    saveCustomEdit,
+    createCustomSlider,
+  } = customSliderLogic();
 
-const {
-  activeEffects,
-  setActiveEffects,
-  activeSimple,
-  setActiveSimple,
-  axisLabel,
-  axisValue,
-  catInfluenceSx,
-  clampToCfg,
-  computeAllScores,
-  computeScoresFromReal,
-} = clipDialogLogic();
+  const {
+    activeSimple,
+    setActiveSimple,
+    axisLabel,
+    axisValue,
+    catInfluenceSx,
+    clampToCfg,
+    computeAllScores,
+    computeScoresFromReal,
+    setActiveEffects,
+    activeEffects,
+  } = useClipDialogLogic();
 
+  const { beginDrag, computeEffectsFor, endDrag, marksFor, toSafeKey } = sliderLogic();
 
+  const {
+    DEFAULT_TRIANGLE_AXIS_IDS,
+    TRIANGLE_AXIS_STORAGE_KEY,
+    triangleAxes,
+    triangleAxesOpen,
+    setTriangleAxes,
+    setTriangleAxesOpen,
+    loadTriangleAxes,
+  } = trinagleLogic();
 
-const { beginDrag, computeEffectsFor, endDrag, marksFor, toSafeKey } = sliderLogic();
-
-const {
-  DEFAULT_TRIANGLE_AXIS_IDS,
-  TRIANGLE_AXIS_STORAGE_KEY,
-  triangleAxes,
-  triangleAxesOpen,
-  setTriangleAxes,
-  setTriangleAxesOpen,
-  loadTriangleAxes,
-} = trinagleLogic();
-
-const {
-  weightsOpen,
-  weightsCat,
-  formulaWeights,
-  setFormulaWeights,
-  setWeightsCat,
-  setWeightsOpen,
-  openWeights,
-  closeWeights,
-  resetWeights,
-  patchFormulaWeights,
-} = weightsLogic();
-
-
+  const {
+    weightsOpen,
+    weightsCat,
+    formulaWeights,
+    setFormulaWeights,
+    setWeightsCat,
+    setWeightsOpen,
+    openWeights,
+    closeWeights,
+    resetWeights,
+    patchFormulaWeights,
+  } = useWeightsLogic();
 
   const activeValue = activeSimple ? (p.simple[activeSimple] as number) : null;
 
@@ -330,17 +323,18 @@ const {
   const cfg = p.sliderCfg;
 
   const handleBeginDrag = React.useCallback(
-  (key: SimpleSliderKey) => {
-    beginDrag(key, p);
-  },
-  [beginDrag, p]
-);
+    (key: SimpleSliderKey) => {
+      beginDrag(key, p);
+    },
+    [beginDrag, p]
+  );
 
-const handleEndDrag = React.useCallback(() => {
-  endDrag();
-}, [endDrag]);
+  const handleEndDrag = React.useCallback(() => {
+    endDrag();
+  }, [endDrag]);
 
-const {    DEFAULT_PENTAGON_AXIS_IDS,
+  const {
+    DEFAULT_PENTAGON_AXIS_IDS,
     PENTAGON_AXIS_STORAGE_KEY,
     loadPentagonAxes,
     availableAxisIds,
@@ -348,7 +342,8 @@ const {    DEFAULT_PENTAGON_AXIS_IDS,
     pentagonAxes,
     pentagonAxesOpen,
     setPentagonAxes,
-    setPentagonAxesOpen,} = pentagonLogic(computed.allScores, customSliders)
+    setPentagonAxesOpen,
+  } = pentagonLogic(computed.allScores, customSliders);
 
   return (
     <>
@@ -634,35 +629,35 @@ const {    DEFAULT_PENTAGON_AXIS_IDS,
                             <ReadonlySlider
                               label="Creativity"
                               value={computed.scores.creativity}
-                              sx={catInfluenceSx("creativity")}
+                              sx={catInfluenceSx("creativity", activeEffects)}
                               onLabelClick={() => openWeights("creativity")}
                             />
 
                             <ReadonlySlider
                               label="Prompt faithfulness"
                               value={computed.scores.promptFaithfulness}
-                              sx={catInfluenceSx("promptFaithfulness")}
+                              sx={catInfluenceSx("promptFaithfulness", activeEffects)}
                               onLabelClick={() => openWeights("promptFaithfulness")}
                             />
 
                             <ReadonlySlider
                               label="Motion"
                               value={computed.scores.motion}
-                              sx={catInfluenceSx("motion")}
+                              sx={catInfluenceSx("motion", activeEffects)}
                               onLabelClick={() => openWeights("motion")}
                             />
 
                             <ReadonlySlider
                               label="Transition Smoothness"
                               value={computed.scores.transitionSmoothness}
-                              sx={catInfluenceSx("transitionSmoothness")}
+                              sx={catInfluenceSx("transitionSmoothness", activeEffects)}
                               onLabelClick={() => openWeights("transitionSmoothness")}
                             />
 
                             <ReadonlySlider
                               label="Video Faithfulness"
                               value={computed.scores.videoFaithfulness}
-                              sx={catInfluenceSx("videoFaithfulness")}
+                              sx={catInfluenceSx("videoFaithfulness", activeEffects)}
                               onLabelClick={() => openWeights("videoFaithfulness")}
                             />
 

@@ -7,34 +7,33 @@ import {
   FormulaWeights,
   getScoreRanges,
 } from "../hooks/useV2VParams";
-import { customSliderLogic } from "./customSliderLogic";
 import { CatKey, ClipDialogProps, SimpleSliderKey } from "../dialogs/ClipDialog";
 import { SimpleReal } from "../hooks/useV2VSliders";
-import { weightsLogic } from "./weightsLogic";
+import { useWeightsLogic } from "./weightsLogic";
 
-const { formulaWeights } = weightsLogic();
+export function useClipDialogLogic() {
+  const { formulaWeights } = useWeightsLogic();
 
-export function clipDialogLogic() {
   const [activeEffects, setActiveEffects] = React.useState<Partial<Record<CatKey, number>> | null>(
     null
   );
 
   const [activeSimple, setActiveSimple] = React.useState<SimpleSliderKey | null>(null);
 
-function axisLabel(id: AxisId, customSliders: CustomScoreSlider[]) {
-  if (id === "creativity") return "Creativity";
-  if (id === "promptFaithfulness") return "Prompt\nFaithfulness";
-  if (id === "motion") return "Motion";
-  if (id === "transitionSmoothness") return "Transition\nSmoothness";
-  if (id === "videoFaithfulness") return "Video\nFaithfulness";
+  function axisLabel(id: AxisId, customSliders: CustomScoreSlider[]) {
+    if (id === "creativity") return "Creativity";
+    if (id === "promptFaithfulness") return "Prompt\nFaithfulness";
+    if (id === "motion") return "Motion";
+    if (id === "transitionSmoothness") return "Transition\nSmoothness";
+    if (id === "videoFaithfulness") return "Video\nFaithfulness";
 
-  const cs = customSliders.find((x) => x.id === id);
-  return cs?.name ?? String(id);
-}
+    const cs = customSliders.find((x) => x.id === id);
+    return cs?.name ?? String(id);
+  }
 
-function axisValue(id: AxisId, allScores: Record<string, number>) {
-  return allScores[String(id)] ?? 0;
-}
+  function axisValue(id: AxisId, allScores: Record<string, number>) {
+    return allScores[String(id)] ?? 0;
+  }
 
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -87,7 +86,6 @@ function axisValue(id: AxisId, allScores: Record<string, number>) {
       1
     );
 
-    // ✅ built-ins (deine vorhandene Funktion)
     const builtIn = computeCategoryScoresFromSimple(
       {
         totalSteps: s.totalSteps,
@@ -102,7 +100,6 @@ function axisValue(id: AxisId, allScores: Record<string, number>) {
 
     const out: Record<string, number> = { ...builtIn };
 
-    // ✅ custom sliders
     for (const cs of custom) {
       const w = cs.w;
       const raw =
@@ -125,15 +122,17 @@ function axisValue(id: AxisId, allScores: Record<string, number>) {
     return out;
   }
 
-  function catInfluenceSx(cat: CatKey) {
+  function catInfluenceSx(
+    cat: CatKey,
+    activeEffects: Partial<Record<keyof CategoryScores, number>> | null
+  ) {
     if (!activeSimple || !activeEffects) return {};
 
     const d = activeEffects[cat] ?? 0;
-
-    // threshold: tiny numerical noise ignorieren
     const dead = 0.02;
-    const maxD = 0.5; // sehr sensibel: "0.5 score-points pro slider unit" ist schon stark
+    const maxD = 0.5;
     const gamma = 0.7;
+
     if (Math.abs(d) < dead) {
       return {
         opacity: 0.25,
@@ -144,12 +143,8 @@ function axisValue(id: AxisId, allScores: Record<string, number>) {
     }
 
     const color = d > 0 ? "#4dabf5" : "#f73378";
-
-    // Intensität: clamp + gamma für deutliche Abstufungen
-
     const t = Math.min(1, Math.abs(d) / maxD);
     const mag = Math.pow(t, gamma);
-
     const trackOpacity = 0.15 + 0.85 * mag;
 
     return {
@@ -159,8 +154,6 @@ function axisValue(id: AxisId, allScores: Record<string, number>) {
       "& .MuiSlider-rail": { opacity: 0.06 + 0.2 * mag },
     };
   }
-
-
 
   function computeScoresFromReal(s: SimpleReal, p: ClipDialogProps): CategoryScores {
     const scoreRanges = getScoreRanges(p.simpleSpeedMode);
@@ -184,8 +177,6 @@ function axisValue(id: AxisId, allScores: Record<string, number>) {
   }
 
   return {
-    activeEffects,
-    setActiveEffects,
     activeSimple,
     setActiveSimple,
     axisLabel,
@@ -194,5 +185,8 @@ function axisValue(id: AxisId, allScores: Record<string, number>) {
     clampToCfg,
     computeAllScores,
     computeScoresFromReal,
+    formulaWeights,
+    activeEffects,
+    setActiveEffects,
   };
 }

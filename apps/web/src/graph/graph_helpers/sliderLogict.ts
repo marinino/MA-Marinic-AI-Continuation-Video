@@ -1,10 +1,11 @@
 import { CatKey, ClipDialogProps, Mark, SimpleSliderKey } from "../dialogs/ClipDialog";
 import { SimpleReal, SafeKey } from "../hooks/useV2VSliders";
-import { clipDialogLogic } from "./clipDialogLogic";
-
-const { computeScoresFromReal, clampToCfg, setActiveSimple, setActiveEffects } = clipDialogLogic();
+import { useClipDialogLogic } from "./clipDialogLogic";
 
 export function sliderLogic() {
+  const { computeScoresFromReal, clampToCfg, setActiveSimple, setActiveEffects } =
+    useClipDialogLogic();
+
   function computeEffectsFor(
     key: keyof SimpleReal,
     p: ClipDialogProps
