@@ -91,6 +91,7 @@ export type NodeCardPreviewProps = {
 
   children?: React.ReactNode;
   highlightUnseenEnabled?: boolean;
+  notesEnabled: boolean;
 };
 
 export function GraphCard(props: NodeCardPreviewProps) {
@@ -312,7 +313,7 @@ export function GraphCard(props: NodeCardPreviewProps) {
               </Box>
             )}
 
-            {hasNote && (
+            {props.notesEnabled && hasNote && (
               <Box sx={{ mt: summaryChips.length > 0 ? 0.75 : 1 }}>
                 <Chip
                   size="small"

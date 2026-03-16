@@ -47,6 +47,7 @@ export default function App({
   const [newProjectName, setNewProjectName] = useState("New Project");
   const [creating, setCreating] = useState(false);
   const [highlightUnseenEnabled, setHighlightUnseenEnabled] = useState(true);
+  const [notesEnabled, setNotesEnabled] = useState(true);
 
   const dirtyRef = useRef(false);
   const projectRef = useRef<Project | null>(null);
@@ -253,6 +254,7 @@ export default function App({
               onChange={onChange}
               showEdgeLabels={showEdgeLabels}
               highlightUnseenEnabled={highlightUnseenEnabled}
+              notesEnabled={notesEnabled}
             />
           </ReactFlowProvider>
         </Box>
@@ -265,6 +267,8 @@ export default function App({
         setShowEdgeLabels={setShowEdgeLabels}
         highlightUnseenEnabled={highlightUnseenEnabled}
         setHighlightUnseenEnabled={setHighlightUnseenEnabled}
+        notesEnabled={notesEnabled}
+        setNotesEnabled={setNotesEnabled}
       />
 
       <InformationDialog open={legendOpen} onClose={() => setLegendOpen(false)} />

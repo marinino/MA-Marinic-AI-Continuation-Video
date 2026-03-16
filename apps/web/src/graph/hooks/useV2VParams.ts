@@ -29,6 +29,7 @@ export const DEFAULT_FORMULA_WEIGHTS: FormulaWeights = {
 export type CustomScoreSlider = {
   id: string;
   name: string;
+  hidden?: boolean;
 
   // lineare Formel auf Basis deiner normalisierten features:
   // steps01, ratio01, shift01, cfg01, strength01 und inverses sowie bias
@@ -293,4 +294,134 @@ export function useCategoryScores(
       ranges.strength.max,
     ]
   );
+}
+
+export function computeAllScores(
+  s: {
+    totalSteps: number;
+    stepRatio: number;
+    highShift: number;
+    highCfg: number;
+    highStrength: number;
+  },
+  ranges: {
+    steps: { min: number; max: number };
+    ratio: { min: number; max: number };
+    shift: { min: number; max: number };
+    cfg: { min: number; max: number };
+    strength: { min: number; max: number };
+  },
+  formulaWeights: FormulaWeights,
+  custom: CustomScoreSlider[]
+): Record<string, number> {
+  const steps01 = clamp(
+    (s.totalSteps - ranges.steps.min) / Math.max(1e-6, ranges.steps.max - ranges.steps.min),
+    0,
+    1
+  );
+
+  const ratio01 = clamp(
+    (s.stepRatio - ranges.ratio.min) / Math.max(1e-6, ranges.ratio.max - ranges.ratio.min),
+    0,
+    1
+  );
+
+  const shift01 = clamp(
+    (s.highShift - ranges.shift.min) / Math.max(1e-6, ranges.shift.max - ranges.shift.min),
+    0,
+    1
+  );
+
+  const cfg01 = clamp(
+    (s.highCfg - ranges.cfg.min) / Math.max(1e-6, ranges.cfg.max - ranges.cfg.min),
+    0,
+    1
+  );
+
+  const strength01 = clamp(
+    (s.highStrength - ranges.strength.min) /
+      Math.max(1e-6, ranges.strength.max - ranges.strength.min),
+    0,
+    1
+  );
+
+  const builtIn = computeCategoryScoresFromSimple(
+    {
+      totalSteps: s.totalSteps,
+      stepRatio: s.stepRatio,
+      highShift: s.highShift,
+      highCfg: s.highCfg,
+      highStrength: s.highStrength,
+    },
+    ranges,
+    formulaWeights
+  );
+
+  const out: Record<string, number> = { ...builtIn };
+
+  for (const cs of custom) {
+    const w = cs.w;
+    const raw =
+      w.steps * steps01 +
+      w.ratio * ratio01 +
+      w.shift * shift01 +
+      w.cfg * cfg01 +
+      w.strength * strength01 +
+      w.invSteps * (1 - steps01) +
+      w.invRatio * (1 - ratio01) +
+      w.invShift * (1 - shift01) +
+      w.invCfg * (1 - cfg01) +
+      w.invStrength * (1 - strength01) +
+      w.bias;
+
+    const score01 = clamp(raw, 0, 1);
+    out[cs.id] = Math.round(score01 * 100);
+  }
+
+  return out;
+}
+
+export function buildScoreDeltaMap(
+  curScores: Record<string, number | null | undefined>,
+  prevScores: Record<string, number | null | undefined>
+) {
+  const keys = Array.from(new Set([...Object.keys(curScores), ...Object.keys(prevScores)]));
+
+  return Object.fromEntries(keys.map((key) => [key, scoreDelta(curScores, prevScores, key)]));
+}
+
+export function numDelta(cur: any, prev: any, key: string) {
+  const a = cur?.[key];
+  const b = prev?.[key];
+  if (typeof a !== "number" || typeof b !== "number") return null;
+  const d = a - b;
+  return Number.isFinite(d) ? d : null;
+}
+
+export function scoreDelta(curScores: any, prevScores: any, key: string) {
+  const a = curScores?.[key];
+  const b = prevScores?.[key];
+  if (typeof a !== "number" || typeof b !== "number") return null;
+  const d = a - b;
+  return Number.isFinite(d) ? d : null;
+}
+
+export const DEFAULT_CATEGORY_IDS = [
+  "creativity",
+  "promptFaithfulness",
+  "motion",
+  "transitionSmoothness",
+  "videoFaithfulness",
+] as const;
+
+export function useCategoryIds(customSliders: CustomScoreSlider[]) {
+  const allCategoryIds = useMemo(
+    () => [...DEFAULT_CATEGORY_IDS, ...customSliders.map((cs) => cs.id)],
+    [customSliders]
+  );
+
+  return {
+    defaultCategoryIds: DEFAULT_CATEGORY_IDS,
+    allCategoryIds,
+  };
 }

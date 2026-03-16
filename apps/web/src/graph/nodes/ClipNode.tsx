@@ -40,6 +40,7 @@ export function ClipNode(props: NodeProps<any>) {
         onHide={(props.data as any)?.onHide}
         canHide={!props.data?.isRoot}
         highlightUnseenEnabled={props.data.highlightUnseenEnabled}
+        notesEnabled={props.data.notesEnabled}
       ></NodeCard>
     </div>
   );

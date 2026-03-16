@@ -9,6 +9,7 @@ import { GraphCard } from "../components/GraphCard";
 import { ClipNode } from "./ClipNode";
 import { ParamNode } from "./ParamNode";
 import { EditNode } from "./EditNode";
+import { customSliderLogic } from "../graph_helpers/customSliderLogic";
 
 function getNodeColors(kind: NodeType, isRoot: boolean) {
   if (isRoot) return { border: "#ff9800", bg: "#FFF8E1" }; // Root Clip
@@ -55,6 +56,7 @@ export function NodeCard(props: {
   prompt?: string;
   metaSummary?: React.ReactNode;
   highlightUnseenEnabled?: boolean;
+  notesEnabled: boolean;
 
   highNoiseCfg?: number;
   lowNoiseCfg?: number;
@@ -71,14 +73,6 @@ export function NodeCard(props: {
 
   videoOpened?: boolean;
   onVideoOpened?: (nodeId: string) => void;
-
-  categoryScores?: {
-    creativity: number;
-    promptFaithfulness: number;
-    motion: number;
-    transitionSmoothness: number;
-    videoFaithfulness: number;
-  };
 
   prevParamsId?: string | null;
   paramDeltas?: Partial<
@@ -98,12 +92,7 @@ export function NodeCard(props: {
       number | null
     >
   > | null;
-  categoryScoreDeltas?: Partial<
-    Record<
-      "creativity" | "promptFaithfulness" | "motion" | "transitionSmoothness" | "videoFaithfulness",
-      number | null
-    >
-  > | null;
+
   promptChanged?: boolean;
   note?: string;
   onSaveNote?: (nodeId: string, note: string) => void;
@@ -142,6 +131,12 @@ export function NodeCard(props: {
     suggestedAction: "increase_param_weight" | "decrease_param_weight";
     message: string;
   } | null;
+  categoryScores?: Record<string, number | null>;
+  categoryScoreDeltas?: Partial<Record<string, number | null>> | null;
+  categoryLabels?: Record<string, string>;
+  categoryVisibility?: Record<string, boolean>;
+  onSetCategoryVisible?: (categoryId: string, visible: boolean) => void;
+  onShowAllCategories?: () => void;
 }) {
   const theme = useTheme();
   const [infoOpen, setInfoOpen] = useState(false);
@@ -187,6 +182,7 @@ export function NodeCard(props: {
         onAdd={props.onAdd}
         onVideoOpened={props.onVideoOpened}
         highlightUnseenEnabled={props.highlightUnseenEnabled}
+        notesEnabled={props.notesEnabled}
       >
         {props.children}
       </GraphCard>
@@ -204,7 +200,6 @@ export function NodeCard(props: {
         prompt={props.prompt}
         prevParamsId={props.prevParamsId}
         d={d}
-        sd={sd}
         highNoiseCfg={props.highNoiseCfg}
         lowNoiseCfg={props.lowNoiseCfg}
         highNoiseModelStrength={props.highNoiseModelStrength}
@@ -217,9 +212,7 @@ export function NodeCard(props: {
         lowNoiseStartStep={props.lowNoiseStartStep}
         highNoiseEndStep={props.highNoiseEndStep}
         lowNoiseEndStep={props.lowNoiseEndStep}
-        categoryScores={props.categoryScores}
         paramDeltas={props.paramDeltas}
-        categoryScoreDeltas={props.categoryScoreDeltas}
         promptChanged={props.promptChanged}
         branchSuggestion={props.branchSuggestion}
         note={props.note}
@@ -228,6 +221,13 @@ export function NodeCard(props: {
         canDelete={props.canDelete}
         onHide={props.onHide}
         canHide={props.canHide}
+        notesEnabled={props.notesEnabled}
+        categoryScores={props.categoryScores}
+        categoryScoreDeltas={props.categoryScoreDeltas}
+        categoryLabels={props.categoryLabels}
+        categoryVisibility={props.categoryVisibility}
+        onSetCategoryVisible={props.onSetCategoryVisible}
+        onShowAllCategories={props.onShowAllCategories}
       />
     </>
   );

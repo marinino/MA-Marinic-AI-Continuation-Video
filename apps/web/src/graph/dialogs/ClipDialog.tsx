@@ -34,6 +34,7 @@ import {
   useV2VSliders,
 } from "../hooks/useV2VSliders";
 import {
+  computeAllScores,
   computeCategoryScoresFromSimple,
   CustomScoreSlider,
   DEFAULT_CUSTOM_W,
@@ -59,7 +60,7 @@ import { SafeRangeBar } from "../components/SafeRangeBar";
 import { useClipDialogLogic } from "../graph_helpers/clipDialogLogic";
 import { customSliderLogic } from "../graph_helpers/customSliderLogic";
 import { pentagonLogic } from "../graph_helpers/pentagonLogic";
-import { sliderLogic } from "../graph_helpers/sliderLogict";
+import { useSliderLogic } from "../graph_helpers/sliderLogict";
 import { trinagleLogic } from "../graph_helpers/triangleLogic";
 import { useWeightsLogic } from "../graph_helpers/weightsLogic";
 
@@ -179,13 +180,12 @@ export function ClipDialog(p: ClipDialogProps) {
     axisValue,
     catInfluenceSx,
     clampToCfg,
-    computeAllScores,
     computeScoresFromReal,
     setActiveEffects,
     activeEffects,
   } = useClipDialogLogic();
 
-  const { beginDrag, computeEffectsFor, endDrag, marksFor, toSafeKey } = sliderLogic();
+  const { beginDrag, computeEffectsFor, endDrag, marksFor, toSafeKey } = useSliderLogic();
 
   const {
     DEFAULT_TRIANGLE_AXIS_IDS,

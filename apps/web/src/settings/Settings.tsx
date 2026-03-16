@@ -16,6 +16,8 @@ type SettingsProps = {
   setShowEdgeLabels: (value: boolean) => void;
   highlightUnseenEnabled: boolean;
   setHighlightUnseenEnabled: (value: boolean) => void;
+  notesEnabled: boolean;
+  setNotesEnabled: (value: boolean) => void;
 };
 
 export function Settings({
@@ -25,6 +27,8 @@ export function Settings({
   setShowEdgeLabels,
   highlightUnseenEnabled,
   setHighlightUnseenEnabled,
+  notesEnabled,
+  setNotesEnabled,
 }: SettingsProps) {
   return (
     <Dialog
@@ -59,6 +63,13 @@ export function Settings({
             />
           }
           label="Highlight unseen nodes"
+        />
+
+        <FormControlLabel
+          control={
+            <Checkbox checked={notesEnabled} onChange={(e) => setNotesEnabled(e.target.checked)} />
+          }
+          label="Show notes for nodes"
         />
       </DialogContent>
 

@@ -6,6 +6,7 @@ import {
 
 const KEY_FORMULA = "ma:v2v:formulaWeights:v1";
 const KEY_CUSTOM = "ma:v2v:customScoreSliders:v1";
+const KEY_CATEGORY_VISIBILITY = "ma:v2v:categoryVisibility:v1";
 
 // ---------------- FormulaWeights ----------------
 
@@ -52,6 +53,28 @@ export function loadCustomSliders(): CustomScoreSlider[] {
 export function saveCustomSliders(sliders: CustomScoreSlider[]) {
   try {
     localStorage.setItem(KEY_CUSTOM, JSON.stringify(sliders));
+  } catch {}
+}
+
+// ---------------- Category Visibility ----------------
+
+export function loadCategoryVisibility(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(KEY_CATEGORY_VISIBILITY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+
+    return Object.fromEntries(Object.entries(parsed).map(([key, value]) => [key, value !== false]));
+  } catch {
+    return {};
+  }
+}
+
+export function saveCategoryVisibility(visibility: Record<string, boolean>) {
+  try {
+    localStorage.setItem(KEY_CATEGORY_VISIBILITY, JSON.stringify(visibility));
   } catch {}
 }
 

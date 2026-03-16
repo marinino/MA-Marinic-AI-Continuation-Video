@@ -2,9 +2,19 @@ import { CatKey, ClipDialogProps, Mark, SimpleSliderKey } from "../dialogs/ClipD
 import { SimpleReal, SafeKey } from "../hooks/useV2VSliders";
 import { useClipDialogLogic } from "./clipDialogLogic";
 
-export function sliderLogic() {
+type CategoryVisibilityMap = Record<string, boolean>;
+
+export function useSliderLogic() {
   const { computeScoresFromReal, clampToCfg, setActiveSimple, setActiveEffects } =
     useClipDialogLogic();
+
+  const DEFAULT_CATEGORY_LABELS: Record<string, string> = {
+    creativity: "Creativity",
+    promptFaithfulness: "Prompt",
+    motion: "Motion",
+    transitionSmoothness: "Transition",
+    videoFaithfulness: "Video",
+  };
 
   function computeEffectsFor(
     key: keyof SimpleReal,
@@ -69,5 +79,5 @@ export function sliderLogic() {
       { value: b.max, label: String(fmt(b.max)) },
     ];
   }
-  return { beginDrag, computeEffectsFor, endDrag, marksFor, toSafeKey };
+  return { beginDrag, computeEffectsFor, endDrag, marksFor, toSafeKey, DEFAULT_CATEGORY_LABELS };
 }

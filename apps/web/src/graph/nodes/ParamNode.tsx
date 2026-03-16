@@ -22,6 +22,7 @@ export function ParamNode(props: NodeProps<any>) {
         highNoiseModelStrength={props.data?.highNoiseModelStrength}
         lowNoiseModelStrength={props.data?.lowNoiseModelStrength}
         highlightUnseenEnabled={props.data.highlightUnseenEnabled}
+        notesEnabled={props.data.notesEnabled}
         highNoiseShift={props.data?.highNoiseShift}
         lowNoiseShift={props.data?.lowNoiseShift}
         highNoiseSteps={props.data?.highNoiseSteps}
@@ -42,6 +43,10 @@ export function ParamNode(props: NodeProps<any>) {
         onHide={(props.data as any)?.onHide}
         canHide={!props.data?.isRoot}
         branchSuggestion={props.data?.branchSuggestion}
+        categoryLabels={props.data.categoryLabels}
+        categoryVisibility={props.data.categoryVisibility}
+        onSetCategoryVisible={props.data.onSetCategoryVisible}
+        onShowAllCategories={props.data.onShowAllCategories}
       ></NodeCard>
     </div>
   );

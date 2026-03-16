@@ -131,6 +131,7 @@ export function EditNode(props: NodeProps<any>) {
         onHide={(props.data as any)?.onHide}
         canHide={!props.data?.isRoot}
         highlightUnseenEnabled={props.data.highlightUnseenEnabled}
+        notesEnabled={props.data.notesEnabled}
       >
         <Stack gap={1} mt={1}>
           {checkInSummary("clip_added", summaryLines) && <Chip label="Added clip" />}

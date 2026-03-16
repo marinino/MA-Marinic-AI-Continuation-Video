@@ -39,6 +39,14 @@ import {
   deriveV2VParamsFromSimple,
   useCategoryScores,
   getScoreRanges,
+  CustomScoreSlider,
+  DEFAULT_FORMULA_WEIGHTS,
+  FormulaWeights,
+  computeAllScores,
+  numDelta,
+  scoreDelta,
+  buildScoreDeltaMap,
+  useCategoryIds,
 } from "./hooks/useV2VParams";
 import { useDavinciTimeline } from "./hooks/useDaVinciTimeline";
 import { useComfyJobs } from "./hooks/useComfyJobs"; // IMPORTANT: needs to call onSuccess(file)!
@@ -77,6 +85,12 @@ import {
   detectParamWeightSuggestion,
 } from "./graph_helpers/branchSuggestions";
 import { HideNodeDialog } from "./dialogs/HideNodeDialog";
+import {
+  loadCategoryVisibility,
+  loadCustomSliders,
+  loadFormulaWeights,
+  saveCategoryVisibility,
+} from "../utils/weightsStorage";
 
 // edgeTypes
 const edgeTypes = { labeled: LabeledEdge };
@@ -89,6 +103,7 @@ export function GraphView(props: {
   onChange: (updater: Project | ((prev: Project) => Project)) => void;
   showEdgeLabels: boolean;
   highlightUnseenEnabled: boolean;
+  notesEnabled: boolean;
 }) {
   // ---------- reactflow instance ----------
   const rf = useReactFlow();
@@ -249,18 +264,72 @@ export function GraphView(props: {
   // simple sliders hook (your preference)
   const v2v = useV2VSliders();
 
+  const [customSliders, setCustomSliders] = useState<CustomScoreSlider[]>([]);
+  const [formulaWeights, setFormulaWeights] = useState<FormulaWeights>(DEFAULT_FORMULA_WEIGHTS);
+  const [categoryVisibility, setCategoryVisibility] = useState<Record<string, boolean>>(() =>
+    loadCategoryVisibility()
+  );
+
+  useEffect(() => {
+    setCustomSliders(loadCustomSliders());
+    setFormulaWeights(loadFormulaWeights());
+  }, []);
+
+  useEffect(() => {
+    saveCategoryVisibility(categoryVisibility);
+  }, [categoryVisibility]);
+
+  const { allCategoryIds } = useCategoryIds(customSliders);
+
+  const categoryLabels = useMemo(
+    () => ({
+      creativity: "Creativity",
+      promptFaithfulness: "Prompt",
+      motion: "Motion",
+      transitionSmoothness: "Transition",
+      videoFaithfulness: "Video",
+      ...Object.fromEntries(customSliders.map((cs) => [cs.id, cs.name])),
+    }),
+    [customSliders]
+  );
+
+  useEffect(() => {
+    setCategoryVisibility((prev) => {
+      const next = { ...prev };
+
+      for (const id of allCategoryIds) {
+        if (!(id in next)) {
+          next[id] = true;
+        }
+      }
+
+      return next;
+    });
+  }, [allCategoryIds]);
+
+  const setCategoryVisible = useCallback((id: string, visible: boolean) => {
+    setCategoryVisibility((prev) => ({
+      ...prev,
+      [id]: visible,
+    }));
+  }, []);
+
   const scoreRanges = getScoreRanges(v2v.simpleSpeedMode);
 
-  const scores = useCategoryScores(
-    {
-      totalSteps: v2v.simple.totalSteps,
-      stepRatio: v2v.simple.stepRatioPct,
-      highShift: v2v.simple.highShift,
-      highCfg: v2v.simple.highCfg,
-      highStrength: v2v.simple.highStrength,
-    },
-    scoreRanges
-  );
+  const allScores = useMemo(() => {
+    return computeAllScores(
+      {
+        totalSteps: v2v.simple.totalSteps,
+        stepRatio: v2v.simple.stepRatioPct,
+        highShift: v2v.simple.highShift,
+        highCfg: v2v.simple.highCfg,
+        highStrength: v2v.simple.highStrength,
+      },
+      scoreRanges,
+      formulaWeights,
+      customSliders
+    );
+  }, [v2v.simple, scoreRanges, formulaWeights, customSliders]);
 
   // ---------- davinci timeline helper ----------
 
@@ -303,6 +372,18 @@ export function GraphView(props: {
     },
     [g.rfNodes, g.rfEdges]
   );
+
+  const showAllCategories = useCallback(() => {
+    setCategoryVisibility((prev) => {
+      const next: Record<string, boolean> = {};
+
+      for (const key of Object.keys(prev)) {
+        next[key] = true;
+      }
+
+      return next;
+    });
+  }, []);
 
   const { finishManualTimelineImport } = useManualTimelineImport({
     project: props.project,
@@ -540,22 +621,6 @@ export function GraphView(props: {
     const nodesById = new Map(nodes.map((n) => [n.id, n]));
     const incoming = buildIncomingMap(edges);
 
-    function numDelta(cur: any, prev: any, key: string) {
-      const a = cur?.[key];
-      const b = prev?.[key];
-      if (typeof a !== "number" || typeof b !== "number") return null;
-      const d = a - b;
-      return Number.isFinite(d) ? d : null;
-    }
-
-    function scoreDelta(curScores: any, prevScores: any, key: string) {
-      const a = curScores?.[key];
-      const b = prevScores?.[key];
-      if (typeof a !== "number" || typeof b !== "number") return null;
-      const d = a - b;
-      return Number.isFinite(d) ? d : null;
-    }
-
     // 1) Erst alle Nodes für UI vorbereiten, aber branchSuggestion noch leer lassen
     const precomputedNodes = nodes.map((n) => {
       const baseData = (n.data as any) ?? {};
@@ -564,10 +629,15 @@ export function GraphView(props: {
         ...baseData,
         videoOpened: Boolean(baseData?.videoOpened),
         highlightUnseenEnabled: props.highlightUnseenEnabled,
+        notesEnabled: props.notesEnabled,
         onSaveNote: saveNodeNote,
         markVideoOpened,
         onDelete: handleDeleteNode,
         onHide: handleHideNode,
+        categoryLabels,
+        categoryVisibility,
+        onSetCategoryVisible: setCategoryVisible,
+        onShowAllCategories: showAllCategories,
         onAdd: (nodeId: string) => {
           g.setClickedNodeId(nodeId);
           props.onChange((prev) => ({
@@ -627,15 +697,7 @@ export function GraphView(props: {
       const prevScores = prevParamsData?.categoryScores;
 
       const categoryScoreDeltas =
-        curScores && prevScores
-          ? {
-              creativity: scoreDelta(curScores, prevScores, "creativity"),
-              promptFaithfulness: scoreDelta(curScores, prevScores, "promptFaithfulness"),
-              motion: scoreDelta(curScores, prevScores, "motion"),
-              transitionSmoothness: scoreDelta(curScores, prevScores, "transitionSmoothness"),
-              videoFaithfulness: scoreDelta(curScores, prevScores, "videoFaithfulness"),
-            }
-          : null;
+        curScores && prevScores ? buildScoreDeltaMap(curScores, prevScores) : null;
 
       return {
         ...n,
@@ -696,6 +758,9 @@ export function GraphView(props: {
     handleDeleteNode,
     handleHideNode,
     props.highlightUnseenEnabled,
+    props.notesEnabled,
+    categoryLabels,
+    categoryVisibility,
   ]);
 
   // ---------- Root create ----------
@@ -1020,7 +1085,9 @@ export function GraphView(props: {
                 mode: "v2v",
                 parentClipId: parentId,
                 ...params,
-                categoryScores: scores,
+                categoryScores: allScores,
+                categoryLabels,
+                categoryVisibility,
               } as any,
               draggable: true,
             };
