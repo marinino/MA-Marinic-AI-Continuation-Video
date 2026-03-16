@@ -18,6 +18,8 @@ type SettingsProps = {
   setHighlightUnseenEnabled: (value: boolean) => void;
   notesEnabled: boolean;
   setNotesEnabled: (value: boolean) => void;
+  setShowWeightSuggestionsEnabled: (value: boolean) => void;
+  showWeightSuggestionsEnabled: boolean;
 };
 
 export function Settings({
@@ -29,6 +31,8 @@ export function Settings({
   setHighlightUnseenEnabled,
   notesEnabled,
   setNotesEnabled,
+  setShowWeightSuggestionsEnabled,
+  showWeightSuggestionsEnabled
 }: SettingsProps) {
   return (
     <Dialog
@@ -70,6 +74,13 @@ export function Settings({
             <Checkbox checked={notesEnabled} onChange={(e) => setNotesEnabled(e.target.checked)} />
           }
           label="Show notes for nodes"
+        />
+
+        <FormControlLabel
+          control={
+            <Checkbox checked={showWeightSuggestionsEnabled} onChange={(e) => setShowWeightSuggestionsEnabled(e.target.checked)} />
+          }
+          label="Show suggestions for category weights"
         />
       </DialogContent>
 

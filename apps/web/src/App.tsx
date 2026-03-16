@@ -48,6 +48,7 @@ export default function App({
   const [creating, setCreating] = useState(false);
   const [highlightUnseenEnabled, setHighlightUnseenEnabled] = useState(true);
   const [notesEnabled, setNotesEnabled] = useState(true);
+  const [showWeightSuggestionsEnabled, setShowWeightSuggestionsEnabled] = useState(true);
 
   const dirtyRef = useRef(false);
   const projectRef = useRef<Project | null>(null);
@@ -269,6 +270,8 @@ export default function App({
         setHighlightUnseenEnabled={setHighlightUnseenEnabled}
         notesEnabled={notesEnabled}
         setNotesEnabled={setNotesEnabled}
+        setShowWeightSuggestionsEnabled={setShowWeightSuggestionsEnabled}
+        showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
       />
 
       <InformationDialog open={legendOpen} onClose={() => setLegendOpen(false)} />

@@ -137,6 +137,7 @@ export function NodeCard(props: {
   categoryVisibility?: Record<string, boolean>;
   onSetCategoryVisible?: (categoryId: string, visible: boolean) => void;
   onShowAllCategories?: () => void;
+  showWeightSuggestionsEnabled: boolean
 }) {
   const theme = useTheme();
   const [infoOpen, setInfoOpen] = useState(false);
@@ -228,6 +229,7 @@ export function NodeCard(props: {
         categoryVisibility={props.categoryVisibility}
         onSetCategoryVisible={props.onSetCategoryVisible}
         onShowAllCategories={props.onShowAllCategories}
+        showWeightSuggestionsEnabled={props.showWeightSuggestionsEnabled}
       />
     </>
   );

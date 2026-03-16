@@ -163,6 +163,7 @@ export interface NodeDetailsDialogProps {
   canHide?: boolean;
 
   notesEnabled: boolean;
+  showWeightSuggestionsEnabled: boolean;
   categoryVisibility?: Record<string, boolean>;
   onSetCategoryVisible?: (categoryId: string, visible: boolean) => void;
   onShowAllCategories?: () => void;
@@ -327,7 +328,7 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
                     <Chip key={entry.key} size="small" label={`${entry.label}: ${entry.value}`} />
                   ))}
                 </Stack>
-                {props.branchSuggestion && (
+                {props.showWeightSuggestionsEnabled && props.branchSuggestion && (
                   <>
                     <Typography variant="subtitle2" sx={{ mt: 1.5 }}>
                       Branch pattern detected
