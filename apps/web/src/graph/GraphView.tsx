@@ -104,6 +104,7 @@ export function GraphView(props: {
   showEdgeLabels: boolean;
   highlightUnseenEnabled: boolean;
   notesEnabled: boolean;
+  showWeightSuggestionsEnabled: boolean
 }) {
   // ---------- reactflow instance ----------
   const rf = useReactFlow();
@@ -630,6 +631,7 @@ export function GraphView(props: {
         videoOpened: Boolean(baseData?.videoOpened),
         highlightUnseenEnabled: props.highlightUnseenEnabled,
         notesEnabled: props.notesEnabled,
+        showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
         onSaveNote: saveNodeNote,
         markVideoOpened,
         onDelete: handleDeleteNode,
@@ -759,6 +761,7 @@ export function GraphView(props: {
     handleHideNode,
     props.highlightUnseenEnabled,
     props.notesEnabled,
+    props.showWeightSuggestionsEnabled,
     categoryLabels,
     categoryVisibility,
   ]);

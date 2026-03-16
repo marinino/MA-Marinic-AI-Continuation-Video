@@ -47,6 +47,7 @@ export function ParamNode(props: NodeProps<any>) {
         categoryVisibility={props.data.categoryVisibility}
         onSetCategoryVisible={props.data.onSetCategoryVisible}
         onShowAllCategories={props.data.onShowAllCategories}
+        showWeightSuggestionsEnabled={props.data.showWeightSuggestionsEnabled}
       ></NodeCard>
     </div>
   );

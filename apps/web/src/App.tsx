@@ -256,6 +256,7 @@ export default function App({
               showEdgeLabels={showEdgeLabels}
               highlightUnseenEnabled={highlightUnseenEnabled}
               notesEnabled={notesEnabled}
+              showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
             />
           </ReactFlowProvider>
         </Box>
