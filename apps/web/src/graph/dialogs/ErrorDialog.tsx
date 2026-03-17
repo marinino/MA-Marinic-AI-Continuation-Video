@@ -9,8 +9,6 @@ import {
 } from "@mui/material";
 import { ErrorDialogState } from "../types/ui";
 
-
-
 export type ErrorDialogProps = {
   error: ErrorDialogState;
   onClose: () => void;

@@ -5,8 +5,6 @@ import type { StoredMediaFile } from "@ma/shared";
 import { comfyBuildVideoUrl, comfyFindVideoFromHistory, comfyGetHistory } from "../../../src/api"; // <-- adjust path!
 import { Job } from "../types/ui";
 
-
-
 function pickMediaFile(output: any): StoredMediaFile | null {
   const candidate = output?.images?.[0] ?? output?.videos?.[0] ?? output?.gifs?.[0];
   if (!candidate?.filename) return null;

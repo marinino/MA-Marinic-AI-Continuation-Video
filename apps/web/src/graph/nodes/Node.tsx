@@ -76,7 +76,7 @@ export function NodeCard(props: {
   onVideoOpened?: (nodeId: string) => void;
 
   prevParamsId?: string | null;
-  paramDeltas?: ParamDelats
+  paramDeltas?: ParamDelats;
 
   promptChanged?: boolean;
   note?: string;
@@ -85,7 +85,7 @@ export function NodeCard(props: {
   canDelete?: boolean;
   onHide?: (nodeId: string) => void;
   canHide?: boolean;
-  branchSuggestion?: BrachSuggestion
+  branchSuggestion?: BrachSuggestion;
   categoryScores?: Record<string, number | null>;
   categoryScoreDeltas?: Partial<Record<string, number | null>> | null;
   categoryLabels?: Record<string, string>;

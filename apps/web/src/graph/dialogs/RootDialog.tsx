@@ -14,8 +14,6 @@ import {
 } from "@mui/material";
 import { RootMode } from "../types/ui";
 
-
-
 export type RootDialogProps = {
   open: boolean;
   mode: RootMode;

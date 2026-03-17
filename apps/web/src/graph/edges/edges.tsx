@@ -4,8 +4,6 @@ import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from "reac
 import { useTheme } from "@mui/material/styles";
 import { EdgeKind } from "../types/ui";
 
-
-
 export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
   const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd } =
     props;

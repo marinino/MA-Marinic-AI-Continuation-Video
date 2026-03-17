@@ -25,24 +25,13 @@ import {
 
 // ⬇️ falls dein PentagonMap woanders liegt: Pfad anpassen
 import { PentagonMap } from "../components/PentagonMap";
+import { SAFE_PRESETS, useV2VSliders } from "../hooks/useV2VSliders";
 import {
-  CatView,
-  SAFE_PRESETS,
-  SafeKey,
-  SafePreset,
-  SliderConfig,
-  useV2VSliders,
-  V2VTab,
-} from "../hooks/useV2VSliders";
-import {
-  CategoryScores,
   computeAllScores,
   computeCategoryScoresFromSimple,
-  CustomScoreSlider,
   DEFAULT_CUSTOM_W,
   DEFAULT_FORMULA_WEIGHTS,
   deriveV2VParamsFromSimple,
-  FormulaWeights,
   getScoreRanges,
 } from "../hooks/useV2VParams";
 import { WeightsDialog } from "./WeightsDialog";
@@ -65,9 +54,17 @@ import { pentagonLogic } from "../graph_helpers/pentagonLogic";
 import { useSliderLogic } from "../graph_helpers/sliderLogict";
 import { trinagleLogic } from "../graph_helpers/triangleLogic";
 import { useWeightsLogic } from "../graph_helpers/weightsLogic";
-import { AdvancedParamsState, AxisId, SimpleReal, SimpleSliderKey, SpeedMode } from "../types/ui";
-
-
+import {
+  AdvancedParamsState,
+  AxisId,
+  CatView,
+  SafeKey,
+  SimpleReal,
+  SimpleSliderKey,
+  SliderConfig,
+  SpeedMode,
+  V2VTab,
+} from "../types/ui";
 
 export type ClipDialogProps = {
   open: boolean;
@@ -105,7 +102,7 @@ export type ClipDialogProps = {
   onStart: () => void;
   startDisabled?: boolean;
 
-  simpleSpeedMode: SpeedMode
+  simpleSpeedMode: SpeedMode;
   onSimpleSpeedModeChange: (m: SpeedMode) => void;
   sliderCfg: Record<keyof SimpleReal, SliderConfig>;
 
@@ -113,8 +110,6 @@ export type ClipDialogProps = {
   roundTo: (x: number, decimals: number) => number;
   simulateSliderChange: (prev: SimpleReal, key: SafeKey, raw: number) => SimpleReal;
 };
-
-
 
 /* ========= helpers (wie im mega-file) ========= */
 
@@ -239,7 +234,7 @@ export function ClipDialog(p: ClipDialogProps) {
     const allScores = computeAllScores(
       {
         totalSteps: Math.round(s.totalSteps),
-        stepRatio: s.stepRatioPct,
+        stepRatioPct: s.stepRatioPct,
         highShift: s.highShift,
         highCfg: s.highCfg,
         highStrength: s.highStrength,
@@ -401,9 +396,7 @@ export function ClipDialog(p: ClipDialogProps) {
                   <Stack spacing={2.5}>
                     <Stack spacing={0.5}>
                       <Typography gutterBottom>
-                        <Typography gutterBottom>
-                          Steps total: <b>{p.simple.totalSteps}</b>
-                        </Typography>
+                        Steps total: <b>{p.simple.totalSteps}</b>
                       </Typography>
                       <PressableSlider
                         sliderKey="totalSteps"

@@ -524,7 +524,6 @@ export async function timelineRoutes(app: FastifyInstance) {
       }
     } else {
       // fallback (optional): bisheriges Verhalten
-      console.log("BASELINE NOT FOUND FOR JSON");
       const latestPath = path.join(baseDir, "latest.snapshot.json");
       prev = await readJsonIfExists<TimelineSnapshot>(latestPath);
     }

@@ -8,8 +8,6 @@ import {
 import { timelineUrl } from "../graph_helpers/urls";
 import { ManualEditDraft } from "../types/ui";
 
-
-
 export function useDavinciTimeline(args: {
   project: Project;
   clickedClipFilename: string | null;

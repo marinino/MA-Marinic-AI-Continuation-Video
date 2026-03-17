@@ -3,7 +3,6 @@ import { loadFormulaWeights } from "../../utils/weightsStorage";
 import { FormulaWeights, DEFAULT_FORMULA_WEIGHTS } from "../hooks/useV2VParams";
 import { CatKey } from "../types/ui";
 
-
 export function useWeightsLogic() {
   const [weightsOpen, setWeightsOpen] = React.useState(false);
   const [weightsCat, setWeightsCat] = React.useState<CatKey | null>(null);

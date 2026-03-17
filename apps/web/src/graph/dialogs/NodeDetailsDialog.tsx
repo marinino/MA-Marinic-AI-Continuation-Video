@@ -15,18 +15,20 @@ import {
 } from "@mui/material";
 
 import { useEffect, useState } from "react";
-import { categoryLabel, CategoryScoreMap, paramLabel } from "../graph_helpers/branchSuggestions";
+import { categoryLabel, paramLabel } from "../graph_helpers/branchSuggestions";
 import CloseIcon from "@mui/icons-material/Close";
 import { deltaChipSx, fmt } from "../nodes/Node";
 import { DEFAULT_CATEGORY_LABELS, useSliderLogic } from "../graph_helpers/sliderLogict";
 import { CategoryVisibilityDialog } from "./CategoryVisibilityDialog";
-import { BrachSuggestion, CategoryDeltaMap, CategoryLabelMap, Delta, ParamDelats, SelectedCategory } from "../types/ui";
-
-
-
-
-
-
+import {
+  BrachSuggestion,
+  CategoryDeltaMap,
+  CategoryLabelMap,
+  CategoryScoreMap,
+  Delta,
+  ParamDelats,
+  SelectedCategory,
+} from "../types/ui";
 
 export interface NodeDetailsDialogProps {
   open: boolean;
@@ -35,7 +37,7 @@ export interface NodeDetailsDialogProps {
   nodeId: string;
   type: "clip" | "params" | "edit";
 
-  d: Delta
+  d: Delta;
 
   // video
   videoUrl?: string | null;
@@ -69,12 +71,12 @@ export interface NodeDetailsDialogProps {
   categoryLabels?: CategoryLabelMap;
 
   // deltas
-  paramDeltas?: ParamDelats
+  paramDeltas?: ParamDelats;
 
   promptChanged?: boolean;
 
   // branch suggestion
-  branchSuggestion?: BrachSuggestion
+  branchSuggestion?: BrachSuggestion;
 
   // notes
   note?: string;
@@ -102,8 +104,6 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
     setSelectedCategory(entry);
   }
 
-  console.log(props.categoryVisibility, "vis");
-
   const mergedCategoryLabels = {
     ...DEFAULT_CATEGORY_LABELS,
     ...(props.categoryLabels ?? {}),
@@ -126,7 +126,6 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
     setLocalNote(props.note ?? "");
   }, [props.note, props.open]);
 
-  console.log(categoryEntries);
   return (
     <>
       <Dialog

@@ -1,11 +1,11 @@
 import type { Edge as RFEdge, Node as RFNode } from "reactflow";
-import { StandardCategoryKey, ParamKey, ParamStep, ParamNodeData, ParamWeightSuggestion } from "../types/ui";
-
-
-
-
-
-
+import {
+  StandardCategoryKey,
+  ParamKey,
+  ParamStep,
+  ParamNodeData,
+  ParamWeightSuggestion,
+} from "../types/ui";
 
 const SCORE_KEYS: StandardCategoryKey[] = [
   "creativity",

@@ -36,9 +36,9 @@ export type NodeCardPreviewProps = {
   highNoiseEndStep?: number;
   lowNoiseEndStep?: number;
 
-  paramDeltas?: ParamDelats
+  paramDeltas?: ParamDelats;
 
-  branchSuggestion?: BrachSuggestion
+  branchSuggestion?: BrachSuggestion;
 
   onOpen: () => void;
   onAdd?: (nodeId: string) => void;

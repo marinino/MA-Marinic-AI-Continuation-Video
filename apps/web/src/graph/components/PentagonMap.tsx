@@ -3,7 +3,6 @@ import { Box } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { RadarAxis } from "../types/ui";
 
-
 export function PentagonMap(props: {
   axes: RadarAxis[]; // ✅ MUSS 5 sein
   size?: number;

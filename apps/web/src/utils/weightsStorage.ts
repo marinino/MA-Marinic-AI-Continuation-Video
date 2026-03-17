@@ -1,6 +1,4 @@
-import {
-  DEFAULT_FORMULA_WEIGHTS,
-} from "../graph/hooks/useV2VParams";
+import { DEFAULT_FORMULA_WEIGHTS } from "../graph/hooks/useV2VParams";
 import { AppSettings, CustomScoreSlider, FormulaWeights } from "../graph/types/ui";
 
 const KEY_FORMULA = "ma:v2v:formulaWeights:v1";
@@ -77,8 +75,6 @@ export function saveCategoryVisibility(visibility: Record<string, boolean>) {
     localStorage.setItem(KEY_CATEGORY_VISIBILITY, JSON.stringify(visibility));
   } catch {}
 }
-
-
 
 export const DEFAULT_SETTINGS: AppSettings = {
   showEdgeLabels: true,

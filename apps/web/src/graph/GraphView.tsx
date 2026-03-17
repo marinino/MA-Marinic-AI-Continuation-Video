@@ -39,9 +39,7 @@ import {
   deriveV2VParamsFromSimple,
   useCategoryScores,
   getScoreRanges,
-  CustomScoreSlider,
   DEFAULT_FORMULA_WEIGHTS,
-  FormulaWeights,
   computeAllScores,
   numDelta,
   scoreDelta,
@@ -91,6 +89,7 @@ import {
   loadFormulaWeights,
   saveCategoryVisibility,
 } from "../utils/weightsStorage";
+import { CustomScoreSlider, FormulaWeights } from "./types/ui";
 
 // edgeTypes
 const edgeTypes = { labeled: LabeledEdge };
@@ -321,7 +320,7 @@ export function GraphView(props: {
     return computeAllScores(
       {
         totalSteps: v2v.simple.totalSteps,
-        stepRatio: v2v.simple.stepRatioPct,
+        stepRatioPct: v2v.simple.stepRatioPct,
         highShift: v2v.simple.highShift,
         highCfg: v2v.simple.highCfg,
         highStrength: v2v.simple.highStrength,
@@ -717,15 +716,6 @@ export function GraphView(props: {
 
     // 2) Jetzt Map auf Basis der bereits angereicherten Nodes bauen
     const precomputedById = new Map(precomputedNodes.map((n) => [n.id, n as RFNode]));
-
-    console.log(
-      "nodesWithRootFlag",
-      nodes.map((n: any) => ({
-        id: n.id,
-        type: n.type,
-        isHidden: n.data?.isHidden,
-      }))
-    );
 
     // 3) Jetzt branchSuggestion wirklich berechnen
     return precomputedNodes.map((n) => {

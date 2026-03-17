@@ -12,7 +12,6 @@ export function EditNode(props: NodeProps<any>) {
   const importedAt = timeline?.importedAt;
   const changelog = (timeline?.changelog as any[]) ?? [];
   const prevEffectKeys: string[] = props.data?.prevEffectKeys ?? [];
-  console.log(changelog);
   const { summaryLines, detailLines } = parsedChangelogLines(changelog, prevEffectKeys);
 
   // kleines Summary

@@ -2,8 +2,6 @@ import * as React from "react";
 import { Box, Tooltip } from "@mui/material";
 import { GenState } from "../types/ui";
 
-
-
 export function StatusDot({ state }: { state: GenState }) {
   const color =
     state === "idle" ? "success.main" : state === "running" ? "warning.main" : "error.main";

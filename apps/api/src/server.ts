@@ -70,10 +70,8 @@ app.get("/projects/:id", async (req, reply) => {
 });
 
 app.put("/projects/:id", async (req, reply) => {
-  console.log("RAW BODY", JSON.stringify(req.body, null, 2)); // <- check
   const { id } = req.params as { id: string };
   const incoming = ProjectSchema.parse(req.body);
-  console.log("PARSED", JSON.stringify(incoming, null, 2)); // <- check
   if (incoming.id !== id) return reply.code(400).send({ error: "id_mismatch" });
   await saveProject(incoming);
   return { ok: true };

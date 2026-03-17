@@ -7,7 +7,7 @@ import {
   FormulaWeights,
   getScoreRanges,
 } from "../hooks/useV2VParams";
-import {  ClipDialogProps } from "../dialogs/ClipDialog";
+import { ClipDialogProps } from "../dialogs/ClipDialog";
 
 import { useWeightsLogic } from "./weightsLogic";
 import { AxisId, CatKey, SimpleReal, SimpleSliderKey } from "../types/ui";

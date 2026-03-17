@@ -1,7 +1,4 @@
-import type {
-  Project,
-  StoredMediaFile,
-} from "@ma/shared";
+import type { Project, StoredMediaFile } from "@ma/shared";
 import { ComfyStartVideoInput, ComfyStartVideoResult, ComfyHistory } from "./graph/types/ui";
 
 const API = "/api";

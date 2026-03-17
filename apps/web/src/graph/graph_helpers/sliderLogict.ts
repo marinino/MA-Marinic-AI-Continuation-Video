@@ -1,12 +1,6 @@
-import {
-
-  ClipDialogProps,
-
-} from "../dialogs/ClipDialog";
-import { SafeKey } from "../hooks/useV2VSliders";
-import { SimpleReal, CategoryScores, CatKey, SimpleSliderKey, Mark } from "../types/ui";
+import { ClipDialogProps } from "../dialogs/ClipDialog";
+import { SimpleReal, CategoryScores, CatKey, SimpleSliderKey, Mark, SafeKey } from "../types/ui";
 import { useClipDialogLogic } from "./clipDialogLogic";
-
 
 export const DEFAULT_CATEGORY_LABELS: Record<string, string> = {
   creativity: "Creativity",

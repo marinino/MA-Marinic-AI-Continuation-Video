@@ -1,7 +1,6 @@
 import React from "react";
 import { AxisId } from "../types/ui";
 
-
 export function trinagleLogic() {
   const DEFAULT_TRIANGLE_AXIS_IDS: AxisId[] = ["creativity", "motion", "videoFaithfulness"];
 

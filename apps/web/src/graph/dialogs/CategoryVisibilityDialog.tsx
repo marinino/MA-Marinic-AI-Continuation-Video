@@ -10,8 +10,6 @@ import {
 import { fmt } from "../nodes/Node";
 import { SelectedCategory } from "../types/ui";
 
-
-
 export type CategoryVisibilityDialogProps = {
   open: boolean;
   category: SelectedCategory | null;

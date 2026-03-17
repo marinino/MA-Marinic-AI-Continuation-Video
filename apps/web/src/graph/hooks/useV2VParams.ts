@@ -1,8 +1,11 @@
 import { useMemo } from "react";
-import { CategoryScores, CustomScoreSlider, FormulaWeights, ScoreRanges, SimpleReal } from "../types/ui";
-
-
-
+import {
+  CategoryScores,
+  CustomScoreSlider,
+  FormulaWeights,
+  ScoreRanges,
+  SimpleReal,
+} from "../types/ui";
 
 export const DEFAULT_FORMULA_WEIGHTS: FormulaWeights = {
   promptFaithfulness: { cfg: 0.85, ratio: 0.15 },
@@ -15,8 +18,6 @@ export const DEFAULT_FORMULA_WEIGHTS: FormulaWeights = {
 
   creativity: { shift: 0.45, strength: 0.35, invCfg: 0.2, ratio: -0.25, bias: 0.25 },
 };
-
-
 
 export const DEFAULT_CUSTOM_W: CustomScoreSlider["w"] = {
   steps: 0,
@@ -99,7 +100,6 @@ export function deriveV2VParamsFromSimple(opts: {
  * EXACT mega-file formula and ranges.
  * NOTE: these "scores" are UI-only, but you said nothing should differ.
  */
-
 
 export function getScoreRanges(mode: "quick" | "quality"): ScoreRanges {
   return mode === "quick"

@@ -1,6 +1,5 @@
 // /types/ui.ts
-import {  StoredMediaFile } from "@ma/shared";
-
+import { StoredMediaFile } from "@ma/shared";
 
 /** Generic error dialog payload */
 export type ErrorDialogState = { title: string; message: string } | null;
@@ -79,56 +78,54 @@ export type ComfyHistory = Record<
 >;
 
 export type ParamDelats = Partial<
-    Record<
-      | "highNoiseCfg"
-      | "lowNoiseCfg"
-      | "highNoiseShift"
-      | "lowNoiseShift"
-      | "highNoiseModelStrength"
-      | "lowNoiseModelStrength"
-      | "highNoiseSteps"
-      | "lowNoiseSteps"
-      | "highNoiseStartStep"
-      | "lowNoiseStartStep"
-      | "highNoiseEndStep"
-      | "lowNoiseEndStep",
-      number | null
-    >
-  > | null;
+  Record<
+    | "highNoiseCfg"
+    | "lowNoiseCfg"
+    | "highNoiseShift"
+    | "lowNoiseShift"
+    | "highNoiseModelStrength"
+    | "lowNoiseModelStrength"
+    | "highNoiseSteps"
+    | "lowNoiseSteps"
+    | "highNoiseStartStep"
+    | "lowNoiseStartStep"
+    | "highNoiseEndStep"
+    | "lowNoiseEndStep",
+    number | null
+  >
+> | null;
 
-  export type BrachSuggestion = {
-    targetCategory:
-      | "creativity"
-      | "promptFaithfulness"
-      | "motion"
-      | "transitionSmoothness"
-      | "videoFaithfulness";
-    categoryDirection: "down" | "up";
-    parameter:
-      | "highNoiseCfg"
-      | "lowNoiseCfg"
-      | "highNoiseShift"
-      | "lowNoiseShift"
-      | "highNoiseModelStrength"
-      | "lowNoiseModelStrength"
-      | "highNoiseSteps"
-      | "lowNoiseSteps"
-      | "highNoiseStartStep"
-      | "lowNoiseStartStep"
-      | "highNoiseEndStep"
-      | "lowNoiseEndStep";
-    parameterDirection: "up" | "down";
-    hitCount: number;
-    streakLength: number;
-    avgCategoryDelta: number;
-    avgParamDelta: number;
-    confidence: number;
-    suggestedWeightDeltaPct: number;
-    suggestedAction: "increase_param_weight" | "decrease_param_weight";
-    message: string;
-  } | null;
-
-
+export type BrachSuggestion = {
+  targetCategory:
+    | "creativity"
+    | "promptFaithfulness"
+    | "motion"
+    | "transitionSmoothness"
+    | "videoFaithfulness";
+  categoryDirection: "down" | "up";
+  parameter:
+    | "highNoiseCfg"
+    | "lowNoiseCfg"
+    | "highNoiseShift"
+    | "lowNoiseShift"
+    | "highNoiseModelStrength"
+    | "lowNoiseModelStrength"
+    | "highNoiseSteps"
+    | "lowNoiseSteps"
+    | "highNoiseStartStep"
+    | "lowNoiseStartStep"
+    | "highNoiseEndStep"
+    | "lowNoiseEndStep";
+  parameterDirection: "up" | "down";
+  hitCount: number;
+  streakLength: number;
+  avgCategoryDelta: number;
+  avgParamDelta: number;
+  confidence: number;
+  suggestedWeightDeltaPct: number;
+  suggestedAction: "increase_param_weight" | "decrease_param_weight";
+  message: string;
+} | null;
 
 export type RadarAxis = {
   id: string; // z.B. "creativity" oder "custom:123"
@@ -144,7 +141,6 @@ export type SelectedCategory = {
   value: number | null;
   delta: number | null;
 };
-
 
 export type Mark = { value: number; label?: React.ReactNode };
 
@@ -192,30 +188,30 @@ export type CategoryScoreMap = Partial<Record<AnyCategoryKey, number | null>>;
 export type CategoryDeltaMap = Partial<Record<AnyCategoryKey, number | null>>;
 export type CategoryLabelMap = Partial<Record<AnyCategoryKey, string>>;
 
-export type Delta = | Partial<
-        Record<
-          | "highNoiseCfg"
-          | "lowNoiseCfg"
-          | "highNoiseShift"
-          | "lowNoiseShift"
-          | "highNoiseModelStrength"
-          | "lowNoiseModelStrength"
-          | "highNoiseSteps"
-          | "lowNoiseSteps"
-          | "highNoiseStartStep"
-          | "lowNoiseStartStep"
-          | "highNoiseEndStep"
-          | "lowNoiseEndStep",
-          number | null
-        >
+export type Delta =
+  | Partial<
+      Record<
+        | "highNoiseCfg"
+        | "lowNoiseCfg"
+        | "highNoiseShift"
+        | "lowNoiseShift"
+        | "highNoiseModelStrength"
+        | "lowNoiseModelStrength"
+        | "highNoiseSteps"
+        | "lowNoiseSteps"
+        | "highNoiseStartStep"
+        | "lowNoiseStartStep"
+        | "highNoiseEndStep"
+        | "lowNoiseEndStep",
+        number | null
       >
-    | null
-    | undefined;
+    >
+  | null
+  | undefined;
 
+export type EdgeKind = "input" | "output" | "edit_in" | "edit_out";
 
-    export type EdgeKind = "input" | "output" | "edit_in" | "edit_out";
-
-    export type ParamKey =
+export type ParamKey =
   | "highNoiseCfg"
   | "lowNoiseCfg"
   | "highNoiseShift"
@@ -228,7 +224,6 @@ export type Delta = | Partial<
   | "lowNoiseStartStep"
   | "highNoiseEndStep"
   | "lowNoiseEndStep";
-
 
 export type ParamDeltaMap = Partial<Record<ParamKey, number | null>>;
 
@@ -257,7 +252,6 @@ export type ParamStep = {
   paramDeltas: ParamDeltaMap;
   categoryDeltas: CategoryScoreMap;
 };
-
 
 export type XY = { x: number; y: number };
 
@@ -325,7 +319,6 @@ export type CustomScoreSlider = {
   };
 };
 
-
 export type ScoreRanges = {
   steps: { min: number; max: number };
   ratio: { min: number; max: number };
@@ -333,7 +326,6 @@ export type ScoreRanges = {
   cfg: { min: number; max: number };
   strength: { min: number; max: number };
 };
-
 
 export type SliderConfig = {
   min: number;
@@ -351,11 +343,9 @@ export type SafePreset = {
   strengthHigh: number;
 };
 
-export type SafeKey = "totalSteps" | "stepRatioPct" | "highCfg" | "highShift" | "highStrength";
+export type SafeKey = keyof SimpleReal;
 
 export type MixCandidate = { i: number; j: number; t: number; v: Record<SafeKey, number> };
-
-
 
 export type SafeBounds = Record<SafeKey, { min: number; max: number }>;
 
@@ -365,7 +355,3 @@ export type AppSettings = {
   notesEnabled: boolean;
   showWeightSuggestionsEnabled: boolean;
 };
-
-
-
-

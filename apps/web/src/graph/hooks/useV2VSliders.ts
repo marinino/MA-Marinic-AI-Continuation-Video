@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { SafePreset, SimpleReal, SliderConfig, SafeKey, V2VTab, CatView, MixCandidate, SafeBounds, SpeedMode } from "../types/ui";
-
-
+import {
+  SafePreset,
+  SimpleReal,
+  SliderConfig,
+  SafeKey,
+  V2VTab,
+  CatView,
+  MixCandidate,
+  SafeBounds,
+  SpeedMode,
+} from "../types/ui";
 
 export const SAFE_PRESETS_QUALITY: SafePreset[] = [
   {
