@@ -10,7 +10,7 @@ import { ClipNode } from "./ClipNode";
 import { ParamNode } from "./ParamNode";
 import { EditNode } from "./EditNode";
 import { customSliderLogic } from "../graph_helpers/customSliderLogic";
-import { BrachSuggestion, ParamDelats } from "../types/ui";
+import { BrachSuggestion, GraphCardContentMode, ParamDelats } from "../types/ui";
 
 function getNodeColors(kind: NodeType, isRoot: boolean) {
   if (isRoot) return { border: "#ff9800", bg: "#FFF8E1" }; // Root Clip
@@ -39,6 +39,20 @@ export function deltaChipSx(delta: number | null | undefined) {
     // optional: bisschen stärker sichtbar
     boxShadow: delta > 0 ? "0 0 0 1px rgba(2,136,209,0.15)" : "0 0 0 1px rgba(211,47,47,0.15)",
   } as const;
+}
+
+export function withOptionalDelta(
+  label: string,
+  value: string | number | null | undefined,
+  delta: number | null | undefined,
+  digits = 2
+) {
+  const hasDelta = delta != null;
+  return hasDelta ? `${label}: ${value} ${fmt(delta, digits)}` : `${label}: ${value}`;
+}
+
+export function deltaSxOrNeutral(delta: number | null | undefined) {
+  return delta != null ? deltaChipSx(delta) : {};
 }
 
 export function NodeCard(props: {
@@ -93,6 +107,7 @@ export function NodeCard(props: {
   onSetCategoryVisible?: (categoryId: string, visible: boolean) => void;
   onShowAllCategories?: () => void;
   showWeightSuggestionsEnabled?: boolean;
+  graphCardContentMode: GraphCardContentMode;
 }) {
   const theme = useTheme();
   const [infoOpen, setInfoOpen] = useState(false);
@@ -121,6 +136,7 @@ export function NodeCard(props: {
         bg={bg}
         shouldHighlightUnseen={shouldHighlightUnseen}
         note={props.note}
+        prevParamsId={props.prevParamsId}
         promptChanged={props.promptChanged}
         highNoiseCfg={props.highNoiseCfg}
         lowNoiseCfg={props.lowNoiseCfg}
@@ -140,6 +156,11 @@ export function NodeCard(props: {
         highlightUnseenEnabled={props.highlightUnseenEnabled}
         notesEnabled={props.notesEnabled}
         showWeightSuggestionsEnabled={props.showWeightSuggestionsEnabled ?? true}
+        categoryScores={props.categoryScores}
+        categoryScoreDeltas={props.categoryScoreDeltas}
+        categoryLabels={props.categoryLabels}
+        categoryVisibility={props.categoryVisibility}
+        graphCardContentMode={props.graphCardContentMode}
       >
         {props.children}
       </GraphCard>

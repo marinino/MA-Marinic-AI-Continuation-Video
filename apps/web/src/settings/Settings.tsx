@@ -1,13 +1,17 @@
 import {
+  Box,
   Button,
-  Checkbox,
+  ButtonGroup,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControlLabel,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import { GraphCardContentMode } from "../graph/types/ui";
+import { BooleanToggleRow } from "../graph/components/BooleanToggleRow";
 
 type SettingsProps = {
   settingsOpen: boolean;
@@ -20,6 +24,8 @@ type SettingsProps = {
   setNotesEnabled: (value: boolean) => void;
   setShowWeightSuggestionsEnabled: (value: boolean) => void;
   showWeightSuggestionsEnabled: boolean;
+  graphCardContentMode: GraphCardContentMode;
+  setGraphCardContentMode: (value: GraphCardContentMode) => void;
 };
 
 export function Settings({
@@ -33,12 +39,14 @@ export function Settings({
   setNotesEnabled,
   setShowWeightSuggestionsEnabled,
   showWeightSuggestionsEnabled,
+  graphCardContentMode,
+  setGraphCardContentMode,
 }: SettingsProps) {
   return (
     <Dialog
       open={settingsOpen}
       onClose={() => setSettingsOpen(false)}
-      maxWidth="xs"
+      maxWidth="lg"
       fullWidth
       sx={{ borderRadius: 2 }}
     >
@@ -49,42 +57,82 @@ export function Settings({
           Display
         </Typography>
 
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={showEdgeLabels}
-              onChange={(e) => setShowEdgeLabels(e.target.checked)}
-            />
-          }
-          label="Show Edge Labels"
+        <BooleanToggleRow
+          label="Show edge labels"
+          description="Shows the type of the edge via a label on it"
+          value={showEdgeLabels}
+          onChange={setShowEdgeLabels}
         />
 
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={highlightUnseenEnabled}
-              onChange={(e) => setHighlightUnseenEnabled(e.target.checked)}
-            />
-          }
+        <BooleanToggleRow
           label="Highlight unseen nodes"
+          description="Clip nodes that have not been opened yet are highlighted with a glowing border"
+          value={highlightUnseenEnabled}
+          onChange={setHighlightUnseenEnabled}
         />
 
-        <FormControlLabel
-          control={
-            <Checkbox checked={notesEnabled} onChange={(e) => setNotesEnabled(e.target.checked)} />
-          }
+        <BooleanToggleRow
           label="Show notes for nodes"
+          description="When this in on you can add notes to every node, which are then shown in the graph and in the detailed node view"
+          value={notesEnabled}
+          onChange={setNotesEnabled}
         />
 
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={showWeightSuggestionsEnabled}
-              onChange={(e) => setShowWeightSuggestionsEnabled(e.target.checked)}
-            />
-          }
+        <BooleanToggleRow
           label="Show suggestions for category weights"
+          description="If a certain category value has a trend inside a branch the system makes suggestions to change the weight for this category"
+          value={showWeightSuggestionsEnabled}
+          onChange={setShowWeightSuggestionsEnabled}
         />
+
+        <Box
+          sx={{
+            mt: 1.25,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+          }}
+        >
+          <Box sx={{ display: "flex", flexDirection: "column", maxWidth: "70%" }}>
+            <Typography>Chips on graph cards</Typography>
+
+            <Typography variant="caption" color="text.secondary">
+              This settings changes what type of information is display on the graph nodes
+            </Typography>
+          </Box>
+
+          <ButtonGroup
+            variant="contained"
+            sx={{
+              boxShadow: "none",
+              "& .MuiButton-root:first-of-type": {
+                borderTopLeftRadius: 100,
+                borderBottomLeftRadius: 100,
+              },
+              "& .MuiButton-root:last-of-type": {
+                borderTopRightRadius: 100,
+                borderBottomRightRadius: 100,
+              },
+            }}
+          >
+            <Button
+              disableElevation
+              variant={graphCardContentMode === "parameters" ? "contained" : "outlined"}
+              onClick={() => setGraphCardContentMode("parameters")}
+            >
+              Parameters
+            </Button>
+
+            <Button
+              disableElevation
+              variant={graphCardContentMode === "categories" ? "contained" : "outlined"}
+              onClick={() => setGraphCardContentMode("categories")}
+            >
+              Categories
+            </Button>
+          </ButtonGroup>
+        </Box>
       </DialogContent>
 
       <DialogActions>

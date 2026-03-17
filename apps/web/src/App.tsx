@@ -60,6 +60,10 @@ export default function App({
     initialSettings.showWeightSuggestionsEnabled
   );
 
+  const [graphCardContentMode, setGraphCardContentMode] = useState(
+    initialSettings.graphCardContentMode
+  );
+
   const dirtyRef = useRef(false);
   const projectRef = useRef<Project | null>(null);
 
@@ -69,8 +73,15 @@ export default function App({
       highlightUnseenEnabled,
       notesEnabled,
       showWeightSuggestionsEnabled,
+      graphCardContentMode,
     });
-  }, [showEdgeLabels, highlightUnseenEnabled, notesEnabled, showWeightSuggestionsEnabled]);
+  }, [
+    showEdgeLabels,
+    highlightUnseenEnabled,
+    notesEnabled,
+    showWeightSuggestionsEnabled,
+    graphCardContentMode,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -276,6 +287,7 @@ export default function App({
               highlightUnseenEnabled={highlightUnseenEnabled}
               notesEnabled={notesEnabled}
               showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
+              graphCardContentMode={graphCardContentMode}
             />
           </ReactFlowProvider>
         </Box>
@@ -292,6 +304,8 @@ export default function App({
         setNotesEnabled={setNotesEnabled}
         setShowWeightSuggestionsEnabled={setShowWeightSuggestionsEnabled}
         showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
+        graphCardContentMode={graphCardContentMode}
+        setGraphCardContentMode={setGraphCardContentMode}
       />
 
       <InformationDialog open={legendOpen} onClose={() => setLegendOpen(false)} />

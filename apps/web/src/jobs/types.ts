@@ -1,4 +1,5 @@
-import type { StoredMediaFile, ComfyStartVideoResult } from "@ma/shared";
+import type { StoredMediaFile } from "@ma/shared";
+import { ComfyStartVideoResult } from "../graph/types/ui";
 
 /** Was für Jobs es gibt */
 export type JobKind = "t2v_root" | "v2v_clip";

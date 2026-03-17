@@ -354,4 +354,25 @@ export type AppSettings = {
   highlightUnseenEnabled: boolean;
   notesEnabled: boolean;
   showWeightSuggestionsEnabled: boolean;
+  graphCardContentMode: GraphCardContentMode;
 };
+
+export type SummaryChip = {
+  key: string;
+  label: string;
+  sx?: any;
+};
+
+export type GraphCardContentMode = "categories" | "parameters";
+
+export type OrderedSliderId = StandardCategoryKey | string;
+
+export type SliderListItem =
+  | { id: StandardCategoryKey; kind: "base" }
+  | { id: string; kind: "custom" };
+
+export type OrderedSliderItem =
+  | { id: StandardCategoryKey; kind: "base" }
+  | { id: string; kind: "custom"; slider: CustomScoreSlider };
+
+  export type ScoreMap = Record<string, number>;

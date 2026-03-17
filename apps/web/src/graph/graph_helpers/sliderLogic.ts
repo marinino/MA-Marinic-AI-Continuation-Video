@@ -1,5 +1,14 @@
 import { ClipDialogProps } from "../dialogs/ClipDialog";
-import { SimpleReal, CategoryScores, CatKey, SimpleSliderKey, Mark, SafeKey } from "../types/ui";
+import {
+  SimpleReal,
+  CategoryScores,
+  CatKey,
+  SimpleSliderKey,
+  Mark,
+  SafeKey,
+  StandardCategoryKey,
+  ScoreMap,
+} from "../types/ui";
 import { useClipDialogLogic } from "./clipDialogLogic";
 
 export const DEFAULT_CATEGORY_LABELS: Record<string, string> = {
@@ -10,23 +19,26 @@ export const DEFAULT_CATEGORY_LABELS: Record<string, string> = {
   videoFaithfulness: "Video",
 };
 
+export const DEFAULT_BASE_ORDER: StandardCategoryKey[] = [
+  "creativity",
+  "promptFaithfulness",
+  "motion",
+  "transitionSmoothness",
+  "videoFaithfulness",
+];
+
 export function useSliderLogic({
   computeScoresFromReal,
   clampToCfg,
   setActiveSimple,
   setActiveEffects,
 }: {
-  computeScoresFromReal: (s: SimpleReal, p: ClipDialogProps) => CategoryScores;
+  computeScoresFromReal: (s: SimpleReal, p: ClipDialogProps) => ScoreMap;
   clampToCfg: <K extends keyof SimpleReal>(key: K, v: number, p: ClipDialogProps) => number;
   setActiveSimple: React.Dispatch<React.SetStateAction<keyof SimpleReal | null>>;
-  setActiveEffects: React.Dispatch<
-    React.SetStateAction<Partial<Record<keyof CategoryScores, number>> | null>
-  >;
+  setActiveEffects: React.Dispatch<React.SetStateAction<ScoreMap | null>>;
 }) {
-  function computeEffectsFor(
-    key: keyof SimpleReal,
-    p: ClipDialogProps
-  ): Partial<Record<CatKey, number>> {
+function computeEffectsFor(key: keyof SimpleReal, p: ClipDialogProps): ScoreMap {
     const base = p.simple;
 
     const step = p.sliderCfg[key].step;
@@ -50,10 +62,16 @@ export function useSliderLogic({
     const sPlus = computeScoresFromReal(plus, p);
     const sMinus = computeScoresFromReal(minus, p);
 
-    const out: Partial<Record<CatKey, number>> = {};
-    (Object.keys(s0) as CatKey[]).forEach((cat) => {
-      out[cat] = (sPlus[cat] - sMinus[cat]) / (2 * epsSteps);
-    });
+    const out: ScoreMap = {};
+const allKeys = new Set([
+  ...Object.keys(s0),
+  ...Object.keys(sPlus),
+  ...Object.keys(sMinus),
+]);
+
+for (const cat of allKeys) {
+  out[cat] = ((sPlus[cat] ?? 0) - (sMinus[cat] ?? 0)) / (2 * epsSteps);
+}
     return out;
   }
 

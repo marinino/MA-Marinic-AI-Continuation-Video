@@ -51,13 +51,14 @@ import { SafeRangeBar } from "../components/SafeRangeBar";
 import { axisLabel, axisValue, useClipDialogLogic } from "../graph_helpers/clipDialogLogic";
 import { customSliderLogic } from "../graph_helpers/customSliderLogic";
 import { pentagonLogic } from "../graph_helpers/pentagonLogic";
-import { useSliderLogic } from "../graph_helpers/sliderLogict";
+import { useSliderLogic } from "../graph_helpers/sliderLogic";
 import { trinagleLogic } from "../graph_helpers/triangleLogic";
 import { useWeightsLogic } from "../graph_helpers/weightsLogic";
 import {
   AdvancedParamsState,
   AxisId,
   CatView,
+  OrderedSliderItem,
   SafeKey,
   SimpleReal,
   SimpleSliderKey,
@@ -109,6 +110,9 @@ export type ClipDialogProps = {
   getBounds: (k: SafeKey, v: number) => Record<SafeKey, { min: number; max: number }> | null;
   roundTo: (x: number, decimals: number) => number;
   simulateSliderChange: (prev: SimpleReal, key: SafeKey, raw: number) => SimpleReal;
+
+  orderedSliderItems: OrderedSliderItem[];
+  moveSlider: (id: string, direction: "up" | "down") => void;
 };
 
 /* ========= helpers (wie im mega-file) ========= */
@@ -141,7 +145,7 @@ export function ClipDialog(p: ClipDialogProps) {
 
   const weightsLogic = useWeightsLogic();
 
-  const clipLogic = useClipDialogLogic(weightsLogic.formulaWeights);
+  const clipLogic = useClipDialogLogic(weightsLogic.formulaWeights, customSliders);
 
   const sliderLogic = useSliderLogic({
     computeScoresFromReal: clipLogic.computeScoresFromReal,
@@ -293,6 +297,78 @@ export function ClipDialog(p: ClipDialogProps) {
     setPentagonAxes,
     setPentagonAxesOpen,
   } = pentagonLogic(computed.allScores, customSliders);
+
+  function renderOrderedSliderItem(
+    item: OrderedSliderItem,
+    p: ClipDialogProps,
+    computed: any,
+    clipLogic: any,
+    weightsLogic: any,
+    openCustomEdit: (id: string) => void
+  ) {
+    if (item.kind === "base") {
+      switch (item.id) {
+        case "creativity":
+          return (
+            <ReadonlySlider
+              label="Creativity"
+              value={computed.scores.creativity}
+              sx={clipLogic.catInfluenceSx("creativity", clipLogic.activeEffects)}
+              onLabelClick={() => weightsLogic.openWeights("creativity")}
+            />
+          );
+
+        case "promptFaithfulness":
+          return (
+            <ReadonlySlider
+              label="Prompt faithfulness"
+              value={computed.scores.promptFaithfulness}
+              sx={clipLogic.catInfluenceSx("promptFaithfulness", clipLogic.activeEffects)}
+              onLabelClick={() => weightsLogic.openWeights("promptFaithfulness")}
+            />
+          );
+
+        case "motion":
+          return (
+            <ReadonlySlider
+              label="Motion"
+              value={computed.scores.motion}
+              sx={clipLogic.catInfluenceSx("motion", clipLogic.activeEffects)}
+              onLabelClick={() => weightsLogic.openWeights("motion")}
+            />
+          );
+
+        case "transitionSmoothness":
+          return (
+            <ReadonlySlider
+              label="Transition Smoothness"
+              value={computed.scores.transitionSmoothness}
+              sx={clipLogic.catInfluenceSx("transitionSmoothness", clipLogic.activeEffects)}
+              onLabelClick={() => weightsLogic.openWeights("transitionSmoothness")}
+            />
+          );
+
+        case "videoFaithfulness":
+          return (
+            <ReadonlySlider
+              label="Video Faithfulness"
+              value={computed.scores.videoFaithfulness}
+              sx={clipLogic.catInfluenceSx("videoFaithfulness", clipLogic.activeEffects)}
+              onLabelClick={() => weightsLogic.openWeights("videoFaithfulness")}
+            />
+          );
+      }
+    }
+
+    return (
+      <ReadonlySlider
+        label={item.slider.name}
+        value={computed.allScores[item.slider.id] ?? 0}
+        onLabelClick={() => openCustomEdit(item.slider.id)}
+        sx={clipLogic.catInfluenceSx(item.slider.id, clipLogic.activeEffects)}
+      />
+    );
+  }
 
   return (
     <>
@@ -571,71 +647,50 @@ export function ClipDialog(p: ClipDialogProps) {
                       </Tabs>
 
                       {catView === "sliders" ? (
-                        <>
-                          <Stack spacing={2}>
-                            <ReadonlySlider
-                              label="Creativity"
-                              value={computed.scores.creativity}
-                              sx={clipLogic.catInfluenceSx("creativity", clipLogic.activeEffects)}
-                              onLabelClick={() => weightsLogic.openWeights("creativity")}
-                            />
+                        <Stack spacing={2}>
+                          {p.orderedSliderItems.map((item, index) => (
+                            <Box
+                              key={item.id}
+                              sx={{
+                                display: "grid",
+                                gridTemplateColumns: "1fr auto",
+                                gap: 1,
+                                alignItems: "center",
+                              }}
+                            >
+                              <Box>
+                                {renderOrderedSliderItem(
+                                  item,
+                                  p,
+                                  computed,
+                                  clipLogic,
+                                  weightsLogic,
+                                  openCustomEdit
+                                )}
+                              </Box>
 
-                            <ReadonlySlider
-                              label="Prompt faithfulness"
-                              value={computed.scores.promptFaithfulness}
-                              sx={clipLogic.catInfluenceSx(
-                                "promptFaithfulness",
-                                clipLogic.activeEffects
-                              )}
-                              onLabelClick={() => weightsLogic.openWeights("promptFaithfulness")}
-                            />
+                              <Stack spacing={0.5}>
+                                <Button
+                                  size="small"
+                                  variant="text"
+                                  disabled={index === 0}
+                                  onClick={() => p.moveSlider(item.id, "up")}
+                                >
+                                  ↑
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant="text"
+                                  disabled={index === p.orderedSliderItems.length - 1}
+                                  onClick={() => p.moveSlider(item.id, "down")}
+                                >
+                                  ↓
+                                </Button>
+                              </Stack>
+                            </Box>
+                          ))}
 
-                            <ReadonlySlider
-                              label="Motion"
-                              value={computed.scores.motion}
-                              sx={clipLogic.catInfluenceSx("motion", clipLogic.activeEffects)}
-                              onLabelClick={() => weightsLogic.openWeights("motion")}
-                            />
-
-                            <ReadonlySlider
-                              label="Transition Smoothness"
-                              value={computed.scores.transitionSmoothness}
-                              sx={clipLogic.catInfluenceSx(
-                                "transitionSmoothness",
-                                clipLogic.activeEffects
-                              )}
-                              onLabelClick={() => weightsLogic.openWeights("transitionSmoothness")}
-                            />
-
-                            <ReadonlySlider
-                              label="Video Faithfulness"
-                              value={computed.scores.videoFaithfulness}
-                              sx={clipLogic.catInfluenceSx(
-                                "videoFaithfulness",
-                                clipLogic.activeEffects
-                              )}
-                              onLabelClick={() => weightsLogic.openWeights("videoFaithfulness")}
-                            />
-
-                            {customSliders.length > 0 && (
-                              <>
-                                <Divider />
-                                <Typography variant="subtitle2">Custom sliders</Typography>
-
-                                {customSliders.map((cs) => (
-                                  <ReadonlySlider
-                                    key={cs.id}
-                                    label={cs.name}
-                                    value={computed.allScores[cs.id] ?? 0}
-                                    onLabelClick={() => {
-                                      openCustomEdit(cs.id);
-                                    }}
-                                  />
-                                ))}
-                              </>
-                            )}
-                          </Stack>
-
+                          <Divider />
                           <Button
                             variant="outlined"
                             onClick={() => {
@@ -646,7 +701,7 @@ export function ClipDialog(p: ClipDialogProps) {
                           >
                             New slider
                           </Button>
-                        </>
+                        </Stack>
                       ) : catView === "pentagon" ? (
                         <Stack spacing={3} alignItems="center">
                           <PentagonMap axes={pentagonAxisObjects} size={260} showRadarPolygon />

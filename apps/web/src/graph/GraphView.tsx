@@ -87,9 +87,18 @@ import {
   loadCategoryVisibility,
   loadCustomSliders,
   loadFormulaWeights,
+  loadSliderOrder,
   saveCategoryVisibility,
+  saveSliderOrder,
 } from "../utils/weightsStorage";
-import { CustomScoreSlider, FormulaWeights } from "./types/ui";
+import {
+  CustomScoreSlider,
+  FormulaWeights,
+  GraphCardContentMode,
+  OrderedSliderItem,
+  StandardCategoryKey,
+} from "./types/ui";
+import { DEFAULT_BASE_ORDER } from "./graph_helpers/sliderLogic";
 
 // edgeTypes
 const edgeTypes = { labeled: LabeledEdge };
@@ -104,6 +113,7 @@ export function GraphView(props: {
   highlightUnseenEnabled: boolean;
   notesEnabled: boolean;
   showWeightSuggestionsEnabled: boolean;
+  graphCardContentMode: GraphCardContentMode;
 }) {
   // ---------- reactflow instance ----------
   const rf = useReactFlow();
@@ -269,6 +279,7 @@ export function GraphView(props: {
   const [categoryVisibility, setCategoryVisibility] = useState<Record<string, boolean>>(() =>
     loadCategoryVisibility()
   );
+  const [sliderOrder, setSliderOrder] = useState<string[]>(() => loadSliderOrder());
 
   useEffect(() => {
     setCustomSliders(loadCustomSliders());
@@ -278,6 +289,19 @@ export function GraphView(props: {
   useEffect(() => {
     saveCategoryVisibility(categoryVisibility);
   }, [categoryVisibility]);
+
+  useEffect(() => {
+    const customIds = customSliders.map((s) => s.id);
+    const validIds = [...DEFAULT_BASE_ORDER, ...customIds];
+
+    setSliderOrder((prev) => {
+      const filtered = prev.filter((id) => validIds.includes(id));
+      const missing = validIds.filter((id) => !filtered.includes(id));
+      const next = [...filtered, ...missing];
+      saveSliderOrder(next);
+      return next;
+    });
+  }, [customSliders]);
 
   const { allCategoryIds } = useCategoryIds(customSliders);
 
@@ -292,6 +316,36 @@ export function GraphView(props: {
     }),
     [customSliders]
   );
+
+  const orderedSliderItems = useMemo<OrderedSliderItem[]>(() => {
+    const customById = new Map(customSliders.map((s) => [s.id, s]));
+
+    return sliderOrder
+      .map((id): OrderedSliderItem | null => {
+        if (DEFAULT_BASE_ORDER.includes(id as StandardCategoryKey)) {
+          return { id: id as StandardCategoryKey, kind: "base" };
+        }
+
+        const custom = customById.get(id);
+        return custom ? { id: custom.id, kind: "custom", slider: custom } : null;
+      })
+      .filter((item): item is OrderedSliderItem => item !== null);
+  }, [sliderOrder, customSliders]);
+
+  const moveSlider = useCallback((id: string, direction: "up" | "down") => {
+    setSliderOrder((prev) => {
+      const index = prev.indexOf(id);
+      if (index === -1) return prev;
+
+      const target = direction === "up" ? index - 1 : index + 1;
+      if (target < 0 || target >= prev.length) return prev;
+
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      saveSliderOrder(next);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     setCategoryVisibility((prev) => {
@@ -631,6 +685,7 @@ export function GraphView(props: {
         highlightUnseenEnabled: props.highlightUnseenEnabled,
         notesEnabled: props.notesEnabled,
         showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
+        graphCardContentMode: props.graphCardContentMode,
         onSaveNote: saveNodeNote,
         markVideoOpened,
         onDelete: handleDeleteNode,
@@ -754,6 +809,7 @@ export function GraphView(props: {
     props.showWeightSuggestionsEnabled,
     categoryLabels,
     categoryVisibility,
+    props.graphCardContentMode,
   ]);
 
   // ---------- Root create ----------
@@ -1264,6 +1320,8 @@ export function GraphView(props: {
         getBounds={v2v.getBounds}
         roundTo={v2v.roundTo}
         simulateSliderChange={v2v.simulateSliderChange}
+        orderedSliderItems={orderedSliderItems}
+        moveSlider={moveSlider}
       />
 
       <NamingConventionDialog

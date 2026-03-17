@@ -17,8 +17,8 @@ import {
 import { useEffect, useState } from "react";
 import { categoryLabel, paramLabel } from "../graph_helpers/branchSuggestions";
 import CloseIcon from "@mui/icons-material/Close";
-import { deltaChipSx, fmt } from "../nodes/Node";
-import { DEFAULT_CATEGORY_LABELS, useSliderLogic } from "../graph_helpers/sliderLogict";
+import { deltaChipSx, deltaSxOrNeutral, fmt, withOptionalDelta } from "../nodes/Node";
+import { DEFAULT_CATEGORY_LABELS, useSliderLogic } from "../graph_helpers/sliderLogic";
 import { CategoryVisibilityDialog } from "./CategoryVisibilityDialog";
 import {
   BrachSuggestion,
@@ -202,44 +202,6 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
                     : "No prompt set yet."}
                 </Typography>
 
-                {/* High Noise */}
-                <Typography variant="caption" color="text.secondary" display="block">
-                  <strong>High Noise</strong>
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  CFG: {props.highNoiseCfg} · Steps: {props.highNoiseSteps} · Start–End:{" "}
-                  {props.highNoiseStartStep}–{props.highNoiseEndStep}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Shift: {props.highNoiseShift} · Strength: {props.highNoiseModelStrength}
-                </Typography>
-
-                {/* Low Noise */}
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  display="block"
-                  sx={{ mt: 0.5 }}
-                >
-                  <strong>Low Noise</strong>
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  CFG: {props.lowNoiseCfg} · Steps: {props.lowNoiseSteps} · Start–End:{" "}
-                  {props.lowNoiseStartStep}–{props.lowNoiseEndStep}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Shift: {props.lowNoiseShift} · Strength: {props.lowNoiseModelStrength}
-                </Typography>
-
-                <Typography variant="subtitle2" sx={{ mt: 1 }}>
-                  Category scores
-                </Typography>
-
-                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                  {visibleCategoryEntries.map((entry) => (
-                    <Chip key={entry.key} size="small" label={`${entry.label}: ${entry.value}`} />
-                  ))}
-                </Stack>
                 {props.showWeightSuggestionsEnabled && props.branchSuggestion && (
                   <>
                     <Typography variant="subtitle2" sx={{ mt: 1.5 }}>
@@ -284,77 +246,115 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
                   </>
                 )}
 
-                {props.prevParamsId && props.d && (
-                  <>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      display="block"
-                      sx={{ mt: 1 }}
-                    >
-                      <strong>Parameters</strong>
-                    </Typography>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                  <strong>Parameters</strong>
+                </Typography>
 
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                        gap: 0.75,
-                        mt: 0.25,
-                      }}
-                    >
-                      <Chip
-                        size="small"
-                        label={`High CFG: ${props.highNoiseCfg} ${fmt(props.d.highNoiseCfg, 2)}`}
-                        sx={deltaChipSx(props.d.highNoiseCfg)}
-                      />
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                    gap: 0.75,
+                    mt: 0.25,
+                  }}
+                >
+                  <Chip
+                    size="small"
+                    label={withOptionalDelta(
+                      "High CFG",
+                      props.highNoiseCfg,
+                      props.d?.highNoiseCfg,
+                      2
+                    )}
+                    sx={deltaSxOrNeutral(props.d?.highNoiseCfg)}
+                  />
 
-                      <Chip
-                        size="small"
-                        label={`Low CFG: ${props.lowNoiseCfg} ${fmt(props.d.lowNoiseCfg, 2)}`}
-                        sx={deltaChipSx(props.d.lowNoiseCfg)}
-                      />
+                  <Chip
+                    size="small"
+                    label={withOptionalDelta("Low CFG", props.lowNoiseCfg, props.d?.lowNoiseCfg, 2)}
+                    sx={deltaSxOrNeutral(props.d?.lowNoiseCfg)}
+                  />
 
-                      <Chip
-                        size="small"
-                        label={`High Shift: ${props.highNoiseShift} ${fmt(props.d.highNoiseShift, 2)}`}
-                        sx={deltaChipSx(props.d.highNoiseShift)}
-                      />
+                  <Chip
+                    size="small"
+                    label={withOptionalDelta(
+                      "High Shift",
+                      props.highNoiseShift,
+                      props.d?.highNoiseShift,
+                      2
+                    )}
+                    sx={deltaSxOrNeutral(props.d?.highNoiseShift)}
+                  />
 
-                      <Chip
-                        size="small"
-                        label={`Low Shift: ${props.lowNoiseShift} ${fmt(props.d.lowNoiseShift, 2)}`}
-                        sx={deltaChipSx(props.d.lowNoiseShift)}
-                      />
+                  <Chip
+                    size="small"
+                    label={withOptionalDelta(
+                      "Low Shift",
+                      props.lowNoiseShift,
+                      props.d?.lowNoiseShift,
+                      2
+                    )}
+                    sx={deltaSxOrNeutral(props.d?.lowNoiseShift)}
+                  />
 
-                      <Chip
-                        size="small"
-                        label={`High Strength: ${props.highNoiseModelStrength} ${fmt(props.d.highNoiseModelStrength, 2)}`}
-                        sx={deltaChipSx(props.d.highNoiseModelStrength)}
-                      />
+                  <Chip
+                    size="small"
+                    label={withOptionalDelta(
+                      "High Strength",
+                      props.highNoiseModelStrength,
+                      props.d?.highNoiseModelStrength,
+                      2
+                    )}
+                    sx={deltaSxOrNeutral(props.d?.highNoiseModelStrength)}
+                  />
 
-                      <Chip
-                        size="small"
-                        label={`Low Strength: ${props.lowNoiseModelStrength} ${fmt(props.d.lowNoiseModelStrength, 2)}`}
-                        sx={deltaChipSx(props.d.lowNoiseModelStrength)}
-                      />
+                  <Chip
+                    size="small"
+                    label={withOptionalDelta(
+                      "Low Strength",
+                      props.lowNoiseModelStrength,
+                      props.d?.lowNoiseModelStrength,
+                      2
+                    )}
+                    sx={deltaSxOrNeutral(props.d?.lowNoiseModelStrength)}
+                  />
 
-                      <Chip
-                        size="small"
-                        label={`High Steps: ${props.highNoiseStartStep}→${props.highNoiseEndStep} ${fmt(props.d.highNoiseEndStep! - props.d.highNoiseStartStep!, 0)}`}
-                        sx={deltaChipSx(props.d.highNoiseEndStep! - props.d.highNoiseStartStep!)}
-                      />
+                  <Chip
+                    size="small"
+                    label={
+                      props.d?.highNoiseStartStep != null && props.d?.highNoiseEndStep != null
+                        ? `High Steps: ${props.highNoiseStartStep}→${props.highNoiseEndStep} ${fmt(
+                            props.d.highNoiseEndStep - props.d.highNoiseStartStep,
+                            0
+                          )}`
+                        : `High Steps: ${props.highNoiseStartStep}→${props.highNoiseEndStep}`
+                    }
+                    sx={
+                      props.d?.highNoiseStartStep != null && props.d?.highNoiseEndStep != null
+                        ? deltaChipSx(props.d.highNoiseEndStep - props.d.highNoiseStartStep)
+                        : {}
+                    }
+                  />
 
-                      <Chip
-                        size="small"
-                        label={`Low Steps: ${props.lowNoiseStartStep}→${props.lowNoiseEndStep} ${fmt(props.d.lowNoiseEndStep! - props.d.lowNoiseStartStep!, 0)}`}
-                        sx={deltaChipSx(props.d.lowNoiseEndStep! - props.d.lowNoiseStartStep!)}
-                      />
-                    </Box>
-                  </>
-                )}
+                  <Chip
+                    size="small"
+                    label={
+                      props.d?.lowNoiseStartStep != null && props.d?.lowNoiseEndStep != null
+                        ? `Low Steps: ${props.lowNoiseStartStep}→${props.lowNoiseEndStep} ${fmt(
+                            props.d.lowNoiseEndStep - props.d.lowNoiseStartStep,
+                            0
+                          )}`
+                        : `Low Steps: ${props.lowNoiseStartStep}→${props.lowNoiseEndStep}`
+                    }
+                    sx={
+                      props.d?.lowNoiseStartStep != null && props.d?.lowNoiseEndStep != null
+                        ? deltaChipSx(props.d.lowNoiseEndStep - props.d.lowNoiseStartStep)
+                        : {}
+                    }
+                  />
+                </Box>
 
-                {props.prevParamsId && (
+                {
                   <>
                     <Typography
                       variant="caption"
@@ -388,7 +388,7 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
                       />
                     </Stack>
                   </>
-                )}
+                }
               </>
             ) : props.videoUrl ? (
               <>

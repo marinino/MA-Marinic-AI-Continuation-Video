@@ -1,5 +1,5 @@
 import { Box, Slider } from "@mui/material";
-import { Mark, SimpleSliderKey } from "../dialogs/ClipDialog";
+import { Mark, SimpleSliderKey } from "../types/ui";
 
 export function PressableSlider(props: {
   sliderKey: SimpleSliderKey;

@@ -1,3 +1,4 @@
+import { DEFAULT_BASE_ORDER } from "../graph/graph_helpers/sliderLogic";
 import { DEFAULT_FORMULA_WEIGHTS } from "../graph/hooks/useV2VParams";
 import { AppSettings, CustomScoreSlider, FormulaWeights } from "../graph/types/ui";
 
@@ -5,6 +6,7 @@ const KEY_FORMULA = "ma:v2v:formulaWeights:v1";
 const KEY_CUSTOM = "ma:v2v:customScoreSliders:v1";
 const KEY_CATEGORY_VISIBILITY = "ma:v2v:categoryVisibility:v1";
 const KEY_SETTINGS = "ma:settings:v1";
+const KEY_SLIDER_ORDER = "ma:v2v:sliderOrder:v1";
 
 // ---------------- FormulaWeights ----------------
 
@@ -48,9 +50,28 @@ export function loadCustomSliders(): CustomScoreSlider[] {
   }
 }
 
+// ---------------- Custom Sliders Order ----------
+
 export function saveCustomSliders(sliders: CustomScoreSlider[]) {
   try {
     localStorage.setItem(KEY_CUSTOM, JSON.stringify(sliders));
+  } catch {}
+}
+
+export function loadSliderOrder(): string[] {
+  try {
+    const raw = localStorage.getItem("ma:v2v:sliderOrder:v1");
+    if (!raw) return DEFAULT_BASE_ORDER;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : DEFAULT_BASE_ORDER;
+  } catch {
+    return DEFAULT_BASE_ORDER;
+  }
+}
+
+export function saveSliderOrder(order: string[]) {
+  try {
+    localStorage.setItem("ma:v2v:sliderOrder:v1", JSON.stringify(order));
   } catch {}
 }
 
@@ -81,6 +102,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   highlightUnseenEnabled: true,
   notesEnabled: true,
   showWeightSuggestionsEnabled: true,
+  graphCardContentMode: "parameters",
 };
 
 export function loadSettings(): AppSettings {
@@ -95,6 +117,11 @@ export function loadSettings(): AppSettings {
       highlightUnseenEnabled: parsed?.highlightUnseenEnabled !== false,
       notesEnabled: parsed?.notesEnabled !== false,
       showWeightSuggestionsEnabled: parsed?.showWeightSuggestionsEnabled !== false,
+      graphCardContentMode:
+        parsed?.graphCardContentMode === "categories" ||
+        parsed?.graphCardContentMode === "parameters"
+          ? parsed.graphCardContentMode
+          : DEFAULT_SETTINGS.graphCardContentMode,
     };
   } catch {
     return DEFAULT_SETTINGS;

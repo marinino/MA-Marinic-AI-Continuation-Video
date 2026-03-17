@@ -3,13 +3,16 @@ import { Card, CardContent, Typography, Chip, Stack, Box, IconButton } from "@mu
 import AddIcon from "@mui/icons-material/Add";
 import type { NodeType } from "@ma/shared";
 import { deltaChipSx, fmt } from "../nodes/Node";
-import { BrachSuggestion, ParamDelats } from "../types/ui";
-
-type SummaryChip = {
-  key: string;
-  label: string;
-  sx?: any;
-};
+import {
+  BrachSuggestion,
+  CategoryDeltaMap,
+  CategoryLabelMap,
+  CategoryScoreMap,
+  GraphCardContentMode,
+  ParamDelats,
+  SummaryChip,
+} from "../types/ui";
+import { DEFAULT_CATEGORY_LABELS } from "../graph_helpers/sliderLogic";
 
 export type NodeCardPreviewProps = {
   nodeId: string;
@@ -48,11 +51,35 @@ export type NodeCardPreviewProps = {
   highlightUnseenEnabled?: boolean;
   notesEnabled: boolean;
   showWeightSuggestionsEnabled: boolean;
+  prevParamsId?: string | null | undefined;
+  categoryScores?: CategoryScoreMap;
+  categoryScoreDeltas?: CategoryDeltaMap | null;
+  categoryLabels?: CategoryLabelMap;
+  categoryVisibility?: Record<string, boolean>;
+  graphCardContentMode: GraphCardContentMode;
 };
 
 export function GraphCard(props: NodeCardPreviewProps) {
   const d = props.paramDeltas;
   const suggestion = props.branchSuggestion;
+
+  const mergedCategoryLabels = {
+    ...DEFAULT_CATEGORY_LABELS,
+    ...(props.categoryLabels ?? {}),
+  };
+
+  const categoryEntries = Object.entries(props.categoryScores ?? {})
+    .filter(([, value]) => value != null)
+    .map(([key, value]) => ({
+      key,
+      label: mergedCategoryLabels[key] ?? key,
+      value: value as number | null,
+      delta: props.categoryScoreDeltas?.[key] ?? null,
+    }));
+
+  const visibleCategoryEntries = categoryEntries.filter(
+    (entry) => props.categoryVisibility?.[entry.key] !== false
+  );
 
   const minWidth = props.type === "params" ? 420 : props.type === "edit" ? 300 : 220;
 
@@ -71,7 +98,7 @@ export function GraphCard(props: NodeCardPreviewProps) {
 
   const summaryChips = [
     suggestionChip,
-    props.promptChanged
+    props.prevParamsId && props.promptChanged
       ? {
           key: "prompt-changed",
           label: "Prompt changed",
@@ -82,71 +109,87 @@ export function GraphCard(props: NodeCardPreviewProps) {
           },
         }
       : null,
-    d && fmt(d.highNoiseCfg, 2) !== ""
-      ? {
-          key: "high-cfg",
-          label: `High CFG: ${props.highNoiseCfg} ${fmt(d.highNoiseCfg, 2)}`,
-          sx: deltaChipSx(d.highNoiseCfg),
-        }
-      : null,
-    d && fmt(d.lowNoiseCfg, 2) !== ""
-      ? {
-          key: "low-cfg",
-          label: `Low CFG: ${props.lowNoiseCfg} ${fmt(d.lowNoiseCfg, 2)}`,
-          sx: deltaChipSx(d.lowNoiseCfg),
-        }
-      : null,
-    d && fmt(d.highNoiseShift, 2) !== ""
-      ? {
-          key: "high-shift",
-          label: `High Shift: ${props.highNoiseShift} ${fmt(d.highNoiseShift, 2)}`,
-          sx: deltaChipSx(d.highNoiseShift),
-        }
-      : null,
-    d && fmt(d.lowNoiseShift, 2) !== ""
-      ? {
-          key: "low-shift",
-          label: `Low Shift: ${props.lowNoiseShift} ${fmt(d.lowNoiseShift, 2)}`,
-          sx: deltaChipSx(d.lowNoiseShift),
-        }
-      : null,
-    d && fmt(d.highNoiseModelStrength, 2) !== ""
-      ? {
-          key: "high-strength",
-          label: `High Strength: ${props.highNoiseModelStrength} ${fmt(
-            d.highNoiseModelStrength,
-            2
-          )}`,
-          sx: deltaChipSx(d.highNoiseModelStrength),
-        }
-      : null,
-    d && fmt(d.lowNoiseModelStrength, 2) !== ""
-      ? {
-          key: "low-strength",
-          label: `Low Strength: ${props.lowNoiseModelStrength} ${fmt(d.lowNoiseModelStrength, 2)}`,
-          sx: deltaChipSx(d.lowNoiseModelStrength),
-        }
-      : null,
-    d && fmt((d.highNoiseEndStep ?? 0) - (d.highNoiseStartStep ?? 0), 0) !== ""
-      ? {
-          key: "high-steps",
-          label: `High Steps: ${props.highNoiseStartStep}→${props.highNoiseEndStep} ${fmt(
-            (d.highNoiseEndStep ?? 0) - (d.highNoiseStartStep ?? 0),
-            0
-          )}`,
-          sx: deltaChipSx((d.highNoiseEndStep ?? 0) - (d.highNoiseStartStep ?? 0)),
-        }
-      : null,
-    d && fmt((d.lowNoiseEndStep ?? 0) - (d.lowNoiseStartStep ?? 0), 0) !== ""
-      ? {
-          key: "low-steps",
-          label: `Low Steps: ${props.lowNoiseStartStep}→${props.lowNoiseEndStep} ${fmt(
-            (d.lowNoiseEndStep ?? 0) - (d.lowNoiseStartStep ?? 0),
-            0
-          )}`,
-          sx: deltaChipSx((d.lowNoiseEndStep ?? 0) - (d.lowNoiseStartStep ?? 0)),
-        }
-      : null,
+    ...(props.type === "params" && props.graphCardContentMode === "categories"
+      ? visibleCategoryEntries
+          .filter((entry) => entry.delta != null && entry.delta != 0)
+          .map((entry) => ({
+            key: `category-${entry.key}`,
+            label:
+              entry.delta != null
+                ? `${entry.label}: ${entry.value} ${fmt(entry.delta, 2)}`
+                : `${entry.label}: ${entry.value}`,
+            sx: entry.delta != null ? deltaChipSx(entry.delta) : {},
+          }))
+      : []),
+    ...(props.type === "params" && props.graphCardContentMode === "parameters"
+      ? [
+          d && fmt(d.highNoiseCfg, 2) !== ""
+            ? {
+                key: "high-cfg",
+                label: `High CFG: ${props.highNoiseCfg} ${fmt(d.highNoiseCfg, 2)}`,
+                sx: deltaChipSx(d.highNoiseCfg),
+              }
+            : null,
+          d && fmt(d.lowNoiseCfg, 2) !== ""
+            ? {
+                key: "low-cfg",
+                label: `Low CFG: ${props.lowNoiseCfg} ${fmt(d.lowNoiseCfg, 2)}`,
+                sx: deltaChipSx(d.lowNoiseCfg),
+              }
+            : null,
+          d && fmt(d.highNoiseShift, 2) !== ""
+            ? {
+                key: "high-shift",
+                label: `High Shift: ${props.highNoiseShift} ${fmt(d.highNoiseShift, 2)}`,
+                sx: deltaChipSx(d.highNoiseShift),
+              }
+            : null,
+          d && fmt(d.lowNoiseShift, 2) !== ""
+            ? {
+                key: "low-shift",
+                label: `Low Shift: ${props.lowNoiseShift} ${fmt(d.lowNoiseShift, 2)}`,
+                sx: deltaChipSx(d.lowNoiseShift),
+              }
+            : null,
+          d && fmt(d.highNoiseModelStrength, 2) !== ""
+            ? {
+                key: "high-strength",
+                label: `High Strength: ${props.highNoiseModelStrength} ${fmt(
+                  d.highNoiseModelStrength,
+                  2
+                )}`,
+                sx: deltaChipSx(d.highNoiseModelStrength),
+              }
+            : null,
+          d && fmt(d.lowNoiseModelStrength, 2) !== ""
+            ? {
+                key: "low-strength",
+                label: `Low Strength: ${props.lowNoiseModelStrength} ${fmt(d.lowNoiseModelStrength, 2)}`,
+                sx: deltaChipSx(d.lowNoiseModelStrength),
+              }
+            : null,
+          d && fmt((d.highNoiseEndStep ?? 0) - (d.highNoiseStartStep ?? 0), 0) !== ""
+            ? {
+                key: "high-steps",
+                label: `High Steps: ${props.highNoiseStartStep}→${props.highNoiseEndStep} ${fmt(
+                  (d.highNoiseEndStep ?? 0) - (d.highNoiseStartStep ?? 0),
+                  0
+                )}`,
+                sx: deltaChipSx((d.highNoiseEndStep ?? 0) - (d.highNoiseStartStep ?? 0)),
+              }
+            : null,
+          d && fmt((d.lowNoiseEndStep ?? 0) - (d.lowNoiseStartStep ?? 0), 0) !== ""
+            ? {
+                key: "low-steps",
+                label: `Low Steps: ${props.lowNoiseStartStep}→${props.lowNoiseEndStep} ${fmt(
+                  (d.lowNoiseEndStep ?? 0) - (d.lowNoiseStartStep ?? 0),
+                  0
+                )}`,
+                sx: deltaChipSx((d.lowNoiseEndStep ?? 0) - (d.lowNoiseStartStep ?? 0)),
+              }
+            : null,
+        ].filter(Boolean)
+      : []),
   ].filter(Boolean) as SummaryChip[];
 
   const hasNote = Boolean(props.note?.trim());
@@ -225,7 +268,13 @@ export function GraphCard(props: NodeCardPreviewProps) {
         </Stack>
 
         <Box sx={{ mt: 0.5 }}>
-          {props.type === "params" && <Typography>Changed parameters are listed below</Typography>}
+          {props.type === "params" && (
+            <Typography>
+              {props.prevParamsId
+                ? "Changed parameters are listed below"
+                : "Click to see parameters"}
+            </Typography>
+          )}
         </Box>
         <Box sx={{ mt: 0.5 }}>
           {props.type === "edit" && <Typography>Changes contain</Typography>}

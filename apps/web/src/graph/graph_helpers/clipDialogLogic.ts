@@ -1,16 +1,19 @@
 import React from "react";
 
-import {
-  CategoryScores,
-  computeCategoryScoresFromSimple,
-  CustomScoreSlider,
-  FormulaWeights,
-  getScoreRanges,
-} from "../hooks/useV2VParams";
+import { computeAllScores, getScoreRanges } from "../hooks/useV2VParams";
 import { ClipDialogProps } from "../dialogs/ClipDialog";
 
 import { useWeightsLogic } from "./weightsLogic";
-import { AxisId, CatKey, SimpleReal, SimpleSliderKey } from "../types/ui";
+import {
+  AxisId,
+  CategoryScores,
+  CatKey,
+  CustomScoreSlider,
+  FormulaWeights,
+  ScoreMap,
+  SimpleReal,
+  SimpleSliderKey,
+} from "../types/ui";
 
 export function axisValue(id: AxisId, allScores: Record<string, number>) {
   return allScores[String(id)] ?? 0;
@@ -27,19 +30,17 @@ export function axisLabel(id: AxisId, customSliders: CustomScoreSlider[]) {
   return cs?.name ?? String(id);
 }
 
-export function useClipDialogLogic(formulaWeights: FormulaWeights) {
-  const [activeEffects, setActiveEffects] = React.useState<Partial<Record<CatKey, number>> | null>(
-    null
-  );
+export function useClipDialogLogic(
+  formulaWeights: FormulaWeights,
+  customSliders: CustomScoreSlider[]
+){
+const [activeEffects, setActiveEffects] = React.useState<ScoreMap | null>(null);
 
   const [activeSimple, setActiveSimple] = React.useState<SimpleSliderKey | null>(null);
 
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-  function catInfluenceSx(
-    cat: CatKey,
-    activeEffects: Partial<Record<keyof CategoryScores, number>> | null
-  ) {
+  function catInfluenceSx(cat: string, activeEffects: Record<string, number> | null) {
     if (!activeSimple || !activeEffects) return {};
 
     const d = activeEffects[cat] ?? 0;
@@ -69,21 +70,22 @@ export function useClipDialogLogic(formulaWeights: FormulaWeights) {
     };
   }
 
-  function computeScoresFromReal(s: SimpleReal, p: ClipDialogProps): CategoryScores {
-    const scoreRanges = getScoreRanges(p.simpleSpeedMode);
+function computeScoresFromReal(s: SimpleReal, p: ClipDialogProps): Record<string, number> {
+  const scoreRanges = getScoreRanges(p.simpleSpeedMode);
 
-    return computeCategoryScoresFromSimple(
-      {
-        totalSteps: Math.round(s.totalSteps),
-        stepRatio: s.stepRatioPct,
-        highShift: s.highShift,
-        highCfg: s.highCfg,
-        highStrength: s.highStrength,
-      },
-      scoreRanges,
-      formulaWeights
-    );
-  }
+  return computeAllScores(
+    {
+      totalSteps: Math.round(s.totalSteps),
+      stepRatioPct: s.stepRatioPct,
+      highShift: s.highShift,
+      highCfg: s.highCfg,
+      highStrength: s.highStrength,
+    },
+    scoreRanges,
+    formulaWeights,
+    customSliders
+  );
+}
 
   function clampToCfg<K extends keyof SimpleReal>(key: K, v: number, p: ClipDialogProps) {
     const c = p.sliderCfg[key];
