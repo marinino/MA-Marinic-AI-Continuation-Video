@@ -1,13 +1,7 @@
 import type { Edge as RFEdge, Node as RFNode, ReactFlowInstance } from "reactflow";
+import { XY, BoxNode } from "../types/ui";
 
-export type XY = { x: number; y: number };
 
-type BoxNode = {
-  position: XY;
-  width?: number | null;
-  height?: number | null;
-  type?: string;
-};
 
 export function edgeLabel(e: RFEdge): string | undefined {
   return (e.data as any)?.label as string | undefined;

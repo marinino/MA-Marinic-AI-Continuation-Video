@@ -115,36 +115,6 @@ export const ProjectSchema = z.object({
   }),
 });
 
-export type StoredMediaFile = z.infer<typeof StoredMediaFileSchema>;
-export type Project = z.infer<typeof ProjectSchema>;
-export type Node = z.infer<typeof NodeSchema>;
-export type Edge = z.infer<typeof EdgeSchema>;
-export type NodeType = z.infer<typeof NodeTypeSchema>;
-export type EdgeType = z.infer<typeof EdgeTypeSchema>;
 
-export type ComfyStartVideoInput = {
-  text: string;
-  seed?: number;
-};
 
-export type ComfyStartVideoResult = {
-  prompt_id: string;
-  client_id: string;
-};
 
-// stark vereinfacht – reicht fürs Frontend
-export type ComfyHistory = Record<
-  string,
-  {
-    outputs?: Record<
-      string,
-      {
-        videos?: Array<{
-          filename: string;
-          subfolder?: string;
-          type?: string;
-        }>;
-      }
-    >;
-  }
->;

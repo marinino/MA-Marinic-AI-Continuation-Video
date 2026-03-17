@@ -1,14 +1,12 @@
 import React from "react";
-import { AxisId } from "../dialogs/PentagonAxesDialog";
 import { CustomScoreSlider } from "../hooks/useV2VParams";
-import { useClipDialogLogic } from "./clipDialogLogic";
+import { axisLabel, axisValue, useClipDialogLogic } from "./clipDialogLogic";
+import { AxisId } from "../types/ui";
 
 export function pentagonLogic(
   allScores: Record<string, number>,
   customSliders: CustomScoreSlider[]
 ) {
-  const { axisLabel, axisValue } = useClipDialogLogic();
-
   const PENTAGON_AXIS_STORAGE_KEY = "v2v.pentagonAxes.v1";
 
   const DEFAULT_PENTAGON_AXIS_IDS: AxisId[] = [

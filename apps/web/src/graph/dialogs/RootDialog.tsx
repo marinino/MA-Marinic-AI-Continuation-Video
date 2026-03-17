@@ -12,8 +12,9 @@ import {
   Typography,
   LinearProgress,
 } from "@mui/material";
+import { RootMode } from "../types/ui";
 
-export type RootMode = "generate" | "upload";
+
 
 export type RootDialogProps = {
   open: boolean;

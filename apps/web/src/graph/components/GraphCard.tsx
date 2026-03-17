@@ -3,6 +3,7 @@ import { Card, CardContent, Typography, Chip, Stack, Box, IconButton } from "@mu
 import AddIcon from "@mui/icons-material/Add";
 import type { NodeType } from "@ma/shared";
 import { deltaChipSx, fmt } from "../nodes/Node";
+import { BrachSuggestion, ParamDelats } from "../types/ui";
 
 type SummaryChip = {
   key: string;
@@ -35,55 +36,9 @@ export type NodeCardPreviewProps = {
   highNoiseEndStep?: number;
   lowNoiseEndStep?: number;
 
-  paramDeltas?: Partial<
-    Record<
-      | "highNoiseCfg"
-      | "lowNoiseCfg"
-      | "highNoiseShift"
-      | "lowNoiseShift"
-      | "highNoiseModelStrength"
-      | "lowNoiseModelStrength"
-      | "highNoiseSteps"
-      | "lowNoiseSteps"
-      | "highNoiseStartStep"
-      | "lowNoiseStartStep"
-      | "highNoiseEndStep"
-      | "lowNoiseEndStep",
-      number | null
-    >
-  > | null;
+  paramDeltas?: ParamDelats
 
-  branchSuggestion?: {
-    targetCategory:
-      | "creativity"
-      | "promptFaithfulness"
-      | "motion"
-      | "transitionSmoothness"
-      | "videoFaithfulness";
-    categoryDirection: "down" | "up";
-    parameter:
-      | "highNoiseCfg"
-      | "lowNoiseCfg"
-      | "highNoiseShift"
-      | "lowNoiseShift"
-      | "highNoiseModelStrength"
-      | "lowNoiseModelStrength"
-      | "highNoiseSteps"
-      | "lowNoiseSteps"
-      | "highNoiseStartStep"
-      | "lowNoiseStartStep"
-      | "highNoiseEndStep"
-      | "lowNoiseEndStep";
-    parameterDirection: "up" | "down";
-    hitCount: number;
-    streakLength: number;
-    avgCategoryDelta: number;
-    avgParamDelta: number;
-    confidence: number;
-    suggestedWeightDeltaPct: number;
-    suggestedAction: "increase_param_weight" | "decrease_param_weight";
-    message: string;
-  } | null;
+  branchSuggestion?: BrachSuggestion
 
   onOpen: () => void;
   onAdd?: (nodeId: string) => void;
@@ -92,6 +47,7 @@ export type NodeCardPreviewProps = {
   children?: React.ReactNode;
   highlightUnseenEnabled?: boolean;
   notesEnabled: boolean;
+  showWeightSuggestionsEnabled: boolean;
 };
 
 export function GraphCard(props: NodeCardPreviewProps) {
@@ -101,7 +57,7 @@ export function GraphCard(props: NodeCardPreviewProps) {
   const minWidth = props.type === "params" ? 420 : props.type === "edit" ? 300 : 220;
 
   const suggestionChip =
-    props.type === "params" && suggestion
+    props.showWeightSuggestionsEnabled && props.type === "params" && suggestion
       ? {
           key: "branch-suggestion",
           label: "Hint: Adjust weights",

@@ -1,13 +1,6 @@
 import * as React from "react";
 import { Box, Button, Paper, Stack, Typography } from "@mui/material";
-
-export type JobsPanelJob = {
-  id: string;
-  label: string;
-  status: string;
-  progressText?: string;
-  previewUrl?: string | null;
-};
+import { JobsPanelJob } from "../types/ui";
 
 export type JobsPanelProps = {
   jobs: JobsPanelJob[];

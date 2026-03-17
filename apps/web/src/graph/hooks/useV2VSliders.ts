@@ -1,38 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { SafePreset, SimpleReal, SliderConfig, SafeKey, V2VTab, CatView, MixCandidate, SafeBounds, SpeedMode } from "../types/ui";
 
-export type V2VTab = "simple" | "advanced";
-export type CatView = "sliders" | "pentagon";
-export type SimpleSpeedMode = "quality" | "quick";
 
-export type SliderConfig = {
-  min: number;
-  max: number;
-  step: number;
-  decimals?: number;
-};
-
-export type SafePreset = {
-  name: string;
-  stepsTotal: number;
-  lowRatio: number; // lowSteps/stepsTotal
-  cfgHigh: number;
-  shiftHigh: number;
-  strengthHigh: number;
-};
-
-export type SafeKey = "totalSteps" | "stepRatioPct" | "highCfg" | "highShift" | "highStrength";
-
-type MixCandidate = { i: number; j: number; t: number; v: Record<SafeKey, number> };
-
-export type SimpleReal = {
-  totalSteps: number; // int: quick 4..5, quality 20..24
-  stepRatioPct: number; // int: 50..80
-  highShift: number; // float: 2.30..3.00 (0.01)
-  highCfg: number; // float: 2.20..3.00 (0.01)
-  highStrength: number; // float: 0.20..0.45 (0.01)
-};
-
-export type SafeBounds = Record<SafeKey, { min: number; max: number }>;
 
 export const SAFE_PRESETS_QUALITY: SafePreset[] = [
   {
@@ -120,16 +89,16 @@ export const SAFE_PRESETS_QUICK: SafePreset[] = [
   },
 ];
 
-export const SAFE_PRESETS: Record<SimpleSpeedMode, SafePreset[]> = {
+export const SAFE_PRESETS: Record<SpeedMode, SafePreset[]> = {
   quality: SAFE_PRESETS_QUALITY,
   quick: SAFE_PRESETS_QUICK,
 };
 
-function getPresetSliderUnits(mode: SimpleSpeedMode) {
+function getPresetSliderUnits(mode: SpeedMode) {
   return SAFE_PRESETS[mode].map(presetToSliderUnits);
 }
 
-const cfgShift: Record<SimpleSpeedMode, Record<keyof SimpleReal, SliderConfig>> = {
+const cfgShift: Record<SpeedMode, Record<keyof SimpleReal, SliderConfig>> = {
   quick: {
     totalSteps: { min: 4, max: 5, step: 1, decimals: 0 },
     stepRatioPct: { min: 50, max: 80, step: 1, decimals: 0 },
@@ -158,7 +127,7 @@ function presetToSliderUnits(p: SafePreset): Record<SafeKey, number> {
   };
 }
 
-function clampToCfg(mode: SimpleSpeedMode, key: keyof SimpleReal, v: number) {
+function clampToCfg(mode: SpeedMode, key: keyof SimpleReal, v: number) {
   const c = cfgShift[mode][key];
   const stepped = Math.round((v - c.min) / c.step) * c.step + c.min;
   const clamped = clamp(stepped, c.min, c.max);
@@ -166,7 +135,7 @@ function clampToCfg(mode: SimpleSpeedMode, key: keyof SimpleReal, v: number) {
   return Number(clamped.toFixed(d));
 }
 
-function clampSimple(mode: SimpleSpeedMode, s: SimpleReal): SimpleReal {
+function clampSimple(mode: SpeedMode, s: SimpleReal): SimpleReal {
   return {
     totalSteps: clampToCfg(mode, "totalSteps", s.totalSteps),
     stepRatioPct: clampToCfg(mode, "stepRatioPct", s.stepRatioPct),
@@ -179,7 +148,7 @@ function clampSimple(mode: SimpleSpeedMode, s: SimpleReal): SimpleReal {
 export function useV2VSliders() {
   const [v2vTab, setV2vTab] = useState<V2VTab>("simple");
   const [catView, setCatView] = useState<CatView>("sliders");
-  const [simpleSpeedMode, setSimpleSpeedMode] = useState<SimpleSpeedMode>("quality");
+  const [simpleSpeedMode, setSimpleSpeedMode] = useState<SpeedMode>("quality");
 
   function roundTo(x: number, decimals: number) {
     const f = 10 ** decimals;
@@ -302,7 +271,7 @@ export function useV2VSliders() {
 
   const sliderCfg = useMemo(() => cfgShift[simpleSpeedMode], [simpleSpeedMode]);
 
-  function quantizeBounds(mode: SimpleSpeedMode, b: SafeBounds): SafeBounds {
+  function quantizeBounds(mode: SpeedMode, b: SafeBounds): SafeBounds {
     // helper: auf das Slider-Grid runden + clampen
     const q = (k: SafeKey, x: number) => clampToCfg(mode, k as any, x);
 

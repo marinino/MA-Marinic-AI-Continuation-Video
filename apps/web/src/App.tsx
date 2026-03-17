@@ -24,8 +24,10 @@ import InfoIcon from "@mui/icons-material/Info";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import { ReactFlowProvider } from "reactflow";
 import { Settings } from "./settings/Settings";
-import { InformationDialog } from "./InformationDialog";
-import { LoadProjectDialog } from "./LoadProjectsDialog";
+import { InformationDialog } from "./graph/dialogs/InformationDialog";
+
+import { loadSettings, saveSettings } from "./utils/weightsStorage";
+import { LoadProjectDialog } from "./graph/dialogs/LoadProjectsDialog";
 
 type ColorMode = "light" | "dark";
 
@@ -40,18 +42,35 @@ export default function App({
 }) {
   const [project, setProject] = useState<Project | null>(null);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
-  const [showEdgeLabels, setShowEdgeLabels] = useState(false);
+
   const [legendOpen, setLegendOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("New Project");
   const [creating, setCreating] = useState(false);
-  const [highlightUnseenEnabled, setHighlightUnseenEnabled] = useState(true);
-  const [notesEnabled, setNotesEnabled] = useState(true);
-  const [showWeightSuggestionsEnabled, setShowWeightSuggestionsEnabled] = useState(true);
+
+  const initialSettings = loadSettings();
+
+  const [showEdgeLabels, setShowEdgeLabels] = useState(initialSettings.showEdgeLabels);
+  const [highlightUnseenEnabled, setHighlightUnseenEnabled] = useState(
+    initialSettings.highlightUnseenEnabled
+  );
+  const [notesEnabled, setNotesEnabled] = useState(initialSettings.notesEnabled);
+  const [showWeightSuggestionsEnabled, setShowWeightSuggestionsEnabled] = useState(
+    initialSettings.showWeightSuggestionsEnabled
+  );
 
   const dirtyRef = useRef(false);
   const projectRef = useRef<Project | null>(null);
+
+  useEffect(() => {
+    saveSettings({
+      showEdgeLabels,
+      highlightUnseenEnabled,
+      notesEnabled,
+      showWeightSuggestionsEnabled,
+    });
+  }, [showEdgeLabels, highlightUnseenEnabled, notesEnabled, showWeightSuggestionsEnabled]);
 
   useEffect(() => {
     let cancelled = false;

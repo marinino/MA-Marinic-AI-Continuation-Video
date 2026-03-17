@@ -10,16 +10,7 @@ import {
   findFreePosition,
   getDefaultNodeSize,
 } from "../graph_helpers/layout";
-
-type ManualEditDraft = {
-  fromClipId: string;
-  expectedBasename: string;
-};
-
-type ErrorDialogState = {
-  title: string;
-  message: string;
-} | null;
+import { ManualEditDraft, ErrorDialogState } from "../types/ui";
 
 type UseManualTimelineImportArgs = {
   project: Project;

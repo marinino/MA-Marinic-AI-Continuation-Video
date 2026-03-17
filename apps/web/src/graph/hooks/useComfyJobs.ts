@@ -3,27 +3,9 @@ import { nanoid } from "nanoid";
 import type { StoredMediaFile } from "@ma/shared";
 
 import { comfyBuildVideoUrl, comfyFindVideoFromHistory, comfyGetHistory } from "../../../src/api"; // <-- adjust path!
+import { Job } from "../types/ui";
 
-export type JobStatus = "queued" | "connecting" | "running" | "finalizing" | "done" | "error";
 
-export type Job = {
-  id: string;
-  label: string;
-  status: JobStatus;
-
-  // payload starter
-  startPayload: () => Promise<{ prompt_id: string; client_id: string }>;
-
-  // optional UI
-  progressText?: string;
-  promptId?: string;
-  clientId?: string;
-  file?: StoredMediaFile;
-  previewUrl?: string;
-
-  onSuccess?: (file: StoredMediaFile) => void;
-  onError?: (e: any) => void;
-};
 
 function pickMediaFile(output: any): StoredMediaFile | null {
   const candidate = output?.images?.[0] ?? output?.videos?.[0] ?? output?.gifs?.[0];

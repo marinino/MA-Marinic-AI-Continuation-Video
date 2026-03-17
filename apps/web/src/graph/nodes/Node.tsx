@@ -10,6 +10,7 @@ import { ClipNode } from "./ClipNode";
 import { ParamNode } from "./ParamNode";
 import { EditNode } from "./EditNode";
 import { customSliderLogic } from "../graph_helpers/customSliderLogic";
+import { BrachSuggestion, ParamDelats } from "../types/ui";
 
 function getNodeColors(kind: NodeType, isRoot: boolean) {
   if (isRoot) return { border: "#ff9800", bg: "#FFF8E1" }; // Root Clip
@@ -75,23 +76,7 @@ export function NodeCard(props: {
   onVideoOpened?: (nodeId: string) => void;
 
   prevParamsId?: string | null;
-  paramDeltas?: Partial<
-    Record<
-      | "highNoiseCfg"
-      | "lowNoiseCfg"
-      | "highNoiseShift"
-      | "lowNoiseShift"
-      | "highNoiseModelStrength"
-      | "lowNoiseModelStrength"
-      | "highNoiseSteps"
-      | "lowNoiseSteps"
-      | "highNoiseStartStep"
-      | "lowNoiseStartStep"
-      | "highNoiseEndStep"
-      | "lowNoiseEndStep",
-      number | null
-    >
-  > | null;
+  paramDeltas?: ParamDelats
 
   promptChanged?: boolean;
   note?: string;
@@ -100,44 +85,14 @@ export function NodeCard(props: {
   canDelete?: boolean;
   onHide?: (nodeId: string) => void;
   canHide?: boolean;
-  branchSuggestion?: {
-    targetCategory:
-      | "creativity"
-      | "promptFaithfulness"
-      | "motion"
-      | "transitionSmoothness"
-      | "videoFaithfulness";
-    categoryDirection: "down" | "up";
-    parameter:
-      | "highNoiseCfg"
-      | "lowNoiseCfg"
-      | "highNoiseShift"
-      | "lowNoiseShift"
-      | "highNoiseModelStrength"
-      | "lowNoiseModelStrength"
-      | "highNoiseSteps"
-      | "lowNoiseSteps"
-      | "highNoiseStartStep"
-      | "lowNoiseStartStep"
-      | "highNoiseEndStep"
-      | "lowNoiseEndStep";
-    parameterDirection: "up" | "down";
-    hitCount: number;
-    streakLength: number;
-    avgCategoryDelta: number;
-    avgParamDelta: number;
-    confidence: number;
-    suggestedWeightDeltaPct: number;
-    suggestedAction: "increase_param_weight" | "decrease_param_weight";
-    message: string;
-  } | null;
+  branchSuggestion?: BrachSuggestion
   categoryScores?: Record<string, number | null>;
   categoryScoreDeltas?: Partial<Record<string, number | null>> | null;
   categoryLabels?: Record<string, string>;
   categoryVisibility?: Record<string, boolean>;
   onSetCategoryVisible?: (categoryId: string, visible: boolean) => void;
   onShowAllCategories?: () => void;
-  showWeightSuggestionsEnabled?: boolean
+  showWeightSuggestionsEnabled?: boolean;
 }) {
   const theme = useTheme();
   const [infoOpen, setInfoOpen] = useState(false);
@@ -184,6 +139,7 @@ export function NodeCard(props: {
         onVideoOpened={props.onVideoOpened}
         highlightUnseenEnabled={props.highlightUnseenEnabled}
         notesEnabled={props.notesEnabled}
+        showWeightSuggestionsEnabled={props.showWeightSuggestionsEnabled ?? true}
       >
         {props.children}
       </GraphCard>

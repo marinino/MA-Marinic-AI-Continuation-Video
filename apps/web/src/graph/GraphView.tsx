@@ -104,7 +104,7 @@ export function GraphView(props: {
   showEdgeLabels: boolean;
   highlightUnseenEnabled: boolean;
   notesEnabled: boolean;
-  showWeightSuggestionsEnabled: boolean
+  showWeightSuggestionsEnabled: boolean;
 }) {
   // ---------- reactflow instance ----------
   const rf = useReactFlow();

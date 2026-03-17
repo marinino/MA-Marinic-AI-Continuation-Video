@@ -7,8 +7,9 @@ import {
   Button,
   Typography,
 } from "@mui/material";
+import { ErrorDialogState } from "../types/ui";
 
-export type ErrorDialogState = { title: string; message: string } | null;
+
 
 export type ErrorDialogProps = {
   error: ErrorDialogState;

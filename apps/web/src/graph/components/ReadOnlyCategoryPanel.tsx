@@ -1,9 +1,10 @@
 import * as React from "react";
 import { Box, Slider, Stack, Tab, Tabs, Typography } from "@mui/material";
-import { PentagonMap, type CategoryScores } from "./PentagonMap";
+import { PentagonMap } from "./PentagonMap";
+import { CategoryScores, RadarAxis } from "../types/ui";
 
 export type ReadonlyCategoryPanelProps = {
-  scores: CategoryScores;
+  axes: RadarAxis[];
   defaultView?: "sliders" | "pentagon";
   pentagonSize?: number;
 };
@@ -36,14 +37,12 @@ export function ReadonlyCategoryPanel(p: ReadonlyCategoryPanelProps) {
 
       {view === "sliders" ? (
         <Stack spacing={2}>
-          <ReadonlySlider label="Creativity" value={p.scores.creativity} />
-          <ReadonlySlider label="Prompt faithfulness" value={p.scores.promptFaithfulness} />
-          <ReadonlySlider label="Motion" value={p.scores.motion} />
-          <ReadonlySlider label="Transition Smoothness" value={p.scores.transitionSmoothness} />
-          <ReadonlySlider label="Video Faithfulness" value={p.scores.videoFaithfulness} />
+          {p.axes.slice(0, 5).map((axis) => (
+            <ReadonlySlider key={axis.id} label={axis.label} value={axis.value} />
+          ))}
         </Stack>
       ) : (
-        <PentagonMap scores={p.scores} size={p.pentagonSize ?? 260} showRadarPolygon />
+        <PentagonMap axes={p.axes} size={p.pentagonSize ?? 260} showRadarPolygon />
       )}
     </Stack>
   );

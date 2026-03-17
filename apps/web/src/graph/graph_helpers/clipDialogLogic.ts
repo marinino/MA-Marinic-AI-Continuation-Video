@@ -1,5 +1,5 @@
 import React from "react";
-import { AxisId } from "../dialogs/PentagonAxesDialog";
+
 import {
   CategoryScores,
   computeCategoryScoresFromSimple,
@@ -7,33 +7,32 @@ import {
   FormulaWeights,
   getScoreRanges,
 } from "../hooks/useV2VParams";
-import { CatKey, ClipDialogProps, SimpleSliderKey } from "../dialogs/ClipDialog";
-import { SimpleReal } from "../hooks/useV2VSliders";
+import {  ClipDialogProps } from "../dialogs/ClipDialog";
+
 import { useWeightsLogic } from "./weightsLogic";
+import { AxisId, CatKey, SimpleReal, SimpleSliderKey } from "../types/ui";
 
-export function useClipDialogLogic() {
-  const { formulaWeights } = useWeightsLogic();
+export function axisValue(id: AxisId, allScores: Record<string, number>) {
+  return allScores[String(id)] ?? 0;
+}
 
+export function axisLabel(id: AxisId, customSliders: CustomScoreSlider[]) {
+  if (id === "creativity") return "Creativity";
+  if (id === "promptFaithfulness") return "Prompt\nFaithfulness";
+  if (id === "motion") return "Motion";
+  if (id === "transitionSmoothness") return "Transition\nSmoothness";
+  if (id === "videoFaithfulness") return "Video\nFaithfulness";
+
+  const cs = customSliders.find((x) => x.id === id);
+  return cs?.name ?? String(id);
+}
+
+export function useClipDialogLogic(formulaWeights: FormulaWeights) {
   const [activeEffects, setActiveEffects] = React.useState<Partial<Record<CatKey, number>> | null>(
     null
   );
 
   const [activeSimple, setActiveSimple] = React.useState<SimpleSliderKey | null>(null);
-
-  function axisLabel(id: AxisId, customSliders: CustomScoreSlider[]) {
-    if (id === "creativity") return "Creativity";
-    if (id === "promptFaithfulness") return "Prompt\nFaithfulness";
-    if (id === "motion") return "Motion";
-    if (id === "transitionSmoothness") return "Transition\nSmoothness";
-    if (id === "videoFaithfulness") return "Video\nFaithfulness";
-
-    const cs = customSliders.find((x) => x.id === id);
-    return cs?.name ?? String(id);
-  }
-
-  function axisValue(id: AxisId, allScores: Record<string, number>) {
-    return allScores[String(id)] ?? 0;
-  }
 
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -94,8 +93,6 @@ export function useClipDialogLogic() {
   return {
     activeSimple,
     setActiveSimple,
-    axisLabel,
-    axisValue,
     catInfluenceSx,
     clampToCfg,
     computeScoresFromReal,

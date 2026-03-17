@@ -1,56 +1,13 @@
 import type { Edge as RFEdge, Node as RFNode } from "reactflow";
+import { StandardCategoryKey, ParamKey, ParamStep, ParamNodeData, ParamWeightSuggestion } from "../types/ui";
 
-export type ScoreCategory =
-  | "creativity"
-  | "promptFaithfulness"
-  | "motion"
-  | "transitionSmoothness"
-  | "videoFaithfulness";
 
-export type ParamKey =
-  | "highNoiseCfg"
-  | "lowNoiseCfg"
-  | "highNoiseShift"
-  | "lowNoiseShift"
-  | "highNoiseModelStrength"
-  | "lowNoiseModelStrength"
-  | "highNoiseSteps"
-  | "lowNoiseSteps"
-  | "highNoiseStartStep"
-  | "lowNoiseStartStep"
-  | "highNoiseEndStep"
-  | "lowNoiseEndStep";
 
-export type CategoryScoreMap = Partial<Record<ScoreCategory, number | null>>;
-export type ParamDeltaMap = Partial<Record<ParamKey, number | null>>;
 
-export type ParamWeightSuggestion = {
-  targetCategory: ScoreCategory;
-  categoryDirection: "down" | "up";
-  parameter: ParamKey;
-  parameterDirection: "up" | "down";
-  hitCount: number;
-  streakLength: number;
-  avgCategoryDelta: number;
-  avgParamDelta: number;
-  confidence: number;
-  suggestedWeightDeltaPct: number;
-  suggestedAction: "increase_param_weight" | "decrease_param_weight";
-  message: string;
-};
 
-type ParamNodeData = {
-  paramDeltas?: ParamDeltaMap | null;
-  categoryScoreDeltas?: CategoryScoreMap | null;
-};
 
-type ParamStep = {
-  nodeId: string;
-  paramDeltas: ParamDeltaMap;
-  categoryDeltas: CategoryScoreMap;
-};
 
-const SCORE_KEYS: ScoreCategory[] = [
+const SCORE_KEYS: StandardCategoryKey[] = [
   "creativity",
   "promptFaithfulness",
   "motion",
@@ -279,7 +236,7 @@ export function detectParamWeightSuggestion(
 }
 
 function buildSuggestionMessage(args: {
-  category: ScoreCategory;
+  category: StandardCategoryKey;
   parameter: ParamKey;
   parameterDirection: "up" | "down";
   hitCount: number;
@@ -295,7 +252,7 @@ function buildSuggestionMessage(args: {
   return `${categoryText} drops repeatedly in this branch. The most recurring associated parameter change is ${paramText} (${paramDirText}, avg ${args.avgParamDelta}) in ${args.hitCount} recent steps, longest streak ${args.streakLength}. Consider reducing the ${paramText} weight by about ${args.suggestedWeightDeltaPct}% for the ${categoryText} mapping.`;
 }
 
-export function categoryLabel(category: ScoreCategory) {
+export function categoryLabel(category: StandardCategoryKey) {
   switch (category) {
     case "creativity":
       return "Creativity";

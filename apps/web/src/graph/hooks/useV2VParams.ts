@@ -1,18 +1,8 @@
 import { useMemo } from "react";
+import { CategoryScores, CustomScoreSlider, FormulaWeights, ScoreRanges, SimpleReal } from "../types/ui";
 
-type CatKey = keyof CategoryScores;
 
-export type FormulaWeights = {
-  promptFaithfulness: { cfg: number; ratio: number };
 
-  videoFaithfulness: { ratio: number; invShift: number; invStrength: number };
-
-  transitionSmoothness: { steps: number; ratio: number };
-
-  motion: { shift: number; strength: number; ratio: number; bias: number };
-
-  creativity: { shift: number; strength: number; invCfg: number; ratio: number; bias: number };
-};
 
 export const DEFAULT_FORMULA_WEIGHTS: FormulaWeights = {
   promptFaithfulness: { cfg: 0.85, ratio: 0.15 },
@@ -26,29 +16,7 @@ export const DEFAULT_FORMULA_WEIGHTS: FormulaWeights = {
   creativity: { shift: 0.45, strength: 0.35, invCfg: 0.2, ratio: -0.25, bias: 0.25 },
 };
 
-export type CustomScoreSlider = {
-  id: string;
-  name: string;
-  hidden?: boolean;
 
-  // lineare Formel auf Basis deiner normalisierten features:
-  // steps01, ratio01, shift01, cfg01, strength01 und inverses sowie bias
-  w: {
-    steps: number;
-    ratio: number;
-    shift: number;
-    cfg: number;
-    strength: number;
-
-    invSteps: number;
-    invRatio: number;
-    invShift: number;
-    invCfg: number;
-    invStrength: number;
-
-    bias: number;
-  };
-};
 
 export const DEFAULT_CUSTOM_W: CustomScoreSlider["w"] = {
   steps: 0,
@@ -131,21 +99,7 @@ export function deriveV2VParamsFromSimple(opts: {
  * EXACT mega-file formula and ranges.
  * NOTE: these "scores" are UI-only, but you said nothing should differ.
  */
-export type CategoryScores = {
-  creativity: number;
-  promptFaithfulness: number;
-  motion: number;
-  transitionSmoothness: number;
-  videoFaithfulness: number;
-};
 
-export type ScoreRanges = {
-  steps: { min: number; max: number };
-  ratio: { min: number; max: number };
-  shift: { min: number; max: number };
-  cfg: { min: number; max: number };
-  strength: { min: number; max: number };
-};
 
 export function getScoreRanges(mode: "quick" | "quality"): ScoreRanges {
   return mode === "quick"
@@ -297,20 +251,8 @@ export function useCategoryScores(
 }
 
 export function computeAllScores(
-  s: {
-    totalSteps: number;
-    stepRatio: number;
-    highShift: number;
-    highCfg: number;
-    highStrength: number;
-  },
-  ranges: {
-    steps: { min: number; max: number };
-    ratio: { min: number; max: number };
-    shift: { min: number; max: number };
-    cfg: { min: number; max: number };
-    strength: { min: number; max: number };
-  },
+  s: SimpleReal,
+  ranges: ScoreRanges,
   formulaWeights: FormulaWeights,
   custom: CustomScoreSlider[]
 ): Record<string, number> {
@@ -321,7 +263,7 @@ export function computeAllScores(
   );
 
   const ratio01 = clamp(
-    (s.stepRatio - ranges.ratio.min) / Math.max(1e-6, ranges.ratio.max - ranges.ratio.min),
+    (s.stepRatioPct - ranges.ratio.min) / Math.max(1e-6, ranges.ratio.max - ranges.ratio.min),
     0,
     1
   );
@@ -348,7 +290,7 @@ export function computeAllScores(
   const builtIn = computeCategoryScoresFromSimple(
     {
       totalSteps: s.totalSteps,
-      stepRatio: s.stepRatio,
+      stepRatio: s.stepRatioPct,
       highShift: s.highShift,
       highCfg: s.highCfg,
       highStrength: s.highStrength,

@@ -6,11 +6,9 @@ import {
   getCurrentEditId,
 } from "../graph_helpers/selectors";
 import { timelineUrl } from "../graph_helpers/urls";
+import { ManualEditDraft } from "../types/ui";
 
-type ManualEditDraft = {
-  fromClipId: string;
-  expectedBasename: string;
-};
+
 
 export function useDavinciTimeline(args: {
   project: Project;

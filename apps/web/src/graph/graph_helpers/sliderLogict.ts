@@ -1,21 +1,34 @@
-import { CatKey, ClipDialogProps, Mark, SimpleSliderKey } from "../dialogs/ClipDialog";
-import { SimpleReal, SafeKey } from "../hooks/useV2VSliders";
+import {
+
+  ClipDialogProps,
+
+} from "../dialogs/ClipDialog";
+import { SafeKey } from "../hooks/useV2VSliders";
+import { SimpleReal, CategoryScores, CatKey, SimpleSliderKey, Mark } from "../types/ui";
 import { useClipDialogLogic } from "./clipDialogLogic";
 
-type CategoryVisibilityMap = Record<string, boolean>;
 
-export function useSliderLogic() {
-  const { computeScoresFromReal, clampToCfg, setActiveSimple, setActiveEffects } =
-    useClipDialogLogic();
+export const DEFAULT_CATEGORY_LABELS: Record<string, string> = {
+  creativity: "Creativity",
+  promptFaithfulness: "Prompt",
+  motion: "Motion",
+  transitionSmoothness: "Transition",
+  videoFaithfulness: "Video",
+};
 
-  const DEFAULT_CATEGORY_LABELS: Record<string, string> = {
-    creativity: "Creativity",
-    promptFaithfulness: "Prompt",
-    motion: "Motion",
-    transitionSmoothness: "Transition",
-    videoFaithfulness: "Video",
-  };
-
+export function useSliderLogic({
+  computeScoresFromReal,
+  clampToCfg,
+  setActiveSimple,
+  setActiveEffects,
+}: {
+  computeScoresFromReal: (s: SimpleReal, p: ClipDialogProps) => CategoryScores;
+  clampToCfg: <K extends keyof SimpleReal>(key: K, v: number, p: ClipDialogProps) => number;
+  setActiveSimple: React.Dispatch<React.SetStateAction<keyof SimpleReal | null>>;
+  setActiveEffects: React.Dispatch<
+    React.SetStateAction<Partial<Record<keyof CategoryScores, number>> | null>
+  >;
+}) {
   function computeEffectsFor(
     key: keyof SimpleReal,
     p: ClipDialogProps

@@ -8,13 +8,9 @@ import {
   Typography,
 } from "@mui/material";
 import { fmt } from "../nodes/Node";
+import { SelectedCategory } from "../types/ui";
 
-export type SelectedCategory = {
-  key: string;
-  label: string;
-  value: number | null;
-  delta: number | null;
-};
+
 
 export type CategoryVisibilityDialogProps = {
   open: boolean;

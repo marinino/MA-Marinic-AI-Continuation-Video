@@ -9,8 +9,8 @@ import {
   Button,
 } from "@mui/material";
 import { CategoryScores, FormulaWeights } from "../hooks/useV2VParams";
+import { CatKey } from "../types/ui";
 
-type CatKey = keyof CategoryScores;
 
 export function WeightsDialog(props: {
   open: boolean;

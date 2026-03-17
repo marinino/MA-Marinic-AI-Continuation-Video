@@ -1,12 +1,7 @@
 import * as React from "react";
 import { Box } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-
-export type RadarAxis = {
-  id: string;
-  label: string;
-  value: number; // 0..100
-};
+import { RadarAxis } from "../types/ui";
 
 export function TriangleMap(props: {
   axes: RadarAxis[]; // sollte 3 sein

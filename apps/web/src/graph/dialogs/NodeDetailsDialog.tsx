@@ -15,24 +15,18 @@ import {
 } from "@mui/material";
 
 import { useEffect, useState } from "react";
-import { categoryLabel, paramLabel } from "../graph_helpers/branchSuggestions";
+import { categoryLabel, CategoryScoreMap, paramLabel } from "../graph_helpers/branchSuggestions";
 import CloseIcon from "@mui/icons-material/Close";
 import { deltaChipSx, fmt } from "../nodes/Node";
-import { useSliderLogic } from "../graph_helpers/sliderLogict";
+import { DEFAULT_CATEGORY_LABELS, useSliderLogic } from "../graph_helpers/sliderLogict";
 import { CategoryVisibilityDialog } from "./CategoryVisibilityDialog";
+import { BrachSuggestion, CategoryDeltaMap, CategoryLabelMap, Delta, ParamDelats, SelectedCategory } from "../types/ui";
 
-type StandardCategoryKey =
-  | "creativity"
-  | "promptFaithfulness"
-  | "motion"
-  | "transitionSmoothness"
-  | "videoFaithfulness";
 
-type AnyCategoryKey = StandardCategoryKey | string;
 
-type CategoryScoreMap = Partial<Record<AnyCategoryKey, number | null>>;
-type CategoryDeltaMap = Partial<Record<AnyCategoryKey, number | null>>;
-type CategoryLabelMap = Partial<Record<AnyCategoryKey, string>>;
+
+
+
 
 export interface NodeDetailsDialogProps {
   open: boolean;
@@ -41,26 +35,7 @@ export interface NodeDetailsDialogProps {
   nodeId: string;
   type: "clip" | "params" | "edit";
 
-  d:
-    | Partial<
-        Record<
-          | "highNoiseCfg"
-          | "lowNoiseCfg"
-          | "highNoiseShift"
-          | "lowNoiseShift"
-          | "highNoiseModelStrength"
-          | "lowNoiseModelStrength"
-          | "highNoiseSteps"
-          | "lowNoiseSteps"
-          | "highNoiseStartStep"
-          | "lowNoiseStartStep"
-          | "highNoiseEndStep"
-          | "lowNoiseEndStep",
-          number | null
-        >
-      >
-    | null
-    | undefined;
+  d: Delta
 
   // video
   videoUrl?: string | null;
@@ -94,62 +69,12 @@ export interface NodeDetailsDialogProps {
   categoryLabels?: CategoryLabelMap;
 
   // deltas
-  paramDeltas?: Partial<
-    Record<
-      | "highNoiseCfg"
-      | "lowNoiseCfg"
-      | "highNoiseShift"
-      | "lowNoiseShift"
-      | "highNoiseModelStrength"
-      | "lowNoiseModelStrength"
-      | "highNoiseSteps"
-      | "lowNoiseSteps"
-      | "highNoiseStartStep"
-      | "lowNoiseStartStep"
-      | "highNoiseEndStep"
-      | "lowNoiseEndStep",
-      number | null
-    >
-  > | null;
+  paramDeltas?: ParamDelats
 
   promptChanged?: boolean;
 
   // branch suggestion
-  branchSuggestion?: {
-    targetCategory:
-      | "creativity"
-      | "promptFaithfulness"
-      | "motion"
-      | "transitionSmoothness"
-      | "videoFaithfulness";
-
-    categoryDirection: "down" | "up";
-
-    parameter:
-      | "highNoiseCfg"
-      | "lowNoiseCfg"
-      | "highNoiseShift"
-      | "lowNoiseShift"
-      | "highNoiseModelStrength"
-      | "lowNoiseModelStrength"
-      | "highNoiseSteps"
-      | "lowNoiseSteps"
-      | "highNoiseStartStep"
-      | "lowNoiseStartStep"
-      | "highNoiseEndStep"
-      | "lowNoiseEndStep";
-
-    parameterDirection: "up" | "down";
-
-    hitCount: number;
-    streakLength: number;
-    avgCategoryDelta: number;
-    avgParamDelta: number;
-    confidence: number;
-    suggestedWeightDeltaPct: number;
-    suggestedAction: "increase_param_weight" | "decrease_param_weight";
-    message: string;
-  } | null;
+  branchSuggestion?: BrachSuggestion
 
   // notes
   note?: string;
@@ -171,25 +96,13 @@ export interface NodeDetailsDialogProps {
 
 export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
   const [localNote, setLocalNote] = useState(props.note ?? "");
-  const [selectedCategory, setSelectedCategory] = useState<{
-    key: string;
-    label: string;
-    value: number | null;
-    delta: number | null;
-  } | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
 
-  function openCategoryDialog(entry: {
-    key: string;
-    label: string;
-    value: number | null;
-    delta: number | null;
-  }) {
+  function openCategoryDialog(entry: SelectedCategory) {
     setSelectedCategory(entry);
   }
 
   console.log(props.categoryVisibility, "vis");
-
-  const { DEFAULT_CATEGORY_LABELS } = useSliderLogic();
 
   const mergedCategoryLabels = {
     ...DEFAULT_CATEGORY_LABELS,

@@ -9,8 +9,8 @@ import {
   TextField,
   Button,
 } from "@mui/material";
+import { AxisId } from "../types/ui";
 
-export type AxisId = string;
 
 export type PentagonAxesDialogProps = {
   open: boolean;
@@ -61,7 +61,11 @@ export function PentagonAxesDialog(p: PentagonAxesDialogProps) {
               value={String(current[i] ?? p.defaultAxes[i])}
               onChange={(e) => setAxisAt(i, e.target.value as AxisId)}
               fullWidth
-              SelectProps={{ native: true }}
+              slotProps={{
+    select: {
+      native: true,
+    },
+  }}
             >
               {p.availableAxisIds.map((id) => (
                 <option key={String(id)} value={String(id)}>

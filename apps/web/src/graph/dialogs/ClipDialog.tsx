@@ -26,14 +26,16 @@ import {
 // ⬇️ falls dein PentagonMap woanders liegt: Pfad anpassen
 import { PentagonMap } from "../components/PentagonMap";
 import {
+  CatView,
   SAFE_PRESETS,
   SafeKey,
   SafePreset,
-  SimpleReal,
   SliderConfig,
   useV2VSliders,
+  V2VTab,
 } from "../hooks/useV2VSliders";
 import {
+  CategoryScores,
   computeAllScores,
   computeCategoryScoresFromSimple,
   CustomScoreSlider,
@@ -57,42 +59,15 @@ import { TriangleAxesDialog } from "./TriangleAxesDialog";
 import { PressableSlider } from "../components/PressableSlider";
 import { ReadonlySlider } from "../components/ReadOnlySlider";
 import { SafeRangeBar } from "../components/SafeRangeBar";
-import { useClipDialogLogic } from "../graph_helpers/clipDialogLogic";
+import { axisLabel, axisValue, useClipDialogLogic } from "../graph_helpers/clipDialogLogic";
 import { customSliderLogic } from "../graph_helpers/customSliderLogic";
 import { pentagonLogic } from "../graph_helpers/pentagonLogic";
 import { useSliderLogic } from "../graph_helpers/sliderLogict";
 import { trinagleLogic } from "../graph_helpers/triangleLogic";
 import { useWeightsLogic } from "../graph_helpers/weightsLogic";
+import { AdvancedParamsState, AxisId, SimpleReal, SimpleSliderKey, SpeedMode } from "../types/ui";
 
-export type V2VTab = "simple" | "advanced";
-type CatView = "sliders" | "pentagon" | "triangle";
 
-export type Mark = { value: number; label?: React.ReactNode };
-
-export type AdvancedParamsState = {
-  lowNoiseCfg: number;
-  highNoiseCfg: number;
-  lowNoiseModelStrength: number;
-  highNoiseModelStrength: number;
-  lowNoiseShift: number;
-  highNoiseShift: number;
-  lowNoiseSteps: number;
-  highNoiseSteps: number;
-  lowNoiseStartStep: number;
-  highNoiseStartStep: number;
-  lowNoiseEndStep: number;
-  highNoiseEndStep: number;
-};
-
-export type CategoryScores = {
-  creativity: number;
-  promptFaithfulness: number;
-  motion: number;
-  transitionSmoothness: number;
-  videoFaithfulness: number;
-};
-
-export type SimpleSliderKey = keyof SimpleReal; // statt eigener keys, wenn du willst
 
 export type ClipDialogProps = {
   open: boolean;
@@ -130,8 +105,8 @@ export type ClipDialogProps = {
   onStart: () => void;
   startDisabled?: boolean;
 
-  simpleSpeedMode: "quality" | "quick";
-  onSimpleSpeedModeChange: (m: "quality" | "quick") => void;
+  simpleSpeedMode: SpeedMode
+  onSimpleSpeedModeChange: (m: SpeedMode) => void;
   sliderCfg: Record<keyof SimpleReal, SliderConfig>;
 
   getBounds: (k: SafeKey, v: number) => Record<SafeKey, { min: number; max: number }> | null;
@@ -139,11 +114,7 @@ export type ClipDialogProps = {
   simulateSliderChange: (prev: SimpleReal, key: SafeKey, raw: number) => SimpleReal;
 };
 
-export type CatKey = keyof CategoryScores;
 
-type SpeedMode = "quick" | "quality";
-
-type AxisId = keyof CategoryScores | string; // "creativity" | ... | "custom:..."
 
 /* ========= helpers (wie im mega-file) ========= */
 
@@ -173,19 +144,16 @@ export function ClipDialog(p: ClipDialogProps) {
     createCustomSlider,
   } = customSliderLogic();
 
-  const {
-    activeSimple,
-    setActiveSimple,
-    axisLabel,
-    axisValue,
-    catInfluenceSx,
-    clampToCfg,
-    computeScoresFromReal,
-    setActiveEffects,
-    activeEffects,
-  } = useClipDialogLogic();
+  const weightsLogic = useWeightsLogic();
 
-  const { beginDrag, computeEffectsFor, endDrag, marksFor, toSafeKey } = useSliderLogic();
+  const clipLogic = useClipDialogLogic(weightsLogic.formulaWeights);
+
+  const sliderLogic = useSliderLogic({
+    computeScoresFromReal: clipLogic.computeScoresFromReal,
+    clampToCfg: clipLogic.clampToCfg,
+    setActiveSimple: clipLogic.setActiveSimple,
+    setActiveEffects: clipLogic.setActiveEffects,
+  });
 
   const {
     DEFAULT_TRIANGLE_AXIS_IDS,
@@ -197,45 +165,31 @@ export function ClipDialog(p: ClipDialogProps) {
     loadTriangleAxes,
   } = trinagleLogic();
 
-  const {
-    weightsOpen,
-    weightsCat,
-    formulaWeights,
-    setFormulaWeights,
-    setWeightsCat,
-    setWeightsOpen,
-    openWeights,
-    closeWeights,
-    resetWeights,
-    patchFormulaWeights,
-  } = useWeightsLogic();
-
-  const activeValue = activeSimple ? (p.simple[activeSimple] as number) : null;
+  const activeValue = clipLogic.activeSimple ? (p.simple[clipLogic.activeSimple] as number) : null;
 
   React.useEffect(() => {
     localStorage.setItem(TRIANGLE_AXIS_STORAGE_KEY, JSON.stringify(triangleAxes));
   }, [triangleAxes]);
 
   React.useEffect(() => {
-    saveFormulaWeights(formulaWeights);
-  }, [formulaWeights]);
+    saveFormulaWeights(weightsLogic.formulaWeights);
+  }, [weightsLogic.formulaWeights]);
 
   React.useEffect(() => {
     saveCustomSliders(customSliders);
   }, [customSliders]);
 
   React.useEffect(() => {
-    if (!activeSimple) return;
-    setActiveEffects(computeEffectsFor(activeSimple, p));
+    if (!clipLogic.activeSimple) return;
+    clipLogic.setActiveEffects(sliderLogic.computeEffectsFor(clipLogic.activeSimple, p));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSimple, activeValue, p.simpleSpeedMode]);
+  }, [clipLogic.activeSimple, activeValue, p.simpleSpeedMode]);
 
   React.useEffect(() => {
-    if (!activeSimple) return;
+    if (!clipLogic.activeSimple) return;
 
     const onEnd = () => {
-      setActiveSimple(null);
-      setActiveEffects(null);
+      sliderLogic.endDrag();
     };
 
     // Pointer (modern)
@@ -255,7 +209,7 @@ export function ClipDialog(p: ClipDialogProps) {
       window.removeEventListener("touchend", onEnd);
       window.removeEventListener("touchcancel", onEnd);
     };
-  }, [activeSimple]);
+  }, [clipLogic.activeSimple]);
 
   // --- compute real values + derived params exactly like mega-file ---
   const computed = React.useMemo(() => {
@@ -279,7 +233,7 @@ export function ClipDialog(p: ClipDialogProps) {
         highStrength: s.highStrength,
       },
       scoreRanges,
-      formulaWeights
+      weightsLogic.formulaWeights
     );
 
     const allScores = computeAllScores(
@@ -291,16 +245,16 @@ export function ClipDialog(p: ClipDialogProps) {
         highStrength: s.highStrength,
       },
       scoreRanges,
-      formulaWeights,
+      weightsLogic.formulaWeights,
       customSliders
     );
 
     return { derived, scores, allScores };
-  }, [p.simple, p.simpleSpeedMode, formulaWeights, customSliders]);
+  }, [p.simple, p.simpleSpeedMode, weightsLogic.formulaWeights, customSliders]);
 
   const activeSafeKey = React.useMemo(
-    () => (activeSimple ? toSafeKey(activeSimple) : null),
-    [activeSimple]
+    () => (clipLogic.activeSimple ? sliderLogic.toSafeKey(clipLogic.activeSimple) : null),
+    [clipLogic.activeSimple]
   );
 
   const safeBounds = React.useMemo(() => {
@@ -324,14 +278,14 @@ export function ClipDialog(p: ClipDialogProps) {
 
   const handleBeginDrag = React.useCallback(
     (key: SimpleSliderKey) => {
-      beginDrag(key, p);
+      sliderLogic.beginDrag(key, p);
     },
-    [beginDrag, p]
+    [sliderLogic, p]
   );
 
   const handleEndDrag = React.useCallback(() => {
-    endDrag();
-  }, [endDrag]);
+    sliderLogic.endDrag();
+  }, [sliderLogic]);
 
   const {
     DEFAULT_PENTAGON_AXIS_IDS,
@@ -461,7 +415,7 @@ export function ClipDialog(p: ClipDialogProps) {
                         step={cfg.totalSteps.step}
                         marks={
                           activeSafeKey && activeSafeKey !== "totalSteps"
-                            ? marksFor(safeBounds?.totalSteps, 2)
+                            ? sliderLogic.marksFor(safeBounds?.totalSteps, 2)
                             : undefined
                         }
                         onChange={p.onChangeTotalSteps}
@@ -490,7 +444,7 @@ export function ClipDialog(p: ClipDialogProps) {
                         step={cfg.stepRatioPct.step}
                         marks={
                           activeSafeKey && activeSafeKey !== "stepRatioPct"
-                            ? marksFor(safeBounds?.stepRatioPct, 2)
+                            ? sliderLogic.marksFor(safeBounds?.stepRatioPct, 2)
                             : undefined
                         }
                         onChange={p.onChangeStepRatio}
@@ -519,7 +473,7 @@ export function ClipDialog(p: ClipDialogProps) {
                         step={cfg.highShift.step}
                         marks={
                           activeSafeKey && activeSafeKey !== "highShift"
-                            ? marksFor(safeBounds?.highShift, 2)
+                            ? sliderLogic.marksFor(safeBounds?.highShift, 2)
                             : undefined
                         }
                         onChange={p.onChangeHighShift}
@@ -548,7 +502,7 @@ export function ClipDialog(p: ClipDialogProps) {
                         step={cfg.highCfg.step}
                         marks={
                           activeSafeKey && activeSafeKey !== "highCfg"
-                            ? marksFor(safeBounds?.highCfg, 2)
+                            ? sliderLogic.marksFor(safeBounds?.highCfg, 2)
                             : undefined
                         }
                         onChange={p.onChangeHighCfg}
@@ -577,7 +531,7 @@ export function ClipDialog(p: ClipDialogProps) {
                         step={cfg.highStrength.step}
                         marks={
                           activeSafeKey && activeSafeKey !== "highStrength"
-                            ? marksFor(safeBounds?.highStrength, 2)
+                            ? sliderLogic.marksFor(safeBounds?.highStrength, 2)
                             : undefined
                         }
                         onChange={p.onChangeHighStrength}
@@ -629,36 +583,45 @@ export function ClipDialog(p: ClipDialogProps) {
                             <ReadonlySlider
                               label="Creativity"
                               value={computed.scores.creativity}
-                              sx={catInfluenceSx("creativity", activeEffects)}
-                              onLabelClick={() => openWeights("creativity")}
+                              sx={clipLogic.catInfluenceSx("creativity", clipLogic.activeEffects)}
+                              onLabelClick={() => weightsLogic.openWeights("creativity")}
                             />
 
                             <ReadonlySlider
                               label="Prompt faithfulness"
                               value={computed.scores.promptFaithfulness}
-                              sx={catInfluenceSx("promptFaithfulness", activeEffects)}
-                              onLabelClick={() => openWeights("promptFaithfulness")}
+                              sx={clipLogic.catInfluenceSx(
+                                "promptFaithfulness",
+                                clipLogic.activeEffects
+                              )}
+                              onLabelClick={() => weightsLogic.openWeights("promptFaithfulness")}
                             />
 
                             <ReadonlySlider
                               label="Motion"
                               value={computed.scores.motion}
-                              sx={catInfluenceSx("motion", activeEffects)}
-                              onLabelClick={() => openWeights("motion")}
+                              sx={clipLogic.catInfluenceSx("motion", clipLogic.activeEffects)}
+                              onLabelClick={() => weightsLogic.openWeights("motion")}
                             />
 
                             <ReadonlySlider
                               label="Transition Smoothness"
                               value={computed.scores.transitionSmoothness}
-                              sx={catInfluenceSx("transitionSmoothness", activeEffects)}
-                              onLabelClick={() => openWeights("transitionSmoothness")}
+                              sx={clipLogic.catInfluenceSx(
+                                "transitionSmoothness",
+                                clipLogic.activeEffects
+                              )}
+                              onLabelClick={() => weightsLogic.openWeights("transitionSmoothness")}
                             />
 
                             <ReadonlySlider
                               label="Video Faithfulness"
                               value={computed.scores.videoFaithfulness}
-                              sx={catInfluenceSx("videoFaithfulness", activeEffects)}
-                              onLabelClick={() => openWeights("videoFaithfulness")}
+                              sx={clipLogic.catInfluenceSx(
+                                "videoFaithfulness",
+                                clipLogic.activeEffects
+                              )}
+                              onLabelClick={() => weightsLogic.openWeights("videoFaithfulness")}
                             />
 
                             {customSliders.length > 0 && (
@@ -894,12 +857,12 @@ export function ClipDialog(p: ClipDialogProps) {
       </Dialog>
 
       <WeightsDialog
-        open={weightsOpen}
-        cat={weightsCat}
-        weights={formulaWeights}
-        onClose={closeWeights}
-        onPatch={patchFormulaWeights}
-        onReset={resetWeights}
+        open={weightsLogic.weightsOpen}
+        cat={weightsLogic.weightsCat}
+        weights={weightsLogic.formulaWeights}
+        onClose={weightsLogic.closeWeights}
+        onPatch={weightsLogic.patchFormulaWeights}
+        onReset={weightsLogic.resetWeights}
       />
 
       {/* CREATE */}

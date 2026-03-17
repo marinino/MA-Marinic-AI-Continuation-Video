@@ -9,8 +9,8 @@ import {
   ListItemText,
 } from "@mui/material";
 import { useEffect, useState } from "react";
-import { listProjects, loadProject } from "./api";
 import type { Project } from "@ma/shared";
+import { listProjects, loadProject } from "../../api";
 
 type Props = {
   open: boolean;

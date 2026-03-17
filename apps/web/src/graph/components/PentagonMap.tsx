@@ -1,20 +1,8 @@
 import * as React from "react";
 import { Box } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import { RadarAxis } from "../types/ui";
 
-export type CategoryScores = {
-  creativity: number;
-  promptFaithfulness: number;
-  motion: number;
-  transitionSmoothness: number;
-  videoFaithfulness: number;
-};
-
-export type RadarAxis = {
-  id: string; // z.B. "creativity" oder "custom:123"
-  label: string; // Text am Rand
-  value: number; // 0..100
-};
 
 export function PentagonMap(props: {
   axes: RadarAxis[]; // ✅ MUSS 5 sein

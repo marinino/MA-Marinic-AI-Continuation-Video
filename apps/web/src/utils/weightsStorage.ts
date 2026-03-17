@@ -1,12 +1,12 @@
 import {
   DEFAULT_FORMULA_WEIGHTS,
-  type FormulaWeights,
-  type CustomScoreSlider,
 } from "../graph/hooks/useV2VParams";
+import { AppSettings, CustomScoreSlider, FormulaWeights } from "../graph/types/ui";
 
 const KEY_FORMULA = "ma:v2v:formulaWeights:v1";
 const KEY_CUSTOM = "ma:v2v:customScoreSliders:v1";
 const KEY_CATEGORY_VISIBILITY = "ma:v2v:categoryVisibility:v1";
+const KEY_SETTINGS = "ma:settings:v1";
 
 // ---------------- FormulaWeights ----------------
 
@@ -75,6 +75,39 @@ export function loadCategoryVisibility(): Record<string, boolean> {
 export function saveCategoryVisibility(visibility: Record<string, boolean>) {
   try {
     localStorage.setItem(KEY_CATEGORY_VISIBILITY, JSON.stringify(visibility));
+  } catch {}
+}
+
+
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  showEdgeLabels: true,
+  highlightUnseenEnabled: true,
+  notesEnabled: true,
+  showWeightSuggestionsEnabled: true,
+};
+
+export function loadSettings(): AppSettings {
+  try {
+    const raw = localStorage.getItem(KEY_SETTINGS);
+    if (!raw) return DEFAULT_SETTINGS;
+
+    const parsed = JSON.parse(raw);
+
+    return {
+      showEdgeLabels: parsed?.showEdgeLabels !== false,
+      highlightUnseenEnabled: parsed?.highlightUnseenEnabled !== false,
+      notesEnabled: parsed?.notesEnabled !== false,
+      showWeightSuggestionsEnabled: parsed?.showWeightSuggestionsEnabled !== false,
+    };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
+export function saveSettings(settings: AppSettings) {
+  try {
+    localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings));
   } catch {}
 }
 

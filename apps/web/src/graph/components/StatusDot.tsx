@@ -1,7 +1,8 @@
 import * as React from "react";
 import { Box, Tooltip } from "@mui/material";
+import { GenState } from "../types/ui";
 
-export type GenState = "idle" | "running" | "error";
+
 
 export function StatusDot({ state }: { state: GenState }) {
   const color =

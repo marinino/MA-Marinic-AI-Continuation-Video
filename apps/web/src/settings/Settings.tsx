@@ -32,7 +32,7 @@ export function Settings({
   notesEnabled,
   setNotesEnabled,
   setShowWeightSuggestionsEnabled,
-  showWeightSuggestionsEnabled
+  showWeightSuggestionsEnabled,
 }: SettingsProps) {
   return (
     <Dialog
@@ -78,7 +78,10 @@ export function Settings({
 
         <FormControlLabel
           control={
-            <Checkbox checked={showWeightSuggestionsEnabled} onChange={(e) => setShowWeightSuggestionsEnabled(e.target.checked)} />
+            <Checkbox
+              checked={showWeightSuggestionsEnabled}
+              onChange={(e) => setShowWeightSuggestionsEnabled(e.target.checked)}
+            />
           }
           label="Show suggestions for category weights"
         />
