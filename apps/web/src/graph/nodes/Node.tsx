@@ -198,7 +198,6 @@ export function NodeCard(props: {
         branchSuggestion={props.branchSuggestion}
         note={props.note}
         onSaveNote={props.onSaveNote}
-        
         notesEnabled={props.notesEnabled}
         categoryScores={props.categoryScores}
         categoryScoreDeltas={props.categoryScoreDeltas}

@@ -30,6 +30,9 @@ import {
   ParamDelats,
   SelectedCategory,
 } from "../types/ui";
+import { deriveRangesFromPresets } from "../hooks/useV2VParams";
+import { SAFE_PRESETS } from "../hooks/useV2VSliders";
+import { ParameterBarGroup } from "../components/ParameterBarGroup";
 
 export interface NodeDetailsDialogProps {
   open: boolean;
@@ -123,6 +126,18 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
     setLocalNote(props.note ?? "");
   }, [props.note, props.open]);
 
+  const PARAM_RANGES = deriveRangesFromPresets([...SAFE_PRESETS.quality, ...SAFE_PRESETS.quick]);
+
+  const highStepsValue =
+    props.highNoiseStartStep != null && props.highNoiseEndStep != null
+      ? props.highNoiseEndStep - props.highNoiseStartStep
+      : null;
+
+  const lowStepsValue =
+    props.lowNoiseStartStep != null && props.lowNoiseEndStep != null
+      ? props.lowNoiseEndStep - props.lowNoiseStartStep
+      : null;
+
   return (
     <>
       <Dialog
@@ -188,170 +203,119 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
                     : "No prompt set yet."}
                 </Typography>
 
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                    gap: 0.75,
-                    mt: 1,
-                  }}
-                >
-                  <Chip
-                    size="small"
-                    label={withOptionalDelta(
-                      "High CFG",
-                      props.highNoiseCfg,
-                      props.d?.highNoiseCfg,
-                      2
-                    )}
-                    sx={deltaSxOrNeutral(props.d?.highNoiseCfg)}
-                  />
-
-                  <Chip
-                    size="small"
-                    label={withOptionalDelta("Low CFG", props.lowNoiseCfg, props.d?.lowNoiseCfg, 2)}
-                    sx={deltaSxOrNeutral(props.d?.lowNoiseCfg)}
-                  />
-
-                  <Chip
-                    size="small"
-                    label={withOptionalDelta(
-                      "High Shift",
-                      props.highNoiseShift,
-                      props.d?.highNoiseShift,
-                      2
-                    )}
-                    sx={deltaSxOrNeutral(props.d?.highNoiseShift)}
-                  />
-
-                  <Chip
-                    size="small"
-                    label={withOptionalDelta(
-                      "Low Shift",
-                      props.lowNoiseShift,
-                      props.d?.lowNoiseShift,
-                      2
-                    )}
-                    sx={deltaSxOrNeutral(props.d?.lowNoiseShift)}
-                  />
-
-                  <Chip
-                    size="small"
-                    label={withOptionalDelta(
-                      "High Strength",
-                      props.highNoiseModelStrength,
-                      props.d?.highNoiseModelStrength,
-                      2
-                    )}
-                    sx={deltaSxOrNeutral(props.d?.highNoiseModelStrength)}
-                  />
-
-                  <Chip
-                    size="small"
-                    label={withOptionalDelta(
-                      "Low Strength",
-                      props.lowNoiseModelStrength,
-                      props.d?.lowNoiseModelStrength,
-                      2
-                    )}
-                    sx={deltaSxOrNeutral(props.d?.lowNoiseModelStrength)}
-                  />
-
-                  <Chip
-                    size="small"
-                    label={
-                      props.d?.highNoiseStartStep != null && props.d?.highNoiseEndStep != null
-                        ? `High Steps: ${props.highNoiseStartStep}→${props.highNoiseEndStep} ${fmt(
-                            props.d.highNoiseEndStep - props.d.highNoiseStartStep,
-                            0
-                          )}`
-                        : `High Steps: ${props.highNoiseStartStep}→${props.highNoiseEndStep}`
-                    }
-                    sx={
-                      props.d?.highNoiseStartStep != null && props.d?.highNoiseEndStep != null
-                        ? deltaChipSx(props.d.highNoiseEndStep - props.d.highNoiseStartStep)
-                        : {}
-                    }
-                  />
-
-                  <Chip
-                    size="small"
-                    label={
-                      props.d?.lowNoiseStartStep != null && props.d?.lowNoiseEndStep != null
-                        ? `Low Steps: ${props.lowNoiseStartStep}→${props.lowNoiseEndStep} ${fmt(
-                            props.d.lowNoiseEndStep - props.d.lowNoiseStartStep,
-                            0
-                          )}`
-                        : `Low Steps: ${props.lowNoiseStartStep}→${props.lowNoiseEndStep}`
-                    }
-                    sx={
-                      props.d?.lowNoiseStartStep != null && props.d?.lowNoiseEndStep != null
-                        ? deltaChipSx(props.d.lowNoiseEndStep - props.d.lowNoiseStartStep)
-                        : {}
-                    }
-                  />
-                </Box>
+                <ParameterBarGroup
+                  items={[
+                    {
+                      label: "High CFG",
+                      value: props.highNoiseCfg!,
+                      min: PARAM_RANGES.highCfg.min,
+                      max: PARAM_RANGES.highCfg.max,
+                      delta: props.d?.highNoiseCfg,
+                      colorKey: "highCfg",
+                    },
+                    {
+                      label: "High Shift",
+                      value: props.highNoiseShift!,
+                      min: PARAM_RANGES.highShift.min,
+                      max: PARAM_RANGES.highShift.max,
+                      delta: props.d?.highNoiseShift,
+                      colorKey: "highShift",
+                    },
+                    {
+                      label: "High Strength",
+                      value: props.highNoiseModelStrength!,
+                      min: PARAM_RANGES.highStrength.min,
+                      max: PARAM_RANGES.highStrength.max,
+                      delta: props.d?.highNoiseModelStrength,
+                      colorKey: "highStrength",
+                    },
+                    {
+                      label: "High Steps",
+                      value: highStepsValue!,
+                      min: PARAM_RANGES.highSteps.min,
+                      max: PARAM_RANGES.highSteps.max,
+                      delta:
+                        props.d?.highNoiseEndStep != null && props.d?.highNoiseStartStep != null
+                          ? props.d.highNoiseEndStep - props.d.highNoiseStartStep
+                          : null,
+                      decimals: 0,
+                      colorKey: "highSteps",
+                    },
+                    {
+                      label: "Low Steps",
+                      value: lowStepsValue!,
+                      min: PARAM_RANGES.lowSteps.min,
+                      max: PARAM_RANGES.lowSteps.max,
+                      delta:
+                        props.d?.lowNoiseEndStep != null && props.d?.lowNoiseStartStep != null
+                          ? props.d.lowNoiseEndStep - props.d.lowNoiseStartStep
+                          : null,
+                      decimals: 0,
+                      colorKey: "lowSteps",
+                    },
+                  ]}
+                />
 
                 {props.showWeightSuggestionsEnabled && props.branchSuggestion && (
-  <>
-    <Divider />
+                  <>
+                    <Divider />
 
-    <Typography variant="caption" sx={{ mt: 1 }}>
-      <strong>Branch pattern detected</strong>
-    </Typography>
+                    <Typography variant="caption" sx={{ mt: 1 }}>
+                      <strong>Branch pattern detected</strong>
+                    </Typography>
 
-    <Stack spacing={0.75}>
-      <Chip
-        size="small"
-        label={`Affected category: ${categoryLabel(props.branchSuggestion.targetCategory)}`}
-        sx={{
-          alignSelf: "flex-start",
-          border: "1px solid",
-          borderColor: "#ff9800",
-          boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
-        }}
-      />
+                    <Stack spacing={0.75}>
+                      <Chip
+                        size="small"
+                        label={`Affected category: ${categoryLabel(props.branchSuggestion.targetCategory)}`}
+                        sx={{
+                          alignSelf: "flex-start",
+                          border: "1px solid",
+                          borderColor: "#ff9800",
+                          boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
+                        }}
+                      />
 
-      <Chip
-        size="small"
-        label={`Parameter to adjust: ${paramLabel(props.branchSuggestion.parameter)}`}
-        sx={{
-          alignSelf: "flex-start",
-          border: "1px solid",
-          borderColor: "#ff9800",
-          boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
-        }}
-      />
+                      <Chip
+                        size="small"
+                        label={`Parameter to adjust: ${paramLabel(props.branchSuggestion.parameter)}`}
+                        sx={{
+                          alignSelf: "flex-start",
+                          border: "1px solid",
+                          borderColor: "#ff9800",
+                          boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
+                        }}
+                      />
 
-      <Typography
-  variant="caption"
-  sx={{
-    cursor: "pointer",
-    width: "fit-content",
-  }}
-  onClick={() => setShowSuggestionDetails((prev) => !prev)}
->
-  {showSuggestionDetails ? "Hide details" : "Click for details"}
-</Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          cursor: "pointer",
+                          width: "fit-content",
+                        }}
+                        onClick={() => setShowSuggestionDetails((prev) => !prev)}
+                      >
+                        {showSuggestionDetails ? "Hide details" : "Click for details"}
+                      </Typography>
 
-      <Collapse in={showSuggestionDetails} timeout="auto" unmountOnExit>
-        <Stack spacing={0.75}>
-          <Typography variant="body2" color="text.secondary">
-            {props.branchSuggestion.message}
-          </Typography>
+                      <Collapse in={showSuggestionDetails} timeout="auto" unmountOnExit>
+                        <Stack spacing={0.75}>
+                          <Typography variant="body2" color="text.secondary">
+                            {props.branchSuggestion.message}
+                          </Typography>
 
-          <Typography variant="caption" color="text.secondary">
-            Confidence: {Math.round(props.branchSuggestion.confidence * 100)}% · Hits:{" "}
-            {props.branchSuggestion.hitCount} · Longest streak:{" "}
-            {props.branchSuggestion.streakLength} · Average category delta:{" "}
-            {props.branchSuggestion.avgCategoryDelta} · Average parameter delta:{" "}
-            {props.branchSuggestion.avgParamDelta}
-          </Typography>
-        </Stack>
-      </Collapse>
-    </Stack>
-  </>
-)}
+                          <Typography variant="caption" color="text.secondary">
+                            Confidence: {Math.round(props.branchSuggestion.confidence * 100)}% ·
+                            Hits: {props.branchSuggestion.hitCount} · Longest streak:{" "}
+                            {props.branchSuggestion.streakLength} · Average category delta:{" "}
+                            {props.branchSuggestion.avgCategoryDelta} · Average parameter delta:{" "}
+                            {props.branchSuggestion.avgParamDelta}
+                          </Typography>
+                        </Stack>
+                      </Collapse>
+                    </Stack>
+                  </>
+                )}
 
                 <Divider />
 

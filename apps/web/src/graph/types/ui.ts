@@ -376,3 +376,13 @@ export type OrderedSliderItem =
   | { id: string; kind: "custom"; slider: CustomScoreSlider };
 
 export type ScoreMap = Record<string, number>;
+
+export type ParamRange = { min: number; max: number };
+
+export type DerivedRanges = {
+  highCfg: ParamRange;
+  highShift: ParamRange;
+  highStrength: ParamRange;
+  highSteps: ParamRange;
+  lowSteps: ParamRange;
+};

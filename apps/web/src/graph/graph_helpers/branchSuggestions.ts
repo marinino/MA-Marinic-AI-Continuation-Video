@@ -6,6 +6,7 @@ import {
   ParamNodeData,
   ParamWeightSuggestion,
 } from "../types/ui";
+import { clamp01 } from "./clipDialogLogic";
 
 const SCORE_KEYS: StandardCategoryKey[] = [
   "creativity",
@@ -29,10 +30,6 @@ const PARAM_KEYS: ParamKey[] = [
   "highNoiseEndStep",
   "lowNoiseEndStep",
 ];
-
-function clamp01(v: number) {
-  return Math.max(0, Math.min(1, v));
-}
 
 function round2(v: number) {
   return Math.round(v * 100) / 100;

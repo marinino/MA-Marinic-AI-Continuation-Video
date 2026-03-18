@@ -2,10 +2,14 @@ import { useMemo } from "react";
 import {
   CategoryScores,
   CustomScoreSlider,
+  DerivedRanges,
   FormulaWeights,
+  ParamRange,
   ScoreRanges,
   SimpleReal,
+  SpeedMode,
 } from "../types/ui";
+import { SAFE_PRESETS } from "./useV2VSliders";
 
 export const DEFAULT_FORMULA_WEIGHTS: FormulaWeights = {
   promptFaithfulness: { cfg: 0.85, ratio: 0.15 },
@@ -36,6 +40,64 @@ export const DEFAULT_CUSTOM_W: CustomScoreSlider["w"] = {
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+export function getStepRanges(mode: SpeedMode) {
+  const presets = SAFE_PRESETS[mode];
+
+  const highSteps = presets.map((p) => p.stepsTotal * (1 - p.lowRatio));
+  const lowSteps = presets.map((p) => p.stepsTotal * p.lowRatio);
+
+  return {
+    highSteps: {
+      min: Math.min(...highSteps),
+      max: Math.max(...highSteps),
+    },
+    lowSteps: {
+      min: Math.min(...lowSteps),
+      max: Math.max(...lowSteps),
+    },
+  };
+}
+
+export function deriveRangesFromPresets(
+  presets: Array<{
+    stepsTotal: number;
+    lowRatio: number;
+    cfgHigh: number;
+    shiftHigh: number;
+    strengthHigh: number;
+  }>
+) {
+  const highCfgValues = presets.map((p) => p.cfgHigh);
+  const highShiftValues = presets.map((p) => p.shiftHigh);
+  const highStrengthValues = presets.map((p) => p.strengthHigh);
+
+  const highStepsValues = presets.map((p) => p.stepsTotal * (1 - p.lowRatio));
+  const lowStepsValues = presets.map((p) => p.stepsTotal * p.lowRatio);
+
+  return {
+    highCfg: {
+      min: Math.min(...highCfgValues),
+      max: Math.max(...highCfgValues),
+    },
+    highShift: {
+      min: Math.min(...highShiftValues),
+      max: Math.max(...highShiftValues),
+    },
+    highStrength: {
+      min: Math.min(...highStrengthValues),
+      max: Math.max(...highStrengthValues),
+    },
+    highSteps: {
+      min: Math.min(...highStepsValues),
+      max: Math.max(...highStepsValues),
+    },
+    lowSteps: {
+      min: Math.min(...lowStepsValues),
+      max: Math.max(...lowStepsValues),
+    },
+  };
+}
 
 export function smoothstep01(x: number) {
   const t = clamp(x, 0, 1);

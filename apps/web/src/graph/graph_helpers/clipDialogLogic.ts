@@ -30,6 +30,15 @@ export function axisLabel(id: AxisId, customSliders: CustomScoreSlider[]) {
   return cs?.name ?? String(id);
 }
 
+export function clamp01(v: number) {
+  return Math.max(0, Math.min(1, v));
+}
+
+export function normalize(value: number, min: number, max: number) {
+  if (max <= min) return 0;
+  return clamp01((value - min) / (max - min));
+}
+
 export function useClipDialogLogic(
   formulaWeights: FormulaWeights,
   customSliders: CustomScoreSlider[]

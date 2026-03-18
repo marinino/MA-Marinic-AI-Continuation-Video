@@ -23,8 +23,6 @@ import {
   ToggleButtonGroup,
 } from "@mui/material";
 
-
-
 // ⬇️ falls dein PentagonMap woanders liegt: Pfad anpassen
 import { PentagonMap } from "../components/PentagonMap";
 import { SAFE_PRESETS, useV2VSliders } from "../hooks/useV2VSliders";
