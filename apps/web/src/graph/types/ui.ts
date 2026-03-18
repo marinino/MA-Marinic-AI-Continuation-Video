@@ -375,4 +375,4 @@ export type OrderedSliderItem =
   | { id: StandardCategoryKey; kind: "base" }
   | { id: string; kind: "custom"; slider: CustomScoreSlider };
 
-  export type ScoreMap = Record<string, number>;
+export type ScoreMap = Record<string, number>;

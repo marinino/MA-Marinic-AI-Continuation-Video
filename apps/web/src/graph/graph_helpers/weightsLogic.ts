@@ -1,5 +1,5 @@
 import React from "react";
-import { loadFormulaWeights } from "../../utils/weightsStorage";
+import { loadFormulaWeights } from "../../utils/localStorage";
 import { FormulaWeights, DEFAULT_FORMULA_WEIGHTS } from "../hooks/useV2VParams";
 import { CatKey } from "../types/ui";
 

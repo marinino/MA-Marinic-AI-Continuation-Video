@@ -89,8 +89,10 @@ import {
   loadFormulaWeights,
   loadSliderOrder,
   saveCategoryVisibility,
+  saveCustomSliders,
+  saveFormulaWeights,
   saveSliderOrder,
-} from "../utils/weightsStorage";
+} from "../utils/localStorage";
 import {
   CustomScoreSlider,
   FormulaWeights,
@@ -274,17 +276,87 @@ export function GraphView(props: {
   // simple sliders hook (your preference)
   const v2v = useV2VSliders();
 
-  const [customSliders, setCustomSliders] = useState<CustomScoreSlider[]>([]);
-  const [formulaWeights, setFormulaWeights] = useState<FormulaWeights>(DEFAULT_FORMULA_WEIGHTS);
   const [categoryVisibility, setCategoryVisibility] = useState<Record<string, boolean>>(() =>
     loadCategoryVisibility()
   );
+
+  const [formulaWeights, setFormulaWeights] = useState<FormulaWeights>(() => loadFormulaWeights());
   const [sliderOrder, setSliderOrder] = useState<string[]>(() => loadSliderOrder());
 
-  useEffect(() => {
-    setCustomSliders(loadCustomSliders());
-    setFormulaWeights(loadFormulaWeights());
-  }, []);
+  const [customSliders, setCustomSliders] = useState<CustomScoreSlider[]>(() => loadCustomSliders());
+
+  const createCustomSlider = useCallback((name: string, w: any) => {
+  const id = `custom:${Date.now()}`;
+
+  const newSlider: CustomScoreSlider = {
+    id,
+    name: name.trim(),
+    w,
+  };
+
+  setCustomSliders((prev) => {
+    const next = [...prev, newSlider];
+    saveCustomSliders(next);
+    return next;
+  });
+
+  setSliderOrder((prev) => {
+    const next = [...prev, id];
+    saveSliderOrder(next);
+    return next;
+  });
+}, []);
+
+const updateCustomSlider = useCallback((id: string, name: string, w: any) => {
+  setCustomSliders((prev) => {
+    const next = prev.map((x) => (x.id === id ? { ...x, name: name.trim(), w } : x));
+    saveCustomSliders(next);
+    return next;
+  });
+}, []);
+
+const deleteCustomSlider = useCallback((id: string) => {
+  setCustomSliders((prev) => {
+    const next = prev.filter((x) => x.id !== id);
+    saveCustomSliders(next);
+    return next;
+  });
+
+  setSliderOrder((prev) => {
+    const next = prev.filter((x) => x !== id);
+    saveSliderOrder(next);
+    return next;
+  });
+
+  setCategoryVisibility((prev) => {
+    const next = { ...prev };
+    delete next[id];
+    saveCategoryVisibility(next);
+    return next;
+  });
+}, []);
+
+const patchFormulaWeights = useCallback(
+  <K extends keyof FormulaWeights>(cat: K, patch: Partial<FormulaWeights[K]>) => {
+    setFormulaWeights((prev) => {
+      const next: FormulaWeights = {
+        ...prev,
+        [cat]: {
+          ...prev[cat],
+          ...patch,
+        },
+      };
+      saveFormulaWeights(next);
+      return next;
+    });
+  },
+  []
+);
+
+const resetFormulaWeights = useCallback(() => {
+  setFormulaWeights(DEFAULT_FORMULA_WEIGHTS);
+  saveFormulaWeights(DEFAULT_FORMULA_WEIGHTS);
+}, []);
 
   useEffect(() => {
     saveCategoryVisibility(categoryVisibility);
@@ -1320,8 +1392,15 @@ export function GraphView(props: {
         getBounds={v2v.getBounds}
         roundTo={v2v.roundTo}
         simulateSliderChange={v2v.simulateSliderChange}
+        onCreateCustomSlider={createCustomSlider}
+  onUpdateCustomSlider={updateCustomSlider}
+  onDeleteCustomSlider={deleteCustomSlider}
         orderedSliderItems={orderedSliderItems}
+        customSliders={customSliders}
         moveSlider={moveSlider}
+        formulaWeights={formulaWeights}
+        onPatchFormulaWeights={patchFormulaWeights}
+        onResetFormulaWeights={resetFormulaWeights}
       />
 
       <NamingConventionDialog

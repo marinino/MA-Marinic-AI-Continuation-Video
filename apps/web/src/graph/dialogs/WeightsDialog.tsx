@@ -8,8 +8,8 @@ import {
   DialogActions,
   Button,
 } from "@mui/material";
-import { CategoryScores, FormulaWeights } from "../hooks/useV2VParams";
-import { CatKey } from "../types/ui";
+
+import { CatKey, FormulaWeights } from "../types/ui";
 
 export function WeightsDialog(props: {
   open: boolean;

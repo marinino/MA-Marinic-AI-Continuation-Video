@@ -38,7 +38,7 @@ export function useSliderLogic({
   setActiveSimple: React.Dispatch<React.SetStateAction<keyof SimpleReal | null>>;
   setActiveEffects: React.Dispatch<React.SetStateAction<ScoreMap | null>>;
 }) {
-function computeEffectsFor(key: keyof SimpleReal, p: ClipDialogProps): ScoreMap {
+  function computeEffectsFor(key: keyof SimpleReal, p: ClipDialogProps): ScoreMap {
     const base = p.simple;
 
     const step = p.sliderCfg[key].step;
@@ -63,15 +63,11 @@ function computeEffectsFor(key: keyof SimpleReal, p: ClipDialogProps): ScoreMap 
     const sMinus = computeScoresFromReal(minus, p);
 
     const out: ScoreMap = {};
-const allKeys = new Set([
-  ...Object.keys(s0),
-  ...Object.keys(sPlus),
-  ...Object.keys(sMinus),
-]);
+    const allKeys = new Set([...Object.keys(s0), ...Object.keys(sPlus), ...Object.keys(sMinus)]);
 
-for (const cat of allKeys) {
-  out[cat] = ((sPlus[cat] ?? 0) - (sMinus[cat] ?? 0)) / (2 * epsSteps);
-}
+    for (const cat of allKeys) {
+      out[cat] = ((sPlus[cat] ?? 0) - (sMinus[cat] ?? 0)) / (2 * epsSteps);
+    }
     return out;
   }
 

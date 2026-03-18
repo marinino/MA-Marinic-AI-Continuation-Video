@@ -26,7 +26,7 @@ import { ReactFlowProvider } from "reactflow";
 import { Settings } from "./settings/Settings";
 import { InformationDialog } from "./graph/dialogs/InformationDialog";
 
-import { loadSettings, saveSettings } from "./utils/weightsStorage";
+import { loadSettings, saveSettings } from "./utils/localStorage";
 import { LoadProjectDialog } from "./graph/dialogs/LoadProjectsDialog";
 
 type ColorMode = "light" | "dark";
