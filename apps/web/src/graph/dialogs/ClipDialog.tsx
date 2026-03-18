@@ -23,6 +23,8 @@ import {
   ToggleButtonGroup,
 } from "@mui/material";
 
+
+
 // ⬇️ falls dein PentagonMap woanders liegt: Pfad anpassen
 import { PentagonMap } from "../components/PentagonMap";
 import { SAFE_PRESETS, useV2VSliders } from "../hooks/useV2VSliders";
@@ -109,16 +111,16 @@ export type ClipDialogProps = {
   simulateSliderChange: (prev: SimpleReal, key: SafeKey, raw: number) => SimpleReal;
 
   customSliders: CustomScoreSlider[];
-formulaWeights: FormulaWeights;
+  formulaWeights: FormulaWeights;
 
-onCreateCustomSlider: (name: string, w: any) => void;
-onUpdateCustomSlider: (id: string, name: string, w: any) => void;
-onDeleteCustomSlider: (id: string) => void;
+  onCreateCustomSlider: (name: string, w: any) => void;
+  onUpdateCustomSlider: (id: string, name: string, w: any) => void;
+  onDeleteCustomSlider: (id: string) => void;
 
-onPatchFormulaWeights: <K extends keyof FormulaWeights>(
-  cat: K,
-  patch: Partial<FormulaWeights[K]>
-) => void;
+  onPatchFormulaWeights: <K extends keyof FormulaWeights>(
+    cat: K,
+    patch: Partial<FormulaWeights[K]>
+  ) => void;
 
   orderedSliderItems: OrderedSliderItem[];
   moveSlider: (id: string, direction: "up" | "down") => void;
@@ -132,27 +134,26 @@ onPatchFormulaWeights: <K extends keyof FormulaWeights>(
 export function ClipDialog(p: ClipDialogProps) {
   const [catView, setCatView] = React.useState<CatView>("sliders");
 
-const [newOpen, setNewOpen] = React.useState(false);
-const [draftName, setDraftName] = React.useState("");
-const [draftW, setDraftW] = React.useState(DEFAULT_CUSTOM_W);
+  const [newOpen, setNewOpen] = React.useState(false);
+  const [draftName, setDraftName] = React.useState("");
+  const [draftW, setDraftW] = React.useState(DEFAULT_CUSTOM_W);
 
-const [editOpen, setEditOpen] = React.useState(false);
-const [editId, setEditId] = React.useState<string | null>(null);
-const [editName, setEditName] = React.useState("");
-const [editW, setEditW] = React.useState(DEFAULT_CUSTOM_W);
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [editId, setEditId] = React.useState<string | null>(null);
+  const [editName, setEditName] = React.useState("");
+  const [editW, setEditW] = React.useState(DEFAULT_CUSTOM_W);
 
-const [weightsOpen, setWeightsOpen] = React.useState(false);
-const [weightsCat, setWeightsCat] = React.useState<any>(null);
+  const [weightsOpen, setWeightsOpen] = React.useState(false);
+  const [weightsCat, setWeightsCat] = React.useState<any>(null);
 
-const openWeights = React.useCallback((cat: any) => {
-  setWeightsCat(cat);
-  setWeightsOpen(true);
-}, []);
+  const openWeights = React.useCallback((cat: any) => {
+    setWeightsCat(cat);
+    setWeightsOpen(true);
+  }, []);
 
-const closeWeights = React.useCallback(() => {
-  setWeightsOpen(false);
-}, []);
-
+  const closeWeights = React.useCallback(() => {
+    setWeightsOpen(false);
+  }, []);
 
   const clipLogic = useClipDialogLogic(p.formulaWeights, p.customSliders);
 
@@ -178,7 +179,6 @@ const closeWeights = React.useCallback(() => {
   React.useEffect(() => {
     localStorage.setItem(TRIANGLE_AXIS_STORAGE_KEY, JSON.stringify(triangleAxes));
   }, [triangleAxes]);
-
 
   React.useEffect(() => {
     if (!clipLogic.activeSimple) return;
@@ -289,46 +289,46 @@ const closeWeights = React.useCallback(() => {
   }, [sliderLogic]);
 
   const openCustomEdit = React.useCallback(
-  (id: string) => {
-    const cs = p.customSliders.find((x) => x.id === id);
-    if (!cs) return;
+    (id: string) => {
+      const cs = p.customSliders.find((x) => x.id === id);
+      if (!cs) return;
 
-    setEditId(id);
-    setEditName(cs.name);
-    setEditW(cs.w ?? DEFAULT_CUSTOM_W);
-    setEditOpen(true);
-  },
-  [p.customSliders]
-);
+      setEditId(id);
+      setEditName(cs.name);
+      setEditW(cs.w ?? DEFAULT_CUSTOM_W);
+      setEditOpen(true);
+    },
+    [p.customSliders]
+  );
 
-const closeCustomEdit = React.useCallback(() => {
-  setEditOpen(false);
-  setEditId(null);
-}, []);
-
-const createCustomSlider = React.useCallback(() => {
-  if (!draftName.trim()) return;
-  p.onCreateCustomSlider(draftName.trim(), draftW);
-  setDraftName("");
-  setDraftW(DEFAULT_CUSTOM_W);
-  setNewOpen(false);
-}, [p, draftName, draftW]);
-
-const saveCustomEdit = React.useCallback(() => {
-  if (!editId || !editName.trim()) return;
-  p.onUpdateCustomSlider(editId, editName.trim(), editW);
-  setEditOpen(false);
-  setEditId(null);
-}, [p, editId, editName, editW]);
-
-const deleteCustom = React.useCallback(
-  (id: string) => {
-    p.onDeleteCustomSlider(id);
+  const closeCustomEdit = React.useCallback(() => {
     setEditOpen(false);
     setEditId(null);
-  },
-  [p]
-);
+  }, []);
+
+  const createCustomSlider = React.useCallback(() => {
+    if (!draftName.trim()) return;
+    p.onCreateCustomSlider(draftName.trim(), draftW);
+    setDraftName("");
+    setDraftW(DEFAULT_CUSTOM_W);
+    setNewOpen(false);
+  }, [p, draftName, draftW]);
+
+  const saveCustomEdit = React.useCallback(() => {
+    if (!editId || !editName.trim()) return;
+    p.onUpdateCustomSlider(editId, editName.trim(), editW);
+    setEditOpen(false);
+    setEditId(null);
+  }, [p, editId, editName, editW]);
+
+  const deleteCustom = React.useCallback(
+    (id: string) => {
+      p.onDeleteCustomSlider(id);
+      setEditOpen(false);
+      setEditId(null);
+    },
+    [p]
+  );
 
   const {
     DEFAULT_PENTAGON_AXIS_IDS,
@@ -703,12 +703,12 @@ const deleteCustom = React.useCallback(
                             >
                               <Box>
                                 {renderOrderedSliderItem(
-  item,
-  computed,
-  clipLogic,
-  openWeights,
-  openCustomEdit
-)}
+                                  item,
+                                  computed,
+                                  clipLogic,
+                                  openWeights,
+                                  openCustomEdit
+                                )}
                               </Box>
 
                               <Stack spacing={0.5}>

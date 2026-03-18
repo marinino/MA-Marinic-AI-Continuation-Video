@@ -9,7 +9,6 @@ import { GraphCard } from "../components/GraphCard";
 import { ClipNode } from "./ClipNode";
 import { ParamNode } from "./ParamNode";
 import { EditNode } from "./EditNode";
-import { customSliderLogic } from "../graph_helpers/customSliderLogic";
 import { BrachSuggestion, GraphCardContentMode, ParamDelats } from "../types/ui";
 
 function getNodeColors(kind: NodeType, isRoot: boolean) {
@@ -161,6 +160,10 @@ export function NodeCard(props: {
         categoryLabels={props.categoryLabels}
         categoryVisibility={props.categoryVisibility}
         graphCardContentMode={props.graphCardContentMode}
+        onDelete={props.onDelete}
+        canDelete={props.canDelete}
+        onHide={props.onHide}
+        canHide={props.canHide}
       >
         {props.children}
       </GraphCard>
@@ -195,10 +198,7 @@ export function NodeCard(props: {
         branchSuggestion={props.branchSuggestion}
         note={props.note}
         onSaveNote={props.onSaveNote}
-        onDelete={props.onDelete}
-        canDelete={props.canDelete}
-        onHide={props.onHide}
-        canHide={props.canHide}
+        
         notesEnabled={props.notesEnabled}
         categoryScores={props.categoryScores}
         categoryScoreDeltas={props.categoryScoreDeltas}

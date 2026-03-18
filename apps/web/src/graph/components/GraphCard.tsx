@@ -14,6 +14,10 @@ import {
 } from "../types/ui";
 import { DEFAULT_CATEGORY_LABELS } from "../graph_helpers/sliderLogic";
 
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+
 export type NodeCardPreviewProps = {
   nodeId: string;
   type: NodeType;
@@ -57,6 +61,12 @@ export type NodeCardPreviewProps = {
   categoryLabels?: CategoryLabelMap;
   categoryVisibility?: Record<string, boolean>;
   graphCardContentMode: GraphCardContentMode;
+
+  onDelete?: (nodeId: string) => void;
+  canDelete?: boolean;
+
+  onHide?: (nodeId: string) => void;
+  canHide?: boolean;
 };
 
 export function GraphCard(props: NodeCardPreviewProps) {
@@ -244,27 +254,69 @@ export function GraphCard(props: NodeCardPreviewProps) {
       }}
     >
       <CardContent>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <IconButton size="small">{props.icon}</IconButton>
+        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+            <IconButton size="small">{props.icon}</IconButton>
+            <Typography variant="subtitle2" noWrap>
+              {props.title}
+            </Typography>
+          </Stack>
 
-          <Typography variant="subtitle2">{props.title}</Typography>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            {props.type === "clip" && (
+              <IconButton
+                size="small"
+                title="Add node"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  props.onAdd?.(props.nodeId);
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
+                <AddIcon fontSize="small" />
+              </IconButton>
+            )}
 
-          {props.type === "clip" && (
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                props.onAdd?.(props.nodeId);
-              }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-            >
-              <AddIcon fontSize="small" />
-            </IconButton>
-          )}
+            {props.canHide !== false && (
+              <IconButton
+                size="small"
+                title={"Hide node"}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  props.onHide?.(props.nodeId);
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
+                <VisibilityOffIcon fontSize="small" />
+              </IconButton>
+            )}
+
+            {props.canDelete !== false && (
+              <IconButton
+                size="small"
+                title="Delete node"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  props.onDelete?.(props.nodeId);
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
+                <DeleteOutlineIcon fontSize="small" />
+              </IconButton>
+            )}
+          </Stack>
         </Stack>
 
         <Box sx={{ mt: 0.5 }}>

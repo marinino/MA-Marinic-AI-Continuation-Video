@@ -83,11 +83,6 @@ export interface NodeDetailsDialogProps {
   onSaveNote?: (nodeId: string, note: string) => void;
 
   // node actions
-  onDelete?: (nodeId: string) => void;
-  canDelete?: boolean;
-
-  onHide?: (nodeId: string) => void;
-  canHide?: boolean;
 
   notesEnabled: boolean;
   showWeightSuggestionsEnabled: boolean;
@@ -180,74 +175,15 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
               )
             ) : props.type === "params" ? (
               <>
-                {props.prevParamsId && props.promptChanged && (
-                  <Chip
-                    size="small"
-                    label="Prompt changed"
-                    sx={{
-                      mt: 1,
-                      alignSelf: "flex-start",
-                      border: "1px solid",
-                      borderColor: "#f73378", // blau vs rot
-                      // optional: bisschen stärker sichtbar
-                      boxShadow: "0 0 0 1px rgba(211,47,47,0.15)",
-                    }}
-                  />
-                )}
-                {/* Prompt */}
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  <strong>Prompt:</strong>{" "}
+                <Typography variant="caption" display="block">
+                  <strong>Parameters</strong>
+                </Typography>
+
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  <strong>Prompt: {""}</strong>
                   {props.prompt?.trim()
                     ? `${props.prompt.slice(0, 3000)}${props.prompt.length > 3000 ? "…" : ""}`
                     : "No prompt set yet."}
-                </Typography>
-
-                {props.showWeightSuggestionsEnabled && props.branchSuggestion && (
-                  <>
-                    <Typography variant="subtitle2" sx={{ mt: 1.5 }}>
-                      Branch pattern detected
-                    </Typography>
-
-                    <Stack spacing={0.75}>
-                      <Chip
-                        size="small"
-                        label={`Affected category: ${categoryLabel(props.branchSuggestion.targetCategory)}`}
-                        sx={{
-                          alignSelf: "flex-start",
-                          border: "1px solid",
-                          borderColor: "#ff9800",
-                          boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
-                        }}
-                      />
-
-                      <Chip
-                        size="small"
-                        label={`Parameter to adjust: ${paramLabel(props.branchSuggestion.parameter)}`}
-                        sx={{
-                          alignSelf: "flex-start",
-                          border: "1px solid",
-                          borderColor: "#ff9800",
-                          boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
-                        }}
-                      />
-
-                      <Typography variant="body2" color="text.secondary">
-                        {props.branchSuggestion.message}
-                      </Typography>
-
-                      <Typography variant="caption" color="text.secondary">
-                        Confidence: {Math.round(props.branchSuggestion.confidence * 100)}% · Hits:{" "}
-                        {props.branchSuggestion.hitCount} · Longest streak:{" "}
-                        {props.branchSuggestion.streakLength} · Average category delta:{" "}
-                        {props.branchSuggestion.avgCategoryDelta} · Average parameter delta:{" "}
-                        {props.branchSuggestion.avgParamDelta}
-                      </Typography>
-                    </Stack>
-                  </>
-                )}
-
-                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                  <strong>Parameters</strong>
                 </Typography>
 
                 <Box
@@ -255,7 +191,7 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
                     display: "grid",
                     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
                     gap: 0.75,
-                    mt: 0.25,
+                    mt: 1,
                   }}
                 >
                   <Chip
@@ -354,14 +290,57 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
                   />
                 </Box>
 
+                {props.showWeightSuggestionsEnabled && props.branchSuggestion && (
+                  <>
+                    <Divider />
+
+                    <Typography variant="caption" sx={{ mt: 1 }}>
+                      <strong>Branch pattern detected</strong>
+                    </Typography>
+
+                    <Stack spacing={0.75}>
+                      <Chip
+                        size="small"
+                        label={`Affected category: ${categoryLabel(props.branchSuggestion.targetCategory)}`}
+                        sx={{
+                          alignSelf: "flex-start",
+                          border: "1px solid",
+                          borderColor: "#ff9800",
+                          boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
+                        }}
+                      />
+
+                      <Chip
+                        size="small"
+                        label={`Parameter to adjust: ${paramLabel(props.branchSuggestion.parameter)}`}
+                        sx={{
+                          alignSelf: "flex-start",
+                          border: "1px solid",
+                          borderColor: "#ff9800",
+                          boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
+                        }}
+                      />
+
+                      <Typography variant="body2" color="text.secondary">
+                        {props.branchSuggestion.message}
+                      </Typography>
+
+                      <Typography variant="caption" color="text.secondary">
+                        Confidence: {Math.round(props.branchSuggestion.confidence * 100)}% · Hits:{" "}
+                        {props.branchSuggestion.hitCount} · Longest streak:{" "}
+                        {props.branchSuggestion.streakLength} · Average category delta:{" "}
+                        {props.branchSuggestion.avgCategoryDelta} · Average parameter delta:{" "}
+                        {props.branchSuggestion.avgParamDelta}
+                      </Typography>
+                    </Stack>
+                  </>
+                )}
+
+                <Divider />
+
                 {
                   <>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      display="block"
-                      sx={{ mt: 1 }}
-                    >
+                    <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                       <strong>Category scores</strong>
                     </Typography>
 
@@ -405,55 +384,27 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
               </Typography>
             )}
 
-            <Divider />
-
             {props.notesEnabled && (
-              <TextField
-                multiline
-                minRows={3}
-                fullWidth
-                value={localNote}
-                onChange={(e) => setLocalNote(e.target.value)}
-                placeholder="Add notes for this node..."
-              />
+              <>
+                <Divider />
+
+                <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                  <strong>Notes</strong>
+                </Typography>
+
+                <TextField
+                  multiline
+                  minRows={3}
+                  fullWidth
+                  value={localNote}
+                  onChange={(e) => setLocalNote(e.target.value)}
+                  placeholder="Add notes for this node..."
+                />
+              </>
             )}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ justifyContent: "space-between" }}>
-          <Box>
-            {props.canDelete !== false && (
-              <Button
-                color="error"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  props.onDelete?.(props.nodeId);
-                  props.onClose();
-                }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-              >
-                Delete node
-              </Button>
-            )}
-          </Box>
-
-          {props.canHide !== false && (
-            <Button
-              color="warning"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                props.onHide?.(props.nodeId);
-                props.onClose();
-              }}
-            >
-              Hide node
-            </Button>
-          )}
-
           <Box sx={{ display: "flex", gap: 1 }}>
             <Button
               onClick={(e) => {

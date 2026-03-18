@@ -283,80 +283,82 @@ export function GraphView(props: {
   const [formulaWeights, setFormulaWeights] = useState<FormulaWeights>(() => loadFormulaWeights());
   const [sliderOrder, setSliderOrder] = useState<string[]>(() => loadSliderOrder());
 
-  const [customSliders, setCustomSliders] = useState<CustomScoreSlider[]>(() => loadCustomSliders());
+  const [customSliders, setCustomSliders] = useState<CustomScoreSlider[]>(() =>
+    loadCustomSliders()
+  );
 
   const createCustomSlider = useCallback((name: string, w: any) => {
-  const id = `custom:${Date.now()}`;
+    const id = `custom:${Date.now()}`;
 
-  const newSlider: CustomScoreSlider = {
-    id,
-    name: name.trim(),
-    w,
-  };
+    const newSlider: CustomScoreSlider = {
+      id,
+      name: name.trim(),
+      w,
+    };
 
-  setCustomSliders((prev) => {
-    const next = [...prev, newSlider];
-    saveCustomSliders(next);
-    return next;
-  });
-
-  setSliderOrder((prev) => {
-    const next = [...prev, id];
-    saveSliderOrder(next);
-    return next;
-  });
-}, []);
-
-const updateCustomSlider = useCallback((id: string, name: string, w: any) => {
-  setCustomSliders((prev) => {
-    const next = prev.map((x) => (x.id === id ? { ...x, name: name.trim(), w } : x));
-    saveCustomSliders(next);
-    return next;
-  });
-}, []);
-
-const deleteCustomSlider = useCallback((id: string) => {
-  setCustomSliders((prev) => {
-    const next = prev.filter((x) => x.id !== id);
-    saveCustomSliders(next);
-    return next;
-  });
-
-  setSliderOrder((prev) => {
-    const next = prev.filter((x) => x !== id);
-    saveSliderOrder(next);
-    return next;
-  });
-
-  setCategoryVisibility((prev) => {
-    const next = { ...prev };
-    delete next[id];
-    saveCategoryVisibility(next);
-    return next;
-  });
-}, []);
-
-const patchFormulaWeights = useCallback(
-  <K extends keyof FormulaWeights>(cat: K, patch: Partial<FormulaWeights[K]>) => {
-    setFormulaWeights((prev) => {
-      const next: FormulaWeights = {
-        ...prev,
-        [cat]: {
-          ...prev[cat],
-          ...patch,
-        },
-      };
-      saveFormulaWeights(next);
+    setCustomSliders((prev) => {
+      const next = [...prev, newSlider];
+      saveCustomSliders(next);
       return next;
     });
-  },
-  []
-);
 
-const resetFormulaWeights = useCallback(() => {
-  setFormulaWeights(DEFAULT_FORMULA_WEIGHTS);
-  saveFormulaWeights(DEFAULT_FORMULA_WEIGHTS);
-}, []);
+    setSliderOrder((prev) => {
+      const next = [...prev, id];
+      saveSliderOrder(next);
+      return next;
+    });
+  }, []);
+
+  const updateCustomSlider = useCallback((id: string, name: string, w: any) => {
+    setCustomSliders((prev) => {
+      const next = prev.map((x) => (x.id === id ? { ...x, name: name.trim(), w } : x));
+      saveCustomSliders(next);
+      return next;
+    });
+  }, []);
+
+  const deleteCustomSlider = useCallback((id: string) => {
+    setCustomSliders((prev) => {
+      const next = prev.filter((x) => x.id !== id);
+      saveCustomSliders(next);
+      return next;
+    });
+
+    setSliderOrder((prev) => {
+      const next = prev.filter((x) => x !== id);
+      saveSliderOrder(next);
+      return next;
+    });
+
+    setCategoryVisibility((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      saveCategoryVisibility(next);
+      return next;
+    });
+  }, []);
+
+  const patchFormulaWeights = useCallback(
+    <K extends keyof FormulaWeights>(cat: K, patch: Partial<FormulaWeights[K]>) => {
+      setFormulaWeights((prev) => {
+        const next: FormulaWeights = {
+          ...prev,
+          [cat]: {
+            ...prev[cat],
+            ...patch,
+          },
+        };
+        saveFormulaWeights(next);
+        return next;
+      });
+    },
+    []
+  );
+
+  const resetFormulaWeights = useCallback(() => {
+    setFormulaWeights(DEFAULT_FORMULA_WEIGHTS);
+    saveFormulaWeights(DEFAULT_FORMULA_WEIGHTS);
+  }, []);
 
   useEffect(() => {
     saveCategoryVisibility(categoryVisibility);
@@ -1067,10 +1069,21 @@ const resetFormulaWeights = useCallback(() => {
         highStrength: s.highStrength,
       });
 
+      const lowNoiseParams =
+        v2v.simpleSpeedMode === "quality"
+          ? {
+              lowNoiseCfg: 2,
+              lowNoiseModelStrength: 0.3,
+              lowNoiseShift: 2.6,
+            }
+          : {
+              lowNoiseCfg: 1,
+              lowNoiseModelStrength: 1,
+              lowNoiseShift: 5,
+            };
+
       enqueueExtendJob(parentFile, {
-        lowNoiseCfg: 2,
-        lowNoiseModelStrength: 0.3,
-        lowNoiseShift: 2.6,
+        ...lowNoiseParams,
         ...d,
       });
       return;
@@ -1393,8 +1406,8 @@ const resetFormulaWeights = useCallback(() => {
         roundTo={v2v.roundTo}
         simulateSliderChange={v2v.simulateSliderChange}
         onCreateCustomSlider={createCustomSlider}
-  onUpdateCustomSlider={updateCustomSlider}
-  onDeleteCustomSlider={deleteCustomSlider}
+        onUpdateCustomSlider={updateCustomSlider}
+        onDeleteCustomSlider={deleteCustomSlider}
         orderedSliderItems={orderedSliderItems}
         customSliders={customSliders}
         moveSlider={moveSlider}
