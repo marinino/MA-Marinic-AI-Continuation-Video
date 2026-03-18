@@ -2,6 +2,7 @@ import {
   Box,
   Button,
   Chip,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -94,6 +95,7 @@ export interface NodeDetailsDialogProps {
 export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
   const [localNote, setLocalNote] = useState(props.note ?? "");
   const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
+  const [showSuggestionDetails, setShowSuggestionDetails] = useState(false);
 
   function openCategoryDialog(entry: SelectedCategory) {
     setSelectedCategory(entry);
@@ -291,50 +293,65 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
                 </Box>
 
                 {props.showWeightSuggestionsEnabled && props.branchSuggestion && (
-                  <>
-                    <Divider />
+  <>
+    <Divider />
 
-                    <Typography variant="caption" sx={{ mt: 1 }}>
-                      <strong>Branch pattern detected</strong>
-                    </Typography>
+    <Typography variant="caption" sx={{ mt: 1 }}>
+      <strong>Branch pattern detected</strong>
+    </Typography>
 
-                    <Stack spacing={0.75}>
-                      <Chip
-                        size="small"
-                        label={`Affected category: ${categoryLabel(props.branchSuggestion.targetCategory)}`}
-                        sx={{
-                          alignSelf: "flex-start",
-                          border: "1px solid",
-                          borderColor: "#ff9800",
-                          boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
-                        }}
-                      />
+    <Stack spacing={0.75}>
+      <Chip
+        size="small"
+        label={`Affected category: ${categoryLabel(props.branchSuggestion.targetCategory)}`}
+        sx={{
+          alignSelf: "flex-start",
+          border: "1px solid",
+          borderColor: "#ff9800",
+          boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
+        }}
+      />
 
-                      <Chip
-                        size="small"
-                        label={`Parameter to adjust: ${paramLabel(props.branchSuggestion.parameter)}`}
-                        sx={{
-                          alignSelf: "flex-start",
-                          border: "1px solid",
-                          borderColor: "#ff9800",
-                          boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
-                        }}
-                      />
+      <Chip
+        size="small"
+        label={`Parameter to adjust: ${paramLabel(props.branchSuggestion.parameter)}`}
+        sx={{
+          alignSelf: "flex-start",
+          border: "1px solid",
+          borderColor: "#ff9800",
+          boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
+        }}
+      />
 
-                      <Typography variant="body2" color="text.secondary">
-                        {props.branchSuggestion.message}
-                      </Typography>
+      <Typography
+  variant="caption"
+  sx={{
+    cursor: "pointer",
+    width: "fit-content",
+  }}
+  onClick={() => setShowSuggestionDetails((prev) => !prev)}
+>
+  {showSuggestionDetails ? "Hide details" : "Click for details"}
+</Typography>
 
-                      <Typography variant="caption" color="text.secondary">
-                        Confidence: {Math.round(props.branchSuggestion.confidence * 100)}% · Hits:{" "}
-                        {props.branchSuggestion.hitCount} · Longest streak:{" "}
-                        {props.branchSuggestion.streakLength} · Average category delta:{" "}
-                        {props.branchSuggestion.avgCategoryDelta} · Average parameter delta:{" "}
-                        {props.branchSuggestion.avgParamDelta}
-                      </Typography>
-                    </Stack>
-                  </>
-                )}
+      <Collapse in={showSuggestionDetails} timeout="auto" unmountOnExit>
+        <Stack spacing={0.75}>
+          <Typography variant="body2" color="text.secondary">
+            {props.branchSuggestion.message}
+          </Typography>
+
+          <Typography variant="caption" color="text.secondary">
+            Confidence: {Math.round(props.branchSuggestion.confidence * 100)}% · Hits:{" "}
+            {props.branchSuggestion.hitCount} · Longest streak:{" "}
+            {props.branchSuggestion.streakLength} · Average category delta:{" "}
+            {props.branchSuggestion.avgCategoryDelta} · Average parameter delta:{" "}
+            {props.branchSuggestion.avgParamDelta}
+          </Typography>
+        </Stack>
+      </Collapse>
+    </Stack>
+  </>
+)}
 
                 <Divider />
 
