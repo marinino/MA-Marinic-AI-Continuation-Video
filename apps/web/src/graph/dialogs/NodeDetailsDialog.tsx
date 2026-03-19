@@ -18,8 +18,8 @@ import {
 import { useEffect, useState } from "react";
 import { categoryLabel, paramLabel } from "../graph_helpers/branchSuggestions";
 import CloseIcon from "@mui/icons-material/Close";
-import { deltaChipSx, deltaSxOrNeutral, fmt, withOptionalDelta } from "../nodes/Node";
-import { DEFAULT_CATEGORY_LABELS, useSliderLogic } from "../graph_helpers/sliderLogic";
+import { deltaChipSx, fmt } from "../nodes/Node";
+import { DEFAULT_CATEGORY_LABELS } from "../graph_helpers/sliderLogic";
 import { CategoryVisibilityDialog } from "./CategoryVisibilityDialog";
 import {
   BrachSuggestion,
@@ -33,6 +33,7 @@ import {
 import { deriveRangesFromPresets } from "../hooks/useV2VParams";
 import { SAFE_PRESETS } from "../hooks/useV2VSliders";
 import { ParameterBarGroup } from "../components/ParameterBarGroup";
+import { getVisibleCategoryEntries } from "../graph_helpers/clipDialogLogic";
 
 export interface NodeDetailsDialogProps {
   open: boolean;
@@ -43,17 +44,14 @@ export interface NodeDetailsDialogProps {
 
   d: Delta;
 
-  // video
   videoUrl?: string | null;
   videoFile?: {
     filename?: string;
   } | null;
   videoStatus?: string;
 
-  // edit meta
   metaSummary?: React.ReactNode;
 
-  // params
   prompt?: string;
   prevParamsId?: string | null;
 
@@ -70,23 +68,19 @@ export interface NodeDetailsDialogProps {
   highNoiseEndStep?: number;
   lowNoiseEndStep?: number;
 
+  displayTotalSteps?: number;
+  displayLowStepPct?: number;
+
   categoryScores?: CategoryScoreMap;
   categoryScoreDeltas?: CategoryDeltaMap | null;
   categoryLabels?: CategoryLabelMap;
 
-  // deltas
   paramDeltas?: ParamDelats;
-
   promptChanged?: boolean;
-
-  // branch suggestion
   branchSuggestion?: BrachSuggestion;
 
-  // notes
   note?: string;
   onSaveNote?: (nodeId: string, note: string) => void;
-
-  // node actions
 
   notesEnabled: boolean;
   showWeightSuggestionsEnabled: boolean;
@@ -109,14 +103,11 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
     ...(props.categoryLabels ?? {}),
   };
 
-  const categoryEntries = Object.entries(props.categoryScores ?? {})
-    .filter(([, value]) => value != null)
-    .map(([key, value]) => ({
-      key,
-      label: mergedCategoryLabels[key] ?? key,
-      value: value as number | null,
-      delta: props.categoryScoreDeltas?.[key] ?? null,
-    }));
+  const categoryEntries = getVisibleCategoryEntries(
+    props.categoryScores,
+    props.categoryScoreDeltas,
+    props.categoryLabels
+  );
 
   const visibleCategoryEntries = categoryEntries.filter(
     (entry) => props.categoryVisibility?.[entry.key] !== false
@@ -128,6 +119,7 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
 
   const PARAM_RANGES = deriveRangesFromPresets([...SAFE_PRESETS.quality, ...SAFE_PRESETS.quick]);
 
+  // current step values
   const highStepsValue =
     props.highNoiseStartStep != null && props.highNoiseEndStep != null
       ? props.highNoiseEndStep - props.highNoiseStartStep
@@ -138,12 +130,116 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
       ? props.lowNoiseEndStep - props.lowNoiseStartStep
       : null;
 
+  // step deltas
+  const highStepsDelta =
+    props.d?.highNoiseStartStep != null && props.d?.highNoiseEndStep != null
+      ? props.d.highNoiseEndStep - props.d.highNoiseStartStep
+      : null;
+
+  const lowStepsDelta =
+    props.d?.lowNoiseStartStep != null && props.d?.lowNoiseEndStep != null
+      ? props.d.lowNoiseEndStep - props.d.lowNoiseStartStep
+      : null;
+
+  // derived current values
+  const totalStepsValue =
+    props.displayTotalSteps ??
+    (highStepsValue != null && lowStepsValue != null ? highStepsValue + lowStepsValue : null);
+
+  const lowStepPctValue =
+    props.displayLowStepPct ??
+    (totalStepsValue != null && totalStepsValue > 0 && lowStepsValue != null
+      ? (lowStepsValue / totalStepsValue) * 100
+      : null);
+
+  // derived deltas
+  const totalStepsDelta =
+    highStepsDelta != null && lowStepsDelta != null ? highStepsDelta + lowStepsDelta : null;
+
+  const prevTotalStepsValue =
+    totalStepsValue != null && totalStepsDelta != null ? totalStepsValue - totalStepsDelta : null;
+
+  const prevLowStepsValue =
+    lowStepsValue != null && lowStepsDelta != null ? lowStepsValue - lowStepsDelta : null;
+
+  const prevLowStepPctValue =
+    prevTotalStepsValue != null && prevTotalStepsValue > 0 && prevLowStepsValue != null
+      ? (prevLowStepsValue / prevTotalStepsValue) * 100
+      : null;
+
+  const lowStepPctDelta =
+    lowStepPctValue != null && prevLowStepPctValue != null
+      ? lowStepPctValue - prevLowStepPctValue
+      : null;
+
+  const parameterItems = [
+    props.highNoiseCfg != null
+      ? {
+          label: "High CFG",
+          value: props.highNoiseCfg,
+          min: PARAM_RANGES.highCfg.min,
+          max: PARAM_RANGES.highCfg.max,
+          delta: props.d?.highNoiseCfg,
+          colorKey: "highCfg" as const,
+        }
+      : null,
+    props.highNoiseShift != null
+      ? {
+          label: "High Shift",
+          value: props.highNoiseShift,
+          min: PARAM_RANGES.highShift.min,
+          max: PARAM_RANGES.highShift.max,
+          delta: props.d?.highNoiseShift,
+          colorKey: "highShift" as const,
+        }
+      : null,
+    props.highNoiseModelStrength != null
+      ? {
+          label: "High Strength",
+          value: props.highNoiseModelStrength,
+          min: PARAM_RANGES.highStrength.min,
+          max: PARAM_RANGES.highStrength.max,
+          delta: props.d?.highNoiseModelStrength,
+          colorKey: "highStrength" as const,
+        }
+      : null,
+    totalStepsValue != null
+      ? {
+          label: "Total Steps",
+          value: totalStepsValue,
+          min: 4,
+          max: 24,
+          delta: totalStepsDelta,
+          decimals: 0,
+          colorKey: "highSteps" as const,
+        }
+      : null,
+    lowStepPctValue != null
+      ? {
+          label: "Low Step %",
+          value: lowStepPctValue,
+          min: 50,
+          max: 80,
+          delta: lowStepPctDelta,
+          decimals: 0,
+          colorKey: "lowSteps" as const,
+        }
+      : null,
+  ].filter(Boolean) as {
+    label: string;
+    value: number;
+    min: number;
+    max: number;
+    delta?: number | null;
+    decimals?: number;
+    colorKey: "highCfg" | "highShift" | "highStrength" | "highSteps" | "lowSteps";
+  }[];
+
   return (
     <>
       <Dialog
         open={props.open}
         onClose={(e) => {
-          // blockt das "close click" bubbling
           (e as any)?.stopPropagation?.();
           props.onClose();
         }}
@@ -171,6 +267,7 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
             <CloseIcon />
           </IconButton>
         </DialogTitle>
+
         <DialogContent>
           <Stack spacing={1} sx={{ mt: 2 }}>
             {props.videoStatus === "generating" && (
@@ -197,64 +294,13 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
                 </Typography>
 
                 <Typography variant="body2" sx={{ mt: 1 }}>
-                  <strong>Prompt: {""}</strong>
+                  <strong>Prompt: </strong>
                   {props.prompt?.trim()
                     ? `${props.prompt.slice(0, 3000)}${props.prompt.length > 3000 ? "…" : ""}`
                     : "No prompt set yet."}
                 </Typography>
 
-                <ParameterBarGroup
-                  items={[
-                    {
-                      label: "High CFG",
-                      value: props.highNoiseCfg!,
-                      min: PARAM_RANGES.highCfg.min,
-                      max: PARAM_RANGES.highCfg.max,
-                      delta: props.d?.highNoiseCfg,
-                      colorKey: "highCfg",
-                    },
-                    {
-                      label: "High Shift",
-                      value: props.highNoiseShift!,
-                      min: PARAM_RANGES.highShift.min,
-                      max: PARAM_RANGES.highShift.max,
-                      delta: props.d?.highNoiseShift,
-                      colorKey: "highShift",
-                    },
-                    {
-                      label: "High Strength",
-                      value: props.highNoiseModelStrength!,
-                      min: PARAM_RANGES.highStrength.min,
-                      max: PARAM_RANGES.highStrength.max,
-                      delta: props.d?.highNoiseModelStrength,
-                      colorKey: "highStrength",
-                    },
-                    {
-                      label: "High Steps",
-                      value: highStepsValue!,
-                      min: PARAM_RANGES.highSteps.min,
-                      max: PARAM_RANGES.highSteps.max,
-                      delta:
-                        props.d?.highNoiseEndStep != null && props.d?.highNoiseStartStep != null
-                          ? props.d.highNoiseEndStep - props.d.highNoiseStartStep
-                          : null,
-                      decimals: 0,
-                      colorKey: "highSteps",
-                    },
-                    {
-                      label: "Low Steps",
-                      value: lowStepsValue!,
-                      min: PARAM_RANGES.lowSteps.min,
-                      max: PARAM_RANGES.lowSteps.max,
-                      delta:
-                        props.d?.lowNoiseEndStep != null && props.d?.lowNoiseStartStep != null
-                          ? props.d.lowNoiseEndStep - props.d.lowNoiseStartStep
-                          : null,
-                      decimals: 0,
-                      colorKey: "lowSteps",
-                    },
-                  ]}
-                />
+                {parameterItems.length > 0 && <ParameterBarGroup items={parameterItems} />}
 
                 {props.showWeightSuggestionsEnabled && props.branchSuggestion && (
                   <>
@@ -319,36 +365,34 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
 
                 <Divider />
 
-                {
-                  <>
-                    <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                      <strong>Category scores</strong>
-                    </Typography>
+                <>
+                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                    <strong>Category scores</strong>
+                  </Typography>
 
-                    <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                      {visibleCategoryEntries.map((entry) => (
-                        <Chip
-                          key={entry.key}
-                          size="small"
-                          label={`${entry.label}: ${entry.value} ${fmt(entry.delta, 2)}`}
-                          sx={deltaChipSx(entry.delta)}
-                          onClick={() => openCategoryDialog(entry)}
-                        />
-                      ))}
-
+                  <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                    {visibleCategoryEntries.map((entry) => (
                       <Chip
-                        sx={{
-                          borderStyle: "dashed",
-                          opacity: 0.8,
-                        }}
+                        key={entry.key}
                         size="small"
-                        variant="outlined"
-                        label="Show all categories"
-                        onClick={() => props.onShowAllCategories?.()}
+                        label={`${entry.label}: ${entry.value} ${fmt(entry.delta, 2)}`}
+                        sx={deltaChipSx(entry.delta)}
+                        onClick={() => openCategoryDialog(entry)}
                       />
-                    </Stack>
-                  </>
-                }
+                    ))}
+
+                    <Chip
+                      sx={{
+                        borderStyle: "dashed",
+                        opacity: 0.8,
+                      }}
+                      size="small"
+                      variant="outlined"
+                      label="Show all categories"
+                      onClick={() => props.onShowAllCategories?.()}
+                    />
+                  </Stack>
+                </>
               </>
             ) : props.videoUrl ? (
               <>
@@ -385,6 +429,7 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
             )}
           </Stack>
         </DialogContent>
+
         <DialogActions sx={{ justifyContent: "space-between" }}>
           <Box sx={{ display: "flex", gap: 1 }}>
             <Button

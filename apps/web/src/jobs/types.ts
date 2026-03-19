@@ -1,4 +1,4 @@
-import type { StoredMediaFile } from "@ma/shared";
+import { StoredMediaFile } from "@ma/shared";
 import { ComfyStartVideoResult } from "../graph/types/ui";
 
 /** Was für Jobs es gibt */

@@ -6,6 +6,9 @@ import { ClipDialogProps } from "../dialogs/ClipDialog";
 import { useWeightsLogic } from "./weightsLogic";
 import {
   AxisId,
+  CategoryDeltaMap,
+  CategoryLabelMap,
+  CategoryScoreMap,
   CategoryScores,
   CatKey,
   CustomScoreSlider,
@@ -14,9 +17,45 @@ import {
   SimpleReal,
   SimpleSliderKey,
 } from "../types/ui";
+import { DEFAULT_CATEGORY_LABELS } from "./sliderLogic";
 
 export function axisValue(id: AxisId, allScores: Record<string, number>) {
   return allScores[String(id)] ?? 0;
+}
+
+export function getVisibleCategoryEntries(
+  categoryScores?: CategoryScoreMap,
+  categoryScoreDeltas?: CategoryDeltaMap | null,
+  categoryLabels?: CategoryLabelMap
+) {
+  const mergedCategoryLabels = {
+    ...DEFAULT_CATEGORY_LABELS,
+    ...(categoryLabels ?? {}),
+  };
+
+  return Object.entries(categoryScores ?? {}).flatMap(([key, value]) => {
+    if (value == null) return [];
+
+    const isDefaultCategory = Object.prototype.hasOwnProperty.call(DEFAULT_CATEGORY_LABELS, key);
+    const isExistingCustomCategory = Object.prototype.hasOwnProperty.call(
+      categoryLabels ?? {},
+      key
+    );
+
+    if (!isDefaultCategory && !isExistingCustomCategory) return [];
+
+    const label = mergedCategoryLabels[key];
+    if (!label) return [];
+
+    return [
+      {
+        key,
+        label,
+        value: value as number,
+        delta: categoryScoreDeltas?.[key] ?? null,
+      },
+    ];
+  });
 }
 
 export function axisLabel(id: AxisId, customSliders: CustomScoreSlider[]) {

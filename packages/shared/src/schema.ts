@@ -114,3 +114,10 @@ export const ProjectSchema = z.object({
     }),
   }),
 });
+
+export type StoredMediaFile = z.infer<typeof StoredMediaFileSchema>;
+export type Project = z.infer<typeof ProjectSchema>;
+export type Node = z.infer<typeof NodeSchema>;
+export type Edge = z.infer<typeof EdgeSchema>;
+export type NodeType = z.infer<typeof NodeTypeSchema>;
+export type EdgeType = z.infer<typeof EdgeTypeSchema>;

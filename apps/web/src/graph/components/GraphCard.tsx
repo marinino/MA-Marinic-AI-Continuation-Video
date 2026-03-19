@@ -17,6 +17,7 @@ import { DEFAULT_CATEGORY_LABELS } from "../graph_helpers/sliderLogic";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import { getVisibleCategoryEntries } from "../graph_helpers/clipDialogLogic";
 
 export type NodeCardPreviewProps = {
   nodeId: string;
@@ -60,32 +61,85 @@ export type NodeCardPreviewProps = {
   categoryScoreDeltas?: CategoryDeltaMap | null;
   categoryLabels?: CategoryLabelMap;
   categoryVisibility?: Record<string, boolean>;
-  graphCardContentMode: GraphCardContentMode;
+  graphCardContentMode?: GraphCardContentMode;
 
   onDelete?: (nodeId: string) => void;
   canDelete?: boolean;
 
   onHide?: (nodeId: string) => void;
   canHide?: boolean;
+  displayTotalSteps?: number;
+  displayLowStepPct?: number;
 };
 
 export function GraphCard(props: NodeCardPreviewProps) {
   const d = props.paramDeltas;
   const suggestion = props.branchSuggestion;
 
-  const mergedCategoryLabels = {
-    ...DEFAULT_CATEGORY_LABELS,
-    ...(props.categoryLabels ?? {}),
-  };
+  const currentHighSteps =
+    props.highNoiseStartStep != null && props.highNoiseEndStep != null
+      ? props.highNoiseEndStep - props.highNoiseStartStep
+      : null;
 
-  const categoryEntries = Object.entries(props.categoryScores ?? {})
-    .filter(([, value]) => value != null)
-    .map(([key, value]) => ({
-      key,
-      label: mergedCategoryLabels[key] ?? key,
-      value: value as number | null,
-      delta: props.categoryScoreDeltas?.[key] ?? null,
-    }));
+  const currentLowSteps =
+    props.lowNoiseStartStep != null && props.lowNoiseEndStep != null
+      ? props.lowNoiseEndStep - props.lowNoiseStartStep
+      : null;
+
+  const highStepsDelta =
+    d?.highNoiseStartStep != null && d?.highNoiseEndStep != null
+      ? d.highNoiseEndStep - d.highNoiseStartStep
+      : null;
+
+  const lowStepsDelta =
+    d?.lowNoiseStartStep != null && d?.lowNoiseEndStep != null
+      ? d.lowNoiseEndStep - d.lowNoiseStartStep
+      : null;
+
+  const currentTotalSteps =
+    props.displayTotalSteps ??
+    (currentHighSteps != null && currentLowSteps != null
+      ? currentHighSteps + currentLowSteps
+      : null);
+
+  const totalStepsDelta =
+    highStepsDelta != null && lowStepsDelta != null ? highStepsDelta + lowStepsDelta : null;
+
+  const oldHighSteps =
+    currentHighSteps != null && highStepsDelta != null ? currentHighSteps - highStepsDelta : null;
+
+  const oldLowSteps =
+    currentLowSteps != null && lowStepsDelta != null ? currentLowSteps - lowStepsDelta : null;
+
+  const oldTotalSteps =
+    currentTotalSteps != null && totalStepsDelta != null
+      ? currentTotalSteps - totalStepsDelta
+      : null;
+
+  const currentLowStepPctRaw =
+    currentLowSteps != null && currentTotalSteps != null && currentTotalSteps > 0
+      ? (currentLowSteps / currentTotalSteps) * 100
+      : null;
+
+  const oldLowStepPctRaw =
+    oldLowSteps != null && oldTotalSteps != null && oldTotalSteps > 0
+      ? (oldLowSteps / oldTotalSteps) * 100
+      : null;
+
+  const currentLowStepPct =
+    props.displayLowStepPct ??
+    (currentLowStepPctRaw != null ? Math.round(currentLowStepPctRaw) : null);
+
+  const oldLowStepPct = oldLowStepPctRaw != null ? Math.round(oldLowStepPctRaw) : null;
+
+  const lowStepPctDelta =
+    currentLowStepPct != null && oldLowStepPct != null ? currentLowStepPct - oldLowStepPct : null;
+
+  const categoryEntries = getVisibleCategoryEntries(
+    props.categoryScores,
+    props.categoryScoreDeltas,
+    props.categoryLabels
+  );
 
   const visibleCategoryEntries = categoryEntries.filter(
     (entry) => props.categoryVisibility?.[entry.key] !== false
@@ -178,24 +232,19 @@ export function GraphCard(props: NodeCardPreviewProps) {
                 sx: deltaChipSx(d.lowNoiseModelStrength),
               }
             : null,
-          d && fmt((d.highNoiseEndStep ?? 0) - (d.highNoiseStartStep ?? 0), 0) !== ""
+          d && fmt(totalStepsDelta, 0) != ""
             ? {
-                key: "high-steps",
-                label: `High Steps: ${props.highNoiseStartStep}→${props.highNoiseEndStep} ${fmt(
-                  (d.highNoiseEndStep ?? 0) - (d.highNoiseStartStep ?? 0),
-                  0
-                )}`,
-                sx: deltaChipSx((d.highNoiseEndStep ?? 0) - (d.highNoiseStartStep ?? 0)),
+                key: "total-steps",
+                label: `Total Steps: ${currentTotalSteps} ${fmt(totalStepsDelta, 0)}`,
+                sx: deltaChipSx(totalStepsDelta),
               }
             : null,
-          d && fmt((d.lowNoiseEndStep ?? 0) - (d.lowNoiseStartStep ?? 0), 0) !== ""
+
+          d && fmt(lowStepPctDelta, 0) != ""
             ? {
-                key: "low-steps",
-                label: `Low Steps: ${props.lowNoiseStartStep}→${props.lowNoiseEndStep} ${fmt(
-                  (d.lowNoiseEndStep ?? 0) - (d.lowNoiseStartStep ?? 0),
-                  0
-                )}`,
-                sx: deltaChipSx((d.lowNoiseEndStep ?? 0) - (d.lowNoiseStartStep ?? 0)),
+                key: "low-step-pct",
+                label: `Low Step: ${Math.round(currentLowStepPct ?? 0)}% ${fmt(lowStepPctDelta, 0)}`,
+                sx: deltaChipSx(lowStepPctDelta),
               }
             : null,
         ].filter(Boolean)

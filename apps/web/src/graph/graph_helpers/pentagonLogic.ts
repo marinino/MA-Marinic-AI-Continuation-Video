@@ -1,7 +1,6 @@
 import React from "react";
-import { CustomScoreSlider } from "../hooks/useV2VParams";
 import { axisLabel, axisValue, useClipDialogLogic } from "./clipDialogLogic";
-import { AxisId } from "../types/ui";
+import { AxisId, CustomScoreSlider } from "../types/ui";
 
 export function pentagonLogic(
   allScores: Record<string, number>,

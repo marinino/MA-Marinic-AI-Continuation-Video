@@ -444,20 +444,37 @@ export function GraphView(props: {
 
   const scoreRanges = getScoreRanges(v2v.simpleSpeedMode);
 
+  const canonicalSimple = useMemo(() => {
+    const totalStepsInt = Math.round(v2v.simple.totalSteps);
+    const stepRatioPctInt = Math.round(v2v.simple.stepRatioPct);
+    const lowStepsInt = Math.round((totalStepsInt * stepRatioPctInt) / 100);
+    const effectiveLowStepPct = Math.round((lowStepsInt / totalStepsInt) * 100);
+
+    return {
+      totalSteps: totalStepsInt,
+      stepRatioPct: effectiveLowStepPct,
+      lowStepsInt,
+      stepRatio01: lowStepsInt / totalStepsInt,
+      highShift: v2v.simple.highShift,
+      highCfg: v2v.simple.highCfg,
+      highStrength: v2v.simple.highStrength,
+    };
+  }, [v2v.simple]);
+
   const allScores = useMemo(() => {
     return computeAllScores(
       {
-        totalSteps: v2v.simple.totalSteps,
-        stepRatioPct: v2v.simple.stepRatioPct,
-        highShift: v2v.simple.highShift,
-        highCfg: v2v.simple.highCfg,
-        highStrength: v2v.simple.highStrength,
+        totalSteps: canonicalSimple.totalSteps,
+        stepRatioPct: canonicalSimple.stepRatioPct,
+        highShift: canonicalSimple.highShift,
+        highCfg: canonicalSimple.highCfg,
+        highStrength: canonicalSimple.highStrength,
       },
       scoreRanges,
       formulaWeights,
       customSliders
     );
-  }, [v2v.simple, scoreRanges, formulaWeights, customSliders]);
+  }, [canonicalSimple, scoreRanges, formulaWeights, customSliders]);
 
   // ---------- davinci timeline helper ----------
 
@@ -820,6 +837,8 @@ export function GraphView(props: {
 
             highNoiseEndStep: numDelta(injectedCommon, prevParamsData, "highNoiseEndStep"),
             lowNoiseEndStep: numDelta(injectedCommon, prevParamsData, "lowNoiseEndStep"),
+            displayTotalSteps: numDelta(injectedCommon, prevParamsData, "displayTotalSteps"),
+            displayLowStepPct: numDelta(injectedCommon, prevParamsData, "displayLowStepPct"),
           }
         : null;
 
@@ -1059,14 +1078,12 @@ export function GraphView(props: {
 
     // Simple mode: derive overrides
     if (v2v.v2vTab === "simple") {
-      const s = v2v.simple;
-
       const d = deriveV2VParamsFromSimple({
-        totalSteps: s.totalSteps,
-        stepRatio01: s.stepRatioPct / 100,
-        highShift: s.highShift,
-        highCfg: s.highCfg,
-        highStrength: s.highStrength,
+        totalSteps: canonicalSimple.totalSteps,
+        stepRatio01: canonicalSimple.stepRatio01,
+        highShift: canonicalSimple.highShift,
+        highCfg: canonicalSimple.highCfg,
+        highStrength: canonicalSimple.highStrength,
       });
 
       const lowNoiseParams =
@@ -1085,6 +1102,8 @@ export function GraphView(props: {
       enqueueExtendJob(parentFile, {
         ...lowNoiseParams,
         ...d,
+        displayTotalSteps: canonicalSimple.totalSteps,
+        displayLowStepPct: canonicalSimple.stepRatioPct,
       });
       return;
     }

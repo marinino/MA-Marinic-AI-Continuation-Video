@@ -106,7 +106,9 @@ export function NodeCard(props: {
   onSetCategoryVisible?: (categoryId: string, visible: boolean) => void;
   onShowAllCategories?: () => void;
   showWeightSuggestionsEnabled?: boolean;
-  graphCardContentMode: GraphCardContentMode;
+  graphCardContentMode?: GraphCardContentMode;
+  displayTotalSteps: number;
+  displayLowStepPct: number;
 }) {
   const theme = useTheme();
   const [infoOpen, setInfoOpen] = useState(false);
@@ -164,6 +166,8 @@ export function NodeCard(props: {
         canDelete={props.canDelete}
         onHide={props.onHide}
         canHide={props.canHide}
+        displayTotalSteps={props.displayTotalSteps}
+        displayLowStepPct={props.displayLowStepPct}
       >
         {props.children}
       </GraphCard>
@@ -206,6 +210,8 @@ export function NodeCard(props: {
         onSetCategoryVisible={props.onSetCategoryVisible}
         onShowAllCategories={props.onShowAllCategories}
         showWeightSuggestionsEnabled={props.showWeightSuggestionsEnabled ?? true}
+        displayTotalSteps={props.displayTotalSteps}
+        displayLowStepPct={props.displayLowStepPct}
       />
     </>
   );

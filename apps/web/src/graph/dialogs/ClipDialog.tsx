@@ -213,9 +213,17 @@ export function ClipDialog(p: ClipDialogProps) {
   // --- compute real values + derived params exactly like mega-file ---
   const computed = React.useMemo(() => {
     const s = p.simple;
+
+    const totalStepsInt = Math.round(s.totalSteps);
+    const stepRatioPctInt = Math.round(s.stepRatioPct);
+
+    const lowStepsInt = Math.round((totalStepsInt * stepRatioPctInt) / 100);
+    const highStepsInt = totalStepsInt - lowStepsInt;
+    const effectiveLowStepPct = Math.round((lowStepsInt / totalStepsInt) * 100);
+
     const derived = deriveV2VParamsFromSimple({
-      totalSteps: Math.round(s.totalSteps),
-      stepRatio01: s.stepRatioPct / 100,
+      totalSteps: highStepsInt,
+      stepRatio01: lowStepsInt / totalStepsInt,
       highShift: s.highShift,
       highCfg: s.highCfg,
       highStrength: s.highStrength,
@@ -225,8 +233,8 @@ export function ClipDialog(p: ClipDialogProps) {
 
     const scores = computeCategoryScoresFromSimple(
       {
-        totalSteps: Math.round(s.totalSteps),
-        stepRatio: s.stepRatioPct,
+        totalSteps: totalStepsInt,
+        stepRatio: effectiveLowStepPct,
         highShift: s.highShift,
         highCfg: s.highCfg,
         highStrength: s.highStrength,
@@ -237,8 +245,8 @@ export function ClipDialog(p: ClipDialogProps) {
 
     const allScores = computeAllScores(
       {
-        totalSteps: Math.round(s.totalSteps),
-        stepRatioPct: s.stepRatioPct,
+        totalSteps: totalStepsInt,
+        stepRatioPct: effectiveLowStepPct,
         highShift: s.highShift,
         highCfg: s.highCfg,
         highStrength: s.highStrength,
@@ -248,7 +256,17 @@ export function ClipDialog(p: ClipDialogProps) {
       p.customSliders
     );
 
-    return { derived, scores, allScores };
+    console.log(derived);
+
+    return {
+    derived,
+    scores,
+    allScores,
+    totalStepsInt,
+    lowStepsInt,
+    highStepsInt,
+    effectiveLowStepPct,
+  };
   }, [p.simple, p.simpleSpeedMode, p.formulaWeights, p.customSliders]);
 
   const activeSafeKey = React.useMemo(
@@ -513,13 +531,13 @@ export function ClipDialog(p: ClipDialogProps) {
                   <Stack spacing={2.5}>
                     <Stack spacing={0.5}>
                       <Typography gutterBottom>
-                        Steps total: <b>{p.simple.totalSteps}</b>
+                        Steps total: <b>{computed.totalStepsInt}</b>
                       </Typography>
                       <PressableSlider
                         sliderKey="totalSteps"
                         onBegin={handleBeginDrag}
                         onEnd={handleEndDrag}
-                        value={p.simple.totalSteps}
+                        value={computed.totalStepsInt}
                         min={cfg.totalSteps.min}
                         max={cfg.totalSteps.max}
                         step={cfg.totalSteps.step}
@@ -542,13 +560,13 @@ export function ClipDialog(p: ClipDialogProps) {
 
                     <Stack spacing={0.5}>
                       <Typography gutterBottom>
-                        Ratio: <b>{p.simple.stepRatioPct}%</b>
-                      </Typography>
+  Ratio: <b>{computed.effectiveLowStepPct}%</b>
+</Typography>
                       <PressableSlider
                         sliderKey="stepRatioPct"
                         onBegin={handleBeginDrag}
                         onEnd={handleEndDrag}
-                        value={p.simple.stepRatioPct}
+                        value={computed.effectiveLowStepPct}
                         min={cfg.stepRatioPct.min}
                         max={cfg.stepRatioPct.max}
                         step={cfg.stepRatioPct.step}

@@ -49,6 +49,8 @@ export function ParamNode(props: NodeProps<any>) {
         onShowAllCategories={props.data.onShowAllCategories}
         showWeightSuggestionsEnabled={props.data.showWeightSuggestionsEnabled}
         graphCardContentMode={props.data.graphCardContentMode}
+        displayTotalSteps={props.data.displayTotalSteps}
+        displayLowStepPct={props.data.displayLowStepPct}
       ></NodeCard>
     </div>
   );

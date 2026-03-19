@@ -146,7 +146,7 @@ function clampToCfg(mode: SpeedMode, key: keyof SimpleReal, v: number) {
 function clampSimple(mode: SpeedMode, s: SimpleReal): SimpleReal {
   return {
     totalSteps: clampToCfg(mode, "totalSteps", s.totalSteps),
-    stepRatioPct: clampToCfg(mode, "stepRatioPct", s.stepRatioPct),
+    stepRatioPct: clampToCfg(mode, "stepRatioPct", Math.round(s.stepRatioPct)),
     highShift: clampToCfg(mode, "highShift", s.highShift),
     highCfg: clampToCfg(mode, "highCfg", s.highCfg),
     highStrength: clampToCfg(mode, "highStrength", s.highStrength),

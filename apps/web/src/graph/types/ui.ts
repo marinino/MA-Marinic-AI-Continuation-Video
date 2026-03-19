@@ -1,4 +1,5 @@
 // /types/ui.ts
+
 import { StoredMediaFile } from "@ma/shared";
 
 /** Generic error dialog payload */

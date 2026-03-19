@@ -11,7 +11,7 @@ import {
   Button,
   Box,
 } from "@mui/material";
-import type { CustomScoreSlider } from "../hooks/useV2VParams";
+import { CustomScoreSlider } from "../types/ui";
 
 export function NewCustomSliderDialog(props: {
   open: boolean;
