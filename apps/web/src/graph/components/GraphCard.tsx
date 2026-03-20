@@ -162,7 +162,7 @@ export function GraphCard(props: NodeCardPreviewProps) {
 
   const summaryChips = [
     suggestionChip,
-    props.prevParamsId && props.promptChanged
+    props.prevParamsId && props.graphCardContentMode === "parameters" && props.promptChanged
       ? {
           key: "prompt-changed",
           label: "Prompt changed",

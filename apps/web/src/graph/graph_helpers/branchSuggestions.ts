@@ -1,6 +1,6 @@
 import type { Edge as RFEdge, Node as RFNode } from "reactflow";
 import {
-  StandardCategoryKey,
+  
   ParamKey,
   ParamStep,
   ParamNodeData,
@@ -8,13 +8,7 @@ import {
 } from "../types/ui";
 import { clamp01 } from "./clipDialogLogic";
 
-const SCORE_KEYS: StandardCategoryKey[] = [
-  "creativity",
-  "promptFaithfulness",
-  "motion",
-  "transitionSmoothness",
-  "videoFaithfulness",
-];
+
 
 const PARAM_KEYS: ParamKey[] = [
   "highNoiseCfg",
@@ -43,6 +37,18 @@ function getIncomingMap(edges: RFEdge[]) {
     map.set(e.target, arr);
   }
   return map;
+}
+
+function getCategoryKeys(steps: ParamStep[]): string[] {
+  const keys = new Set<string>();
+
+  for (const step of steps) {
+    for (const key of Object.keys(step.categoryDeltas ?? {})) {
+      keys.add(key);
+    }
+  }
+
+  return Array.from(keys);
 }
 
 export function collectParamBranchSteps(
@@ -86,7 +92,6 @@ export function detectParamWeightSuggestion(
     minSteps?: number;
     minCategoryDeltaAbs?: number;
     minParamDeltaAbs?: number;
-    minHits?: number;
     minStreak?: number;
     recencyWindow?: number;
   }
@@ -94,7 +99,6 @@ export function detectParamWeightSuggestion(
   const minSteps = opts?.minSteps ?? 5;
   const minCategoryDeltaAbs = opts?.minCategoryDeltaAbs ?? 2;
   const minParamDeltaAbs = opts?.minParamDeltaAbs ?? 0.25;
-  const minHits = opts?.minHits ?? 7;
   const minStreak = opts?.minStreak ?? 5;
   const recencyWindow = opts?.recencyWindow ?? 15;
 
@@ -104,33 +108,32 @@ export function detectParamWeightSuggestion(
 
   let best: ParamWeightSuggestion | null = null;
 
-  for (const category of SCORE_KEYS) {
-    const relevantCategoryDropSteps = recent.filter((step) => {
-      const d = step.categoryDeltas?.[category];
-      return typeof d === "number" && Number.isFinite(d) && d <= -minCategoryDeltaAbs;
-    });
+  const categoryKeys = getCategoryKeys(recent);
 
-    const categoryHitCount = relevantCategoryDropSteps.length;
-
+  
+for (const category of categoryKeys) {
     let categoryStreakLength = 0;
     let currentCategoryStreak = 0;
+    let categoryHitCount = 0;
     let totalCategoryDelta = 0;
 
     for (const step of recent) {
       const d = step.categoryDeltas?.[category];
-      if (typeof d === "number" && Number.isFinite(d) && d <= -minCategoryDeltaAbs) {
+      const matches =
+        typeof d === "number" && Number.isFinite(d) && d <= -minCategoryDeltaAbs;
+
+      if (matches) {
         currentCategoryStreak += 1;
         categoryStreakLength = Math.max(categoryStreakLength, currentCategoryStreak);
+        categoryHitCount += 1;
         totalCategoryDelta += d;
       } else {
         currentCategoryStreak = 0;
       }
     }
 
-    const passesCategoryHitRule = categoryHitCount >= minHits;
-    const passesCategoryStreakRule = categoryStreakLength >= minStreak;
-
-    if (!passesCategoryHitRule && !passesCategoryStreakRule) continue;
+    // Nur echte streak erlaubt
+    if (categoryStreakLength < minStreak) continue;
 
     for (const param of PARAM_KEYS) {
       let hitCount = 0;
@@ -162,65 +165,49 @@ export function detectParamWeightSuggestion(
         }
       }
 
-      const passesHitRule = hitCount >= minHits;
-      const passesStreakRule = streakLength >= minStreak;
-
-      if (!passesHitRule && !passesStreakRule) continue;
+      // Auch hier nur echte streak erlaubt
+      if (streakLength < minStreak) continue;
 
       const avgCategoryDelta = totalCategoryDelta / categoryHitCount;
       const avgParamDelta = totalParamDelta / hitCount;
 
       const parameterDirection: "up" | "down" = avgParamDelta >= 0 ? "up" : "down";
 
-      const hitScore = hitCount / recent.length;
       const streakScore = streakLength / recent.length;
       const magnitudeScore = clamp01(
         (Math.abs(avgCategoryDelta) / 10) * 0.6 + (Math.abs(avgParamDelta) / 2) * 0.4
       );
 
-      const confidence = clamp01(hitScore * 0.4 + streakScore * 0.35 + magnitudeScore * 0.25);
+      // hitScore entfernt, weil wir nicht mehr auf Häufigkeit gehen wollen
+      const confidence = clamp01(streakScore * 0.7 + magnitudeScore * 0.3);
 
-      // Wenn Kategorie fällt und Parameter in gleicher Richtung immer mitläuft,
-      // dann Einfluss dieses Parameters eher reduzieren.
       const suggestedAction: "increase_param_weight" | "decrease_param_weight" =
         "decrease_param_weight";
 
       const suggestedWeightDeltaPct =
         confidence >= 0.85 ? 10 : confidence >= 0.7 ? 8 : confidence >= 0.55 ? 6 : 4;
 
-      const candidate: ParamWeightSuggestion = {
-        targetCategory: category,
-        categoryDirection: "down",
-        parameter: param,
-        parameterDirection,
-        hitCount,
-        streakLength,
-        avgCategoryDelta: round2(avgCategoryDelta),
-        avgParamDelta: round2(avgParamDelta),
-        confidence: round2(confidence),
-        suggestedWeightDeltaPct,
-        suggestedAction,
-        message: buildSuggestionMessage({
-          category,
-          parameter: param,
-          parameterDirection,
-          hitCount,
-          streakLength,
-          avgCategoryDelta: round2(avgCategoryDelta),
-          avgParamDelta: round2(avgParamDelta),
-          suggestedWeightDeltaPct,
-        }),
-      };
+const candidate: ParamWeightSuggestion = {
+  targetCategory: category,
+  categoryDirection: "down",
+  parameter: param,
+  parameterDirection,
+  hitCount,
+  streakLength,
+  avgCategoryDelta: round2(avgCategoryDelta),
+  avgParamDelta: round2(avgParamDelta),
+  confidence: round2(confidence),
+  suggestedWeightDeltaPct,
+  suggestedAction,
+
+};
 
       if (
         !best ||
         candidate.streakLength > best.streakLength ||
-        (candidate.streakLength === best.streakLength && candidate.hitCount > best.hitCount) ||
         (candidate.streakLength === best.streakLength &&
-          candidate.hitCount === best.hitCount &&
           candidate.confidence > best.confidence) ||
         (candidate.streakLength === best.streakLength &&
-          candidate.hitCount === best.hitCount &&
           candidate.confidence === best.confidence &&
           Math.abs(candidate.avgParamDelta) > Math.abs(best.avgParamDelta))
       ) {
@@ -232,8 +219,9 @@ export function detectParamWeightSuggestion(
   return best;
 }
 
-function buildSuggestionMessage(args: {
-  category: StandardCategoryKey;
+export function buildSuggestionMessage(args: {
+  category: string;
+  categoryLabels?: Record<string, string | undefined>;
   parameter: ParamKey;
   parameterDirection: "up" | "down";
   hitCount: number;
@@ -242,14 +230,19 @@ function buildSuggestionMessage(args: {
   avgParamDelta: number;
   suggestedWeightDeltaPct: number;
 }) {
-  const categoryText = categoryLabel(args.category);
+  const categoryText = categoryLabel(args.category, args.categoryLabels);
   const paramText = paramLabel(args.parameter);
   const paramDirText = args.parameterDirection === "up" ? "increases" : "decreases";
 
   return `${categoryText} drops repeatedly in this branch. The most recurring associated parameter change is ${paramText} (${paramDirText}, avg ${args.avgParamDelta}) in ${args.hitCount} recent steps, longest streak ${args.streakLength}. Consider reducing the ${paramText} weight by about ${args.suggestedWeightDeltaPct}% for the ${categoryText} mapping.`;
 }
 
-export function categoryLabel(category: StandardCategoryKey) {
+export function categoryLabel(
+  category: string,
+  labels?: Record<string, string | undefined>
+) {
+  if (labels?.[category]) return labels[category];
+
   switch (category) {
     case "creativity":
       return "Creativity";
@@ -261,6 +254,8 @@ export function categoryLabel(category: StandardCategoryKey) {
       return "Transition Smoothness";
     case "videoFaithfulness":
       return "Video Faithfulness";
+    default:
+      return category;
   }
 }
 

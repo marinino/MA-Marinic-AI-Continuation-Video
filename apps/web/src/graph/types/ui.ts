@@ -229,7 +229,7 @@ export type ParamKey =
 export type ParamDeltaMap = Partial<Record<ParamKey, number | null>>;
 
 export type ParamWeightSuggestion = {
-  targetCategory: StandardCategoryKey;
+  targetCategory: string;
   categoryDirection: "down" | "up";
   parameter: ParamKey;
   parameterDirection: "up" | "down";
@@ -240,7 +240,7 @@ export type ParamWeightSuggestion = {
   confidence: number;
   suggestedWeightDeltaPct: number;
   suggestedAction: "increase_param_weight" | "decrease_param_weight";
-  message: string;
+  message?: string;
 };
 
 export type ParamNodeData = {

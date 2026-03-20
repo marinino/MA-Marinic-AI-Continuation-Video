@@ -63,7 +63,7 @@ export function ParameterBarGroup({ items }: { items: Item[] }) {
             }}
           />
           <Typography variant="caption" color="text.secondary">
-            previous
+            Parent node value
           </Typography>
         </Box>
 
@@ -77,7 +77,7 @@ export function ParameterBarGroup({ items }: { items: Item[] }) {
             }}
           />
           <Typography variant="caption" color="text.secondary">
-            current
+            Current node value
           </Typography>
         </Box>
       </Box>
@@ -143,7 +143,7 @@ export function ParameterBarGroup({ items }: { items: Item[] }) {
                         width: 20,
                         height: `${prevPct}%`,
                         minHeight: prevPct > 0 ? 4 : 0,
-                        borderRadius: 999,
+                        borderRadius: 1,
                         bgcolor: alpha(color, 0.35),
                       }}
                     />
@@ -154,7 +154,7 @@ export function ParameterBarGroup({ items }: { items: Item[] }) {
                       width: 20,
                       height: `${currentPct}%`,
                       minHeight: currentPct > 0 ? 4 : 0,
-                      borderRadius: 999,
+                      borderRadius: 1,
                       bgcolor: color,
                     }}
                   />
