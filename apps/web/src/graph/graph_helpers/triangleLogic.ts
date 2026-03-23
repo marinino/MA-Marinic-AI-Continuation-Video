@@ -13,11 +13,7 @@ export function triangleLogic(
   customSliders: CustomScoreSlider[],
   formulaWeights: FormulaWeights
 ) {
-  const DEFAULT_TRIANGLE_AXIS_IDS: AxisId[] = [
-    "creativity",
-    "motion",
-    "videoFaithfulness",
-  ];
+  const DEFAULT_TRIANGLE_AXIS_IDS: AxisId[] = ["creativity", "motion", "videoFaithfulness"];
 
   const availableAxisIds: AxisId[] = React.useMemo(() => {
     const builtins = Object.keys(formulaWeights) as AxisId[];
@@ -25,8 +21,7 @@ export function triangleLogic(
     return [...builtins, ...customs];
   }, [formulaWeights, customSliders]);
 
-  const [triangleAxes, setTriangleAxesState] =
-    React.useState<AxisId[]>(DEFAULT_TRIANGLE_AXIS_IDS);
+  const [triangleAxes, setTriangleAxesState] = React.useState<AxisId[]>(DEFAULT_TRIANGLE_AXIS_IDS);
 
   const [triangleAxesOpen, setTriangleAxesOpen] = React.useState(false);
 
@@ -55,8 +50,7 @@ export function triangleLogic(
   );
 
   const triangleAxisObjects = React.useMemo(() => {
-    const ids =
-      (triangleAxes?.length === 3 ? triangleAxes : DEFAULT_TRIANGLE_AXIS_IDS).slice(0, 3);
+    const ids = (triangleAxes?.length === 3 ? triangleAxes : DEFAULT_TRIANGLE_AXIS_IDS).slice(0, 3);
 
     return ids.map((id) => ({
       id: String(id),

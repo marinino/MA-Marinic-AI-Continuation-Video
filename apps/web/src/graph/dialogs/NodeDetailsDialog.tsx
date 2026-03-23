@@ -10,10 +10,13 @@ import {
   Divider,
   IconButton,
   LinearProgress,
+  Popover,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import { useEffect, useState } from "react";
 import {
@@ -97,6 +100,18 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
   const [localNote, setLocalNote] = useState(props.note ?? "");
   const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
   const [showSuggestionDetails, setShowSuggestionDetails] = useState(false);
+
+  const [paramsInfoAnchorEl, setParamsInfoAnchorEl] = useState<HTMLElement | null>(null);
+
+  const openParamsInfo = (event: React.MouseEvent<HTMLElement>) => {
+    setParamsInfoAnchorEl(event.currentTarget);
+  };
+
+  const closeParamsInfo = () => {
+    setParamsInfoAnchorEl(null);
+  };
+
+  const isParamsInfoOpen = Boolean(paramsInfoAnchorEl);
 
   function openCategoryDialog(entry: SelectedCategory) {
     setSelectedCategory(entry);
@@ -293,9 +308,17 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
               )
             ) : props.type === "params" ? (
               <>
-                <Typography variant="caption" display="block">
-                  <strong>Parameters</strong>
-                </Typography>
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Typography variant="caption" display="block">
+                    <strong>Parameters</strong>
+                  </Typography>
+
+                  <Tooltip title="Show parameter info">
+                    <IconButton size="small" onClick={openParamsInfo} sx={{ p: 0.25 }}>
+                      <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
 
                 <Typography variant="body2" sx={{ mt: 1 }}>
                   <strong>Prompt: </strong>
@@ -472,6 +495,59 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
         onClose={() => setSelectedCategory(null)}
         onHide={(categoryId) => props.onSetCategoryVisible?.(categoryId, false)}
       />
+
+      <Popover
+        open={isParamsInfoOpen}
+        anchorEl={paramsInfoAnchorEl}
+        onClose={closeParamsInfo}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "left",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "left",
+        }}
+      >
+        <Box sx={{ p: 2, maxWidth: 320 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Fixed low-noise parameters
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Low CFG, Low Shift, and Low Strength are fixed per mode and are therefore not included
+            in this visualization.
+          </Typography>
+
+          <Stack spacing={1}>
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                Quality mode (20 - 24 steps)
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Low CFG: 2
+                <br />
+                Low Strength: 0.3
+                <br />
+                Low Shift: 2.6
+              </Typography>
+            </Box>
+
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                Quick mode (4 - 5 steps)
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Low CFG: 1
+                <br />
+                Low Strength: 1
+                <br />
+                Low Shift: 5
+              </Typography>
+            </Box>
+          </Stack>
+        </Box>
+      </Popover>
     </>
   );
 }

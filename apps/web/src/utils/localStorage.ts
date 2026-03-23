@@ -138,7 +138,6 @@ export function saveSettings(settings: AppSettings) {
   } catch {}
 }
 
-
 export function normalizePentagonAxes(
   axes: string[],
   defaultAxes: string[],
@@ -147,10 +146,7 @@ export function normalizePentagonAxes(
   return sanitizeAxes(axes, defaultAxes, availableAxisIds, 5);
 }
 
-export function loadPentagonAxes(
-  defaultAxes: string[],
-  availableAxisIds: string[]
-): string[] {
+export function loadPentagonAxes(defaultAxes: string[], availableAxisIds: string[]): string[] {
   try {
     const raw = localStorage.getItem(KEY_PENTAGON_AXES);
     if (!raw) return sanitizeAxes(defaultAxes, defaultAxes, availableAxisIds, 5);
@@ -185,10 +181,7 @@ export function normalizeTriangleAxes(
   return sanitizeAxes(axes, defaultAxes, availableAxisIds, 3);
 }
 
-export function loadTriangleAxes(
-  defaultAxes: string[],
-  availableAxisIds: string[]
-): string[] {
+export function loadTriangleAxes(defaultAxes: string[], availableAxisIds: string[]): string[] {
   try {
     const raw = localStorage.getItem(KEY_TRIANGLE_AXES);
     if (!raw) return normalizeTriangleAxes(defaultAxes, defaultAxes, availableAxisIds);
@@ -214,7 +207,6 @@ export function saveTriangleAxes(
     localStorage.setItem(KEY_TRIANGLE_AXES, JSON.stringify(clean));
   } catch {}
 }
-
 
 // ---------------- helpers ----------------
 

@@ -338,8 +338,6 @@ export function ClipDialog(p: ClipDialogProps) {
     getDisabledAxisReasons: getTriangleDisabledAxisReasons,
   } = triangleLogic(computed.allScores, p.customSliders, p.formulaWeights);
 
-
-
   const {
     DEFAULT_PENTAGON_AXIS_IDS,
     availableAxisIds,

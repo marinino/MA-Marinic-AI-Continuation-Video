@@ -27,8 +27,7 @@ export function pentagonLogic(
     return [...builtins, ...customs];
   }, [customSliders]);
 
-  const [pentagonAxes, setPentagonAxesState] =
-    React.useState<AxisId[]>(DEFAULT_PENTAGON_AXIS_IDS);
+  const [pentagonAxes, setPentagonAxesState] = React.useState<AxisId[]>(DEFAULT_PENTAGON_AXIS_IDS);
 
   const [pentagonAxesOpen, setPentagonAxesOpen] = React.useState(false);
 
@@ -57,8 +56,7 @@ export function pentagonLogic(
   );
 
   const pentagonAxisObjects = React.useMemo(() => {
-    const ids =
-      (pentagonAxes?.length === 5 ? pentagonAxes : DEFAULT_PENTAGON_AXIS_IDS).slice(0, 5);
+    const ids = (pentagonAxes?.length === 5 ? pentagonAxes : DEFAULT_PENTAGON_AXIS_IDS).slice(0, 5);
 
     return ids.map((id) => ({
       id: String(id),
