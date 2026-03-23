@@ -109,10 +109,15 @@ export function ParameterBarGroup({ items }: { items: Item[] }) {
 
           const tooltip =
             prevValue != null
-              ? `${label} · old ${fmtPlain(prevValue, decimals)} · now ${fmtPlain(
-                  value,
-                  decimals
-                )} · Δ ${fmt(delta ?? 0, decimals)}`
+              ? fmt(delta ?? 0, decimals)
+                ? `${label} · old ${fmtPlain(prevValue, decimals)} · now ${fmtPlain(
+                    value,
+                    decimals
+                  )} · Δ ${fmt(delta ?? 0, decimals)}`
+                : `${label} · old ${fmtPlain(prevValue, decimals)} · now ${fmtPlain(
+                    value,
+                    decimals
+                  )}`
               : `${label} · ${fmtPlain(value, decimals)}`;
 
           return (

@@ -7,6 +7,8 @@ const KEY_CUSTOM = "ma:v2v:customScoreSliders:v1";
 const KEY_CATEGORY_VISIBILITY = "ma:v2v:categoryVisibility:v1";
 const KEY_SETTINGS = "ma:settings:v1";
 const KEY_SLIDER_ORDER = "ma:v2v:sliderOrder:v1";
+const KEY_PENTAGON_AXES = "ma:v2v:pentagonAxes:v1";
+const KEY_TRIANGLE_AXES = "ma:v2v:triangleAxes:v1";
 
 // ---------------- FormulaWeights ----------------
 
@@ -103,6 +105,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notesEnabled: true,
   showWeightSuggestionsEnabled: true,
   graphCardContentMode: "parameters",
+  restrictCategories: true,
 };
 
 export function loadSettings(): AppSettings {
@@ -122,6 +125,7 @@ export function loadSettings(): AppSettings {
         parsed?.graphCardContentMode === "parameters"
           ? parsed.graphCardContentMode
           : DEFAULT_SETTINGS.graphCardContentMode,
+      restrictCategories: parsed?.restrictCategories !== false,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -133,6 +137,84 @@ export function saveSettings(settings: AppSettings) {
     localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings));
   } catch {}
 }
+
+
+export function normalizePentagonAxes(
+  axes: string[],
+  defaultAxes: string[],
+  availableAxisIds: string[]
+): string[] {
+  return sanitizeAxes(axes, defaultAxes, availableAxisIds, 5);
+}
+
+export function loadPentagonAxes(
+  defaultAxes: string[],
+  availableAxisIds: string[]
+): string[] {
+  try {
+    const raw = localStorage.getItem(KEY_PENTAGON_AXES);
+    if (!raw) return sanitizeAxes(defaultAxes, defaultAxes, availableAxisIds, 5);
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return sanitizeAxes(defaultAxes, defaultAxes, availableAxisIds, 5);
+    }
+
+    return sanitizeAxes(parsed, defaultAxes, availableAxisIds, 5);
+  } catch {
+    return sanitizeAxes(defaultAxes, defaultAxes, availableAxisIds, 5);
+  }
+}
+
+export function savePentagonAxes(
+  axes: string[],
+  defaultAxes: string[],
+  availableAxisIds: string[]
+) {
+  try {
+    const clean = sanitizeAxes(axes, defaultAxes, availableAxisIds, 5);
+    localStorage.setItem(KEY_PENTAGON_AXES, JSON.stringify(clean));
+  } catch {}
+}
+
+export function normalizeTriangleAxes(
+  axes: string[],
+  defaultAxes: string[],
+  availableAxisIds: string[]
+): string[] {
+  return sanitizeAxes(axes, defaultAxes, availableAxisIds, 3);
+}
+
+export function loadTriangleAxes(
+  defaultAxes: string[],
+  availableAxisIds: string[]
+): string[] {
+  try {
+    const raw = localStorage.getItem(KEY_TRIANGLE_AXES);
+    if (!raw) return normalizeTriangleAxes(defaultAxes, defaultAxes, availableAxisIds);
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return normalizeTriangleAxes(defaultAxes, defaultAxes, availableAxisIds);
+    }
+
+    return normalizeTriangleAxes(parsed, defaultAxes, availableAxisIds);
+  } catch {
+    return normalizeTriangleAxes(defaultAxes, defaultAxes, availableAxisIds);
+  }
+}
+
+export function saveTriangleAxes(
+  axes: string[],
+  defaultAxes: string[],
+  availableAxisIds: string[]
+) {
+  try {
+    const clean = normalizeTriangleAxes(axes, defaultAxes, availableAxisIds);
+    localStorage.setItem(KEY_TRIANGLE_AXES, JSON.stringify(clean));
+  } catch {}
+}
+
 
 // ---------------- helpers ----------------
 
@@ -148,4 +230,42 @@ function deepMerge<T>(base: T, patch: any): T {
     out[k] = isObj(out[k]) ? deepMerge(out[k], patch[k]) : patch[k];
   }
   return out as T;
+}
+
+function sanitizeAxes(
+  rawAxes: string[],
+  defaultAxes: string[],
+  availableAxisIds: string[],
+  count: number
+): string[] {
+  const allowed = new Set(availableAxisIds);
+  const used = new Set<string>();
+  const result: string[] = [];
+
+  for (const id of rawAxes) {
+    if (typeof id !== "string") continue;
+    if (!allowed.has(id)) continue;
+    if (used.has(id)) continue;
+    result.push(id);
+    used.add(id);
+    if (result.length === count) break;
+  }
+
+  for (const id of defaultAxes) {
+    if (result.length === count) break;
+    if (allowed.has(id) && !used.has(id)) {
+      result.push(id);
+      used.add(id);
+    }
+  }
+
+  for (const id of availableAxisIds) {
+    if (result.length === count) break;
+    if (!used.has(id)) {
+      result.push(id);
+      used.add(id);
+    }
+  }
+
+  return result.slice(0, count);
 }

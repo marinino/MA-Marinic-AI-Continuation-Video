@@ -1,14 +1,6 @@
 import type { Edge as RFEdge, Node as RFNode } from "reactflow";
-import {
-  
-  ParamKey,
-  ParamStep,
-  ParamNodeData,
-  ParamWeightSuggestion,
-} from "../types/ui";
+import { ParamKey, ParamStep, ParamNodeData, ParamWeightSuggestion } from "../types/ui";
 import { clamp01 } from "./clipDialogLogic";
-
-
 
 const PARAM_KEYS: ParamKey[] = [
   "highNoiseCfg",
@@ -110,8 +102,7 @@ export function detectParamWeightSuggestion(
 
   const categoryKeys = getCategoryKeys(recent);
 
-  
-for (const category of categoryKeys) {
+  for (const category of categoryKeys) {
     let categoryStreakLength = 0;
     let currentCategoryStreak = 0;
     let categoryHitCount = 0;
@@ -119,8 +110,7 @@ for (const category of categoryKeys) {
 
     for (const step of recent) {
       const d = step.categoryDeltas?.[category];
-      const matches =
-        typeof d === "number" && Number.isFinite(d) && d <= -minCategoryDeltaAbs;
+      const matches = typeof d === "number" && Number.isFinite(d) && d <= -minCategoryDeltaAbs;
 
       if (matches) {
         currentCategoryStreak += 1;
@@ -187,26 +177,24 @@ for (const category of categoryKeys) {
       const suggestedWeightDeltaPct =
         confidence >= 0.85 ? 10 : confidence >= 0.7 ? 8 : confidence >= 0.55 ? 6 : 4;
 
-const candidate: ParamWeightSuggestion = {
-  targetCategory: category,
-  categoryDirection: "down",
-  parameter: param,
-  parameterDirection,
-  hitCount,
-  streakLength,
-  avgCategoryDelta: round2(avgCategoryDelta),
-  avgParamDelta: round2(avgParamDelta),
-  confidence: round2(confidence),
-  suggestedWeightDeltaPct,
-  suggestedAction,
-
-};
+      const candidate: ParamWeightSuggestion = {
+        targetCategory: category,
+        categoryDirection: "down",
+        parameter: param,
+        parameterDirection,
+        hitCount,
+        streakLength,
+        avgCategoryDelta: round2(avgCategoryDelta),
+        avgParamDelta: round2(avgParamDelta),
+        confidence: round2(confidence),
+        suggestedWeightDeltaPct,
+        suggestedAction,
+      };
 
       if (
         !best ||
         candidate.streakLength > best.streakLength ||
-        (candidate.streakLength === best.streakLength &&
-          candidate.confidence > best.confidence) ||
+        (candidate.streakLength === best.streakLength && candidate.confidence > best.confidence) ||
         (candidate.streakLength === best.streakLength &&
           candidate.confidence === best.confidence &&
           Math.abs(candidate.avgParamDelta) > Math.abs(best.avgParamDelta))
@@ -237,10 +225,7 @@ export function buildSuggestionMessage(args: {
   return `${categoryText} drops repeatedly in this branch. The most recurring associated parameter change is ${paramText} (${paramDirText}, avg ${args.avgParamDelta}) in ${args.hitCount} recent steps, longest streak ${args.streakLength}. Consider reducing the ${paramText} weight by about ${args.suggestedWeightDeltaPct}% for the ${categoryText} mapping.`;
 }
 
-export function categoryLabel(
-  category: string,
-  labels?: Record<string, string | undefined>
-) {
+export function categoryLabel(category: string, labels?: Record<string, string | undefined>) {
   if (labels?.[category]) return labels[category];
 
   switch (category) {

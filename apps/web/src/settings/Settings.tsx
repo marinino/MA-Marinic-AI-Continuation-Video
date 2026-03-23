@@ -26,6 +26,8 @@ type SettingsProps = {
   showWeightSuggestionsEnabled: boolean;
   graphCardContentMode: GraphCardContentMode;
   setGraphCardContentMode: (value: GraphCardContentMode) => void;
+  restrictCategories: boolean;
+  setRestrictCategories: (value: boolean) => void;
 };
 
 export function Settings({
@@ -41,6 +43,8 @@ export function Settings({
   showWeightSuggestionsEnabled,
   graphCardContentMode,
   setGraphCardContentMode,
+  restrictCategories,
+  setRestrictCategories,
 }: SettingsProps) {
   return (
     <Dialog
@@ -83,6 +87,13 @@ export function Settings({
           description="If a certain category value has a trend inside a branch the system makes suggestions to change the weight for this category"
           value={showWeightSuggestionsEnabled}
           onChange={setShowWeightSuggestionsEnabled}
+        />
+
+        <BooleanToggleRow
+          label="Restict categories for pentagon and trinagle"
+          description="When enabled the categories which are displayed in the pentagon and triangle can not be choosen freely and will be disabled if the selection is not deemed meaningful"
+          value={restrictCategories}
+          onChange={setRestrictCategories}
         />
 
         <Box

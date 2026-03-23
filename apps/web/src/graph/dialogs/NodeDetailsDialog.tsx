@@ -16,7 +16,11 @@ import {
 } from "@mui/material";
 
 import { useEffect, useState } from "react";
-import { buildSuggestionMessage, categoryLabel, paramLabel } from "../graph_helpers/branchSuggestions";
+import {
+  buildSuggestionMessage,
+  categoryLabel,
+  paramLabel,
+} from "../graph_helpers/branchSuggestions";
 import CloseIcon from "@mui/icons-material/Close";
 import { deltaChipSx, fmt } from "../nodes/Node";
 import { DEFAULT_CATEGORY_LABELS } from "../graph_helpers/sliderLogic";
@@ -314,9 +318,9 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
                       <Chip
                         size="small"
                         label={`Affected category: ${categoryLabel(
-  props.branchSuggestion.targetCategory,
-  mergedCategoryLabels
-)}`}
+                          props.branchSuggestion.targetCategory,
+                          mergedCategoryLabels
+                        )}`}
                         sx={{
                           alignSelf: "flex-start",
                           border: "1px solid",
@@ -351,16 +355,17 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
                         <Stack spacing={0.75}>
                           <Typography variant="body2" color="text.secondary">
                             {buildSuggestionMessage({
-  category: props.branchSuggestion.targetCategory,
-  categoryLabels: mergedCategoryLabels,
-  parameter: props.branchSuggestion.parameter,
-  parameterDirection: props.branchSuggestion.parameterDirection,
-  hitCount: props.branchSuggestion.hitCount,
-  streakLength: props.branchSuggestion.streakLength,
-  avgCategoryDelta: props.branchSuggestion.avgCategoryDelta,
-  avgParamDelta: props.branchSuggestion.avgParamDelta,
-  suggestedWeightDeltaPct: props.branchSuggestion.suggestedWeightDeltaPct,
-})}
+                              category: props.branchSuggestion.targetCategory,
+                              categoryLabels: mergedCategoryLabels,
+                              parameter: props.branchSuggestion.parameter,
+                              parameterDirection: props.branchSuggestion.parameterDirection,
+                              hitCount: props.branchSuggestion.hitCount,
+                              streakLength: props.branchSuggestion.streakLength,
+                              avgCategoryDelta: props.branchSuggestion.avgCategoryDelta,
+                              avgParamDelta: props.branchSuggestion.avgParamDelta,
+                              suggestedWeightDeltaPct:
+                                props.branchSuggestion.suggestedWeightDeltaPct,
+                            })}
                           </Typography>
 
                           <Typography variant="caption" color="text.secondary">

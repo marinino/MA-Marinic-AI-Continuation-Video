@@ -1,13 +1,18 @@
 import React from "react";
-import { axisLabel, axisValue, useClipDialogLogic } from "./clipDialogLogic";
+import { axisLabel, axisValue } from "./clipDialogLogic";
 import { AxisId, CustomScoreSlider } from "../types/ui";
+import { getAxisBlockReason } from "./axisSimilarity";
+import { DEFAULT_FORMULA_WEIGHTS } from "../hooks/useV2VParams";
+import {
+  loadPentagonAxes,
+  savePentagonAxes,
+  normalizePentagonAxes,
+} from "../../utils/localStorage";
 
 export function pentagonLogic(
   allScores: Record<string, number>,
   customSliders: CustomScoreSlider[]
 ) {
-  const PENTAGON_AXIS_STORAGE_KEY = "v2v.pentagonAxes.v1";
-
   const DEFAULT_PENTAGON_AXIS_IDS: AxisId[] = [
     "creativity",
     "promptFaithfulness",
@@ -16,21 +21,44 @@ export function pentagonLogic(
     "videoFaithfulness",
   ];
 
-  function loadPentagonAxes(): AxisId[] {
-    try {
-      const raw = localStorage.getItem(PENTAGON_AXIS_STORAGE_KEY);
-      const arr = raw ? (JSON.parse(raw) as AxisId[]) : null;
-      return Array.isArray(arr) && arr.length ? arr : DEFAULT_PENTAGON_AXIS_IDS;
-    } catch {
-      return DEFAULT_PENTAGON_AXIS_IDS;
-    }
-  }
+  const availableAxisIds: AxisId[] = React.useMemo(() => {
+    const builtins: AxisId[] = DEFAULT_PENTAGON_AXIS_IDS;
+    const customs: AxisId[] = customSliders.map((c) => c.id);
+    return [...builtins, ...customs];
+  }, [customSliders]);
 
-  const [pentagonAxes, setPentagonAxes] = React.useState<AxisId[]>(() => loadPentagonAxes());
+  const [pentagonAxes, setPentagonAxesState] =
+    React.useState<AxisId[]>(DEFAULT_PENTAGON_AXIS_IDS);
+
   const [pentagonAxesOpen, setPentagonAxesOpen] = React.useState(false);
 
+  React.useEffect(() => {
+    const loaded = normalizePentagonAxes(
+      loadPentagonAxes(DEFAULT_PENTAGON_AXIS_IDS, availableAxisIds),
+      DEFAULT_PENTAGON_AXIS_IDS,
+      availableAxisIds
+    ) as AxisId[];
+
+    setPentagonAxesState(loaded);
+  }, [availableAxisIds]);
+
+  const setPentagonAxes = React.useCallback(
+    (next: AxisId[]) => {
+      const clean = normalizePentagonAxes(
+        next,
+        DEFAULT_PENTAGON_AXIS_IDS,
+        availableAxisIds
+      ) as AxisId[];
+
+      setPentagonAxesState(clean);
+      savePentagonAxes(clean, DEFAULT_PENTAGON_AXIS_IDS, availableAxisIds);
+    },
+    [availableAxisIds]
+  );
+
   const pentagonAxisObjects = React.useMemo(() => {
-    const ids = (pentagonAxes?.length === 5 ? pentagonAxes : DEFAULT_PENTAGON_AXIS_IDS).slice(0, 5);
+    const ids =
+      (pentagonAxes?.length === 5 ? pentagonAxes : DEFAULT_PENTAGON_AXIS_IDS).slice(0, 5);
 
     return ids.map((id) => ({
       id: String(id),
@@ -39,21 +67,35 @@ export function pentagonLogic(
     }));
   }, [pentagonAxes, allScores, customSliders]);
 
-  const availableAxisIds: AxisId[] = React.useMemo(() => {
-    const builtins: AxisId[] = DEFAULT_PENTAGON_AXIS_IDS;
-    const customs: AxisId[] = customSliders.map((c) => c.id);
-    return [...builtins, ...customs];
-  }, [customSliders]);
+  function getDisabledAxisReasons(forIndex: number): Record<string, string> {
+    const out: Record<string, string> = {};
+
+    for (const candidate of availableAxisIds) {
+      const reason = getAxisBlockReason(
+        candidate,
+        pentagonAxes,
+        forIndex,
+        DEFAULT_FORMULA_WEIGHTS,
+        customSliders,
+        (id) => axisLabel(id, customSliders).replace("\n", " ")
+      );
+
+      if (reason) {
+        out[String(candidate)] = reason;
+      }
+    }
+
+    return out;
+  }
 
   return {
     DEFAULT_PENTAGON_AXIS_IDS,
-    PENTAGON_AXIS_STORAGE_KEY,
-    loadPentagonAxes,
     availableAxisIds,
     pentagonAxisObjects,
     pentagonAxes,
     pentagonAxesOpen,
     setPentagonAxes,
     setPentagonAxesOpen,
+    getDisabledAxisReasons,
   };
 }

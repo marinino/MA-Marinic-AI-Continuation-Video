@@ -284,40 +284,30 @@ export type Job = {
   onError?: (e: any) => void;
 };
 
-export type FormulaWeights = {
-  promptFaithfulness: { cfg: number; ratio: number };
+export type FormulaWeights = Record<AnyCategoryKey, CleanWeights>;
 
-  videoFaithfulness: { ratio: number; invShift: number; invStrength: number };
+export type CleanWeights = {
+  steps: number;
+  ratio: number;
+  shift: number;
+  cfg: number;
+  strength: number;
+  bias: number;
+};
 
-  transitionSmoothness: { steps: number; ratio: number };
-
-  motion: { shift: number; strength: number; ratio: number; bias: number };
-
-  creativity: { shift: number; strength: number; invCfg: number; ratio: number; bias: number };
+export type NormalizedFeatureValues = {
+  steps: number;
+  ratio: number;
+  shift: number;
+  cfg: number;
+  strength: number;
 };
 
 export type CustomScoreSlider = {
   id: string;
   name: string;
   hidden?: boolean;
-
-  // lineare Formel auf Basis deiner normalisierten features:
-  // steps01, ratio01, shift01, cfg01, strength01 und inverses sowie bias
-  w: {
-    steps: number;
-    ratio: number;
-    shift: number;
-    cfg: number;
-    strength: number;
-
-    invSteps: number;
-    invRatio: number;
-    invShift: number;
-    invCfg: number;
-    invStrength: number;
-
-    bias: number;
-  };
+  w: CleanWeights;
 };
 
 export type ScoreRanges = {
@@ -356,6 +346,7 @@ export type AppSettings = {
   notesEnabled: boolean;
   showWeightSuggestionsEnabled: boolean;
   graphCardContentMode: GraphCardContentMode;
+  restrictCategories: boolean;
 };
 
 export type SummaryChip = {

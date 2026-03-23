@@ -47,7 +47,7 @@ import { axisLabel, axisValue, useClipDialogLogic } from "../graph_helpers/clipD
 
 import { pentagonLogic } from "../graph_helpers/pentagonLogic";
 import { useSliderLogic } from "../graph_helpers/sliderLogic";
-import { trinagleLogic } from "../graph_helpers/triangleLogic";
+import { triangleLogic } from "../graph_helpers/triangleLogic";
 
 import {
   AdvancedParamsState,
@@ -63,6 +63,7 @@ import {
   SpeedMode,
   V2VTab,
 } from "../types/ui";
+import { renderOrderedSliderItem } from "../components/RenderedOrderedSliders";
 
 export type ClipDialogProps = {
   open: boolean;
@@ -123,6 +124,8 @@ export type ClipDialogProps = {
   orderedSliderItems: OrderedSliderItem[];
   moveSlider: (id: string, direction: "up" | "down") => void;
   onResetFormulaWeights: () => void;
+
+  restrictCategories: boolean;
 };
 
 /* ========= helpers (wie im mega-file) ========= */
@@ -162,21 +165,7 @@ export function ClipDialog(p: ClipDialogProps) {
     setActiveEffects: clipLogic.setActiveEffects,
   });
 
-  const {
-    DEFAULT_TRIANGLE_AXIS_IDS,
-    TRIANGLE_AXIS_STORAGE_KEY,
-    triangleAxes,
-    triangleAxesOpen,
-    setTriangleAxes,
-    setTriangleAxesOpen,
-    loadTriangleAxes,
-  } = trinagleLogic();
-
   const activeValue = clipLogic.activeSimple ? (p.simple[clipLogic.activeSimple] as number) : null;
-
-  React.useEffect(() => {
-    localStorage.setItem(TRIANGLE_AXIS_STORAGE_KEY, JSON.stringify(triangleAxes));
-  }, [triangleAxes]);
 
   React.useEffect(() => {
     if (!clipLogic.activeSimple) return;
@@ -259,14 +248,14 @@ export function ClipDialog(p: ClipDialogProps) {
     console.log(derived);
 
     return {
-    derived,
-    scores,
-    allScores,
-    totalStepsInt,
-    lowStepsInt,
-    highStepsInt,
-    effectiveLowStepPct,
-  };
+      derived,
+      scores,
+      allScores,
+      totalStepsInt,
+      lowStepsInt,
+      highStepsInt,
+      effectiveLowStepPct,
+    };
   }, [p.simple, p.simpleSpeedMode, p.formulaWeights, p.customSliders]);
 
   const activeSafeKey = React.useMemo(
@@ -280,16 +269,6 @@ export function ClipDialog(p: ClipDialogProps) {
     // <-- kommt vom Hook als prop (siehe unten)
     return p.getBounds(activeSafeKey, v);
   }, [activeSafeKey, p.simple]);
-
-  const triangleAxisObjects = React.useMemo(() => {
-    const ids = (triangleAxes?.length === 3 ? triangleAxes : DEFAULT_TRIANGLE_AXIS_IDS).slice(0, 3);
-
-    return ids.map((id) => ({
-      id: String(id),
-      label: axisLabel(id, p.customSliders),
-      value: axisValue(id, computed.allScores),
-    }));
-  }, [triangleAxes, computed.allScores, p.customSliders]);
 
   const cfg = p.sliderCfg;
 
@@ -347,87 +326,30 @@ export function ClipDialog(p: ClipDialogProps) {
   );
 
   const {
+    DEFAULT_TRIANGLE_AXIS_IDS,
+
+    triangleAxes,
+    triangleAxesOpen,
+    setTriangleAxes,
+    setTriangleAxesOpen,
+
+    triangleAxisObjects,
+    availableAxisIds: triangleAvailableAxisIds,
+    getDisabledAxisReasons: getTriangleDisabledAxisReasons,
+  } = triangleLogic(computed.allScores, p.customSliders, p.formulaWeights);
+
+
+
+  const {
     DEFAULT_PENTAGON_AXIS_IDS,
-    PENTAGON_AXIS_STORAGE_KEY,
-    loadPentagonAxes,
     availableAxisIds,
     pentagonAxisObjects,
     pentagonAxes,
     pentagonAxesOpen,
     setPentagonAxes,
     setPentagonAxesOpen,
+    getDisabledAxisReasons,
   } = pentagonLogic(computed.allScores, p.customSliders);
-
-  function renderOrderedSliderItem(
-    item: OrderedSliderItem,
-    computed: any,
-    clipLogic: any,
-    openWeights: (cat: any) => void,
-    openCustomEdit: (id: string) => void
-  ) {
-    if (item.kind === "base") {
-      switch (item.id) {
-        case "creativity":
-          return (
-            <ReadonlySlider
-              label="Creativity"
-              value={computed.scores.creativity}
-              sx={clipLogic.catInfluenceSx("creativity", clipLogic.activeEffects)}
-              onLabelClick={() => openWeights("creativity")}
-            />
-          );
-
-        case "promptFaithfulness":
-          return (
-            <ReadonlySlider
-              label="Prompt faithfulness"
-              value={computed.scores.promptFaithfulness}
-              sx={clipLogic.catInfluenceSx("promptFaithfulness", clipLogic.activeEffects)}
-              onLabelClick={() => openWeights("promptFaithfulness")}
-            />
-          );
-
-        case "motion":
-          return (
-            <ReadonlySlider
-              label="Motion"
-              value={computed.scores.motion}
-              sx={clipLogic.catInfluenceSx("motion", clipLogic.activeEffects)}
-              onLabelClick={() => openWeights("motion")}
-            />
-          );
-
-        case "transitionSmoothness":
-          return (
-            <ReadonlySlider
-              label="Transition Smoothness"
-              value={computed.scores.transitionSmoothness}
-              sx={clipLogic.catInfluenceSx("transitionSmoothness", clipLogic.activeEffects)}
-              onLabelClick={() => openWeights("transitionSmoothness")}
-            />
-          );
-
-        case "videoFaithfulness":
-          return (
-            <ReadonlySlider
-              label="Video Faithfulness"
-              value={computed.scores.videoFaithfulness}
-              sx={clipLogic.catInfluenceSx("videoFaithfulness", clipLogic.activeEffects)}
-              onLabelClick={() => openWeights("videoFaithfulness")}
-            />
-          );
-      }
-    }
-
-    return (
-      <ReadonlySlider
-        label={item.slider.name}
-        value={computed.allScores[item.slider.id] ?? 0}
-        onLabelClick={() => openCustomEdit(item.slider.id)}
-        sx={clipLogic.catInfluenceSx(item.slider.id, clipLogic.activeEffects)}
-      />
-    );
-  }
 
   return (
     <>
@@ -560,8 +482,8 @@ export function ClipDialog(p: ClipDialogProps) {
 
                     <Stack spacing={0.5}>
                       <Typography gutterBottom>
-  Ratio: <b>{computed.effectiveLowStepPct}%</b>
-</Typography>
+                        Ratio: <b>{computed.effectiveLowStepPct}%</b>
+                      </Typography>
                       <PressableSlider
                         sliderKey="stepRatioPct"
                         onBegin={handleBeginDrag}
@@ -1009,16 +931,20 @@ export function ClipDialog(p: ClipDialogProps) {
         availableAxisIds={availableAxisIds.map(String)}
         axisLabel={(id) => axisLabel(id, p.customSliders)}
         defaultAxes={DEFAULT_PENTAGON_AXIS_IDS.map(String)}
+        getDisabledAxisReasons={getDisabledAxisReasons}
+        restrictCategories={p.restrictCategories}
       />
 
       <TriangleAxesDialog
         open={triangleAxesOpen}
         onClose={() => setTriangleAxesOpen(false)}
-        axes={triangleAxes.map(String)}
-        onAxesChange={(next) => setTriangleAxes(next as AxisId[])}
-        availableAxisIds={availableAxisIds.map(String)}
+        axes={triangleAxes}
+        onAxesChange={setTriangleAxes}
+        availableAxisIds={triangleAvailableAxisIds}
         axisLabel={(id) => axisLabel(id, p.customSliders)}
-        defaultAxes={DEFAULT_TRIANGLE_AXIS_IDS.map(String)}
+        defaultAxes={DEFAULT_TRIANGLE_AXIS_IDS}
+        getDisabledAxisReasons={getTriangleDisabledAxisReasons}
+        restrictCategories={p.restrictCategories}
       />
     </>
   );

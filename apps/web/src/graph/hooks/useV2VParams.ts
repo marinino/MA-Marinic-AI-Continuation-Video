@@ -1,9 +1,11 @@
 import { useMemo } from "react";
 import {
   CategoryScores,
+  CleanWeights,
   CustomScoreSlider,
   DerivedRanges,
   FormulaWeights,
+  NormalizedFeatureValues,
   ParamRange,
   ScoreRanges,
   SimpleReal,
@@ -12,15 +14,50 @@ import {
 import { SAFE_PRESETS } from "./useV2VSliders";
 
 export const DEFAULT_FORMULA_WEIGHTS: FormulaWeights = {
-  promptFaithfulness: { cfg: 0.85, ratio: 0.15 },
+  promptFaithfulness: {
+    steps: 0.1,
+    ratio: 0.2,
+    shift: 0,
+    cfg: 0.7,
+    strength: -0.05,
+    bias: 0,
+  },
 
-  videoFaithfulness: { ratio: 0.55, invShift: 0.3, invStrength: 0.15 },
+  videoFaithfulness: {
+    steps: 0.05,
+    ratio: 0.7,
+    shift: -0.25,
+    cfg: 0,
+    strength: -0.25,
+    bias: 0,
+  },
 
-  transitionSmoothness: { steps: 0.55, ratio: 0.45 },
+  transitionSmoothness: {
+    steps: 0.45,
+    ratio: 0.4,
+    shift: -0.1,
+    cfg: 0,
+    strength: -0.15,
+    bias: 0.05,
+  },
 
-  motion: { shift: 0.45, strength: 0.45, ratio: -0.2, bias: 0.3 },
+  motion: {
+    steps: 0.1,
+    ratio: -0.15,
+    shift: 0.55,
+    cfg: 0,
+    strength: 0.35,
+    bias: 0.25,
+  },
 
-  creativity: { shift: 0.45, strength: 0.35, invCfg: 0.2, ratio: -0.25, bias: 0.25 },
+  creativity: {
+    steps: 0,
+    ratio: -0.35,
+    shift: 0.3,
+    cfg: -0.3,
+    strength: 0.5,
+    bias: 0.2,
+  },
 };
 
 export const DEFAULT_CUSTOM_W: CustomScoreSlider["w"] = {
@@ -29,15 +66,31 @@ export const DEFAULT_CUSTOM_W: CustomScoreSlider["w"] = {
   shift: 0,
   cfg: 0,
   strength: 0,
-
-  invSteps: 0,
-  invRatio: 0,
-  invShift: 0,
-  invCfg: 0,
-  invStrength: 0,
-
   bias: 0,
 };
+
+export function normalizeWeights(w: Partial<CleanWeights>): CleanWeights {
+  return {
+    steps: w.steps ?? 0,
+    ratio: w.ratio ?? 0,
+    shift: w.shift ?? 0,
+    cfg: w.cfg ?? 0,
+    strength: w.strength ?? 0,
+    bias: w.bias ?? 0,
+  };
+}
+
+export function applyWeights(w: CleanWeights, values: NormalizedFeatureValues) {
+  const raw =
+    w.steps * values.steps +
+    w.ratio * values.ratio +
+    w.shift * values.shift +
+    w.cfg * values.cfg +
+    w.strength * values.strength +
+    w.bias;
+
+  return clamp(raw, 0, 1);
+}
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -229,51 +282,20 @@ export function computeCategoryScoresFromSimple(
     1
   );
 
-  const promptFaithfulness = clamp(
-    fw.promptFaithfulness.cfg * cfg01 + fw.promptFaithfulness.ratio * ratio01,
-    0,
-    1
-  );
-
-  const videoFaithfulness = clamp(
-    fw.videoFaithfulness.ratio * ratio01 +
-      fw.videoFaithfulness.invShift * (1 - shift01) +
-      fw.videoFaithfulness.invStrength * (1 - strength01),
-    0,
-    1
-  );
-
-  const transitionSmoothness = clamp(
-    fw.transitionSmoothness.steps * steps01 + fw.transitionSmoothness.ratio * ratio01,
-    0,
-    1
-  );
-
-  const motion = clamp(
-    fw.motion.shift * shift01 +
-      fw.motion.strength * strength01 +
-      fw.motion.ratio * ratio01 +
-      fw.motion.bias,
-    0,
-    1
-  );
-
-  const creativity = clamp(
-    fw.creativity.shift * shift01 +
-      fw.creativity.strength * strength01 +
-      fw.creativity.invCfg * (1 - cfg01) +
-      fw.creativity.ratio * ratio01 +
-      fw.creativity.bias,
-    0,
-    1
-  );
+  const values = {
+    steps: steps01,
+    ratio: ratio01,
+    shift: shift01,
+    cfg: cfg01,
+    strength: strength01,
+  };
 
   return {
-    creativity: Math.round(creativity * 100),
-    promptFaithfulness: Math.round(promptFaithfulness * 100),
-    motion: Math.round(motion * 100),
-    transitionSmoothness: Math.round(transitionSmoothness * 100),
-    videoFaithfulness: Math.round(videoFaithfulness * 100),
+    creativity: Math.round(applyWeights(fw.creativity, values) * 100),
+    promptFaithfulness: Math.round(applyWeights(fw.promptFaithfulness, values) * 100),
+    motion: Math.round(applyWeights(fw.motion, values) * 100),
+    transitionSmoothness: Math.round(applyWeights(fw.transitionSmoothness, values) * 100),
+    videoFaithfulness: Math.round(applyWeights(fw.videoFaithfulness, values) * 100),
   };
 }
 
@@ -349,6 +371,14 @@ export function computeAllScores(
     1
   );
 
+  const values = {
+    steps: steps01,
+    ratio: ratio01,
+    shift: shift01,
+    cfg: cfg01,
+    strength: strength01,
+  };
+
   const builtIn = computeCategoryScoresFromSimple(
     {
       totalSteps: s.totalSteps,
@@ -364,22 +394,7 @@ export function computeAllScores(
   const out: Record<string, number> = { ...builtIn };
 
   for (const cs of custom) {
-    const w = cs.w;
-    const raw =
-      w.steps * steps01 +
-      w.ratio * ratio01 +
-      w.shift * shift01 +
-      w.cfg * cfg01 +
-      w.strength * strength01 +
-      w.invSteps * (1 - steps01) +
-      w.invRatio * (1 - ratio01) +
-      w.invShift * (1 - shift01) +
-      w.invCfg * (1 - cfg01) +
-      w.invStrength * (1 - strength01) +
-      w.bias;
-
-    const score01 = clamp(raw, 0, 1);
-    out[cs.id] = Math.round(score01 * 100);
+    out[cs.id] = Math.round(applyWeights(cs.w, values) * 100);
   }
 
   return out;

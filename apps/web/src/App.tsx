@@ -64,6 +64,8 @@ export default function App({
     initialSettings.graphCardContentMode
   );
 
+  const [restrictCategories, setRestrictCategories] = useState(initialSettings.restrictCategories);
+
   const dirtyRef = useRef(false);
   const projectRef = useRef<Project | null>(null);
 
@@ -74,6 +76,7 @@ export default function App({
       notesEnabled,
       showWeightSuggestionsEnabled,
       graphCardContentMode,
+      restrictCategories,
     });
   }, [
     showEdgeLabels,
@@ -81,6 +84,7 @@ export default function App({
     notesEnabled,
     showWeightSuggestionsEnabled,
     graphCardContentMode,
+    restrictCategories,
   ]);
 
   useEffect(() => {
@@ -288,6 +292,7 @@ export default function App({
               notesEnabled={notesEnabled}
               showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
               graphCardContentMode={graphCardContentMode}
+              restrictCategories={restrictCategories}
             />
           </ReactFlowProvider>
         </Box>
@@ -306,6 +311,8 @@ export default function App({
         showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
         graphCardContentMode={graphCardContentMode}
         setGraphCardContentMode={setGraphCardContentMode}
+        restrictCategories={restrictCategories}
+        setRestrictCategories={setRestrictCategories}
       />
 
       <InformationDialog open={legendOpen} onClose={() => setLegendOpen(false)} />

@@ -116,6 +116,7 @@ export function GraphView(props: {
   notesEnabled: boolean;
   showWeightSuggestionsEnabled: boolean;
   graphCardContentMode: GraphCardContentMode;
+  restrictCategories: boolean;
 }) {
   // ---------- reactflow instance ----------
   const rf = useReactFlow();
@@ -875,7 +876,6 @@ export function GraphView(props: {
         minSteps: 5,
         minCategoryDeltaAbs: 1,
         minParamDeltaAbs: 0.01,
-        minHits: 7,
         minStreak: 5,
         recencyWindow: 15,
       });
@@ -1433,6 +1433,7 @@ export function GraphView(props: {
         formulaWeights={formulaWeights}
         onPatchFormulaWeights={patchFormulaWeights}
         onResetFormulaWeights={resetFormulaWeights}
+        restrictCategories={props.restrictCategories}
       />
 
       <NamingConventionDialog
