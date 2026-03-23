@@ -35,6 +35,7 @@ import {
   CategoryScoreMap,
   Delta,
   ParamDelats,
+  ParameterHistoryMap,
   SelectedCategory,
 } from "../types/ui";
 import { deriveRangesFromPresets } from "../hooks/useV2VParams";
@@ -94,6 +95,11 @@ export interface NodeDetailsDialogProps {
   categoryVisibility?: Record<string, boolean>;
   onSetCategoryVisible?: (categoryId: string, visible: boolean) => void;
   onShowAllCategories?: () => void;
+  parameterHistory?: ParameterHistoryMap;
+
+  onStartCompare?: (nodeId: string) => void;
+  compareBaseNodeLabel?: string | null;
+  onCompareStarted?: () => void;
 }
 
 export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
@@ -194,6 +200,7 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
   const parameterItems = [
     props.highNoiseCfg != null
       ? {
+          key: "highNoiseCfg",
           label: "High CFG",
           value: props.highNoiseCfg,
           min: PARAM_RANGES.highCfg.min,
@@ -204,6 +211,7 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
       : null,
     props.highNoiseShift != null
       ? {
+          key: "highNoiseShift",
           label: "High Shift",
           value: props.highNoiseShift,
           min: PARAM_RANGES.highShift.min,
@@ -214,6 +222,7 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
       : null,
     props.highNoiseModelStrength != null
       ? {
+          key: "highNoiseModelStrength",
           label: "High Strength",
           value: props.highNoiseModelStrength,
           min: PARAM_RANGES.highStrength.min,
@@ -224,6 +233,7 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
       : null,
     totalStepsValue != null
       ? {
+          key: "totalSteps",
           label: "Total Steps",
           value: totalStepsValue,
           min: 4,
@@ -235,6 +245,7 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
       : null,
     lowStepPctValue != null
       ? {
+          key: "lowStepPct",
           label: "Low Step %",
           value: lowStepPctValue,
           min: 50,
@@ -245,6 +256,7 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
         }
       : null,
   ].filter(Boolean) as {
+    key: string;
     label: string;
     value: number;
     min: number;
@@ -308,6 +320,11 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
               )
             ) : props.type === "params" ? (
               <>
+                {props.compareBaseNodeLabel && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                    Comparing against: {props.compareBaseNodeLabel}
+                  </Typography>
+                )}
                 <Stack direction="row" spacing={0.5} alignItems="center">
                   <Typography variant="caption" display="block">
                     <strong>Parameters</strong>
@@ -327,7 +344,9 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
                     : "No prompt set yet."}
                 </Typography>
 
-                {parameterItems.length > 0 && <ParameterBarGroup items={parameterItems} />}
+                {parameterItems.length > 0 && (
+                  <ParameterBarGroup items={parameterItems} history={props.parameterHistory} />
+                )}
 
                 {props.showWeightSuggestionsEnabled && props.branchSuggestion && (
                   <>
@@ -473,6 +492,24 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
 
         <DialogActions sx={{ justifyContent: "space-between" }}>
           <Box sx={{ display: "flex", gap: 1 }}>
+            {props.type === "params" && (
+              <Button
+                variant="outlined"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+
+                  if (props.notesEnabled) {
+                    props.onSaveNote?.(props.nodeId, localNote);
+                  }
+
+                  props.onStartCompare?.(props.nodeId);
+                }}
+              >
+                Compare to
+              </Button>
+            )}
+
             <Button
               onClick={(e) => {
                 e.preventDefault();

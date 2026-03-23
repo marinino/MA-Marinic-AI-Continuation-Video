@@ -9,7 +9,12 @@ import { GraphCard } from "../components/GraphCard";
 import { ClipNode } from "./ClipNode";
 import { ParamNode } from "./ParamNode";
 import { EditNode } from "./EditNode";
-import { BrachSuggestion, GraphCardContentMode, ParamDelats } from "../types/ui";
+import {
+  BrachSuggestion,
+  GraphCardContentMode,
+  ParamDelats,
+  ParameterHistoryMap,
+} from "../types/ui";
 
 function getNodeColors(kind: NodeType, isRoot: boolean) {
   if (isRoot) return { border: "#ff9800", bg: "#FFF8E1" }; // Root Clip
@@ -109,9 +114,11 @@ export function NodeCard(props: {
   graphCardContentMode?: GraphCardContentMode;
   displayTotalSteps: number;
   displayLowStepPct: number;
+  parameterHistory?: ParameterHistoryMap;
+
+  onOpenDetails?: (nodeId: string) => void;
 }) {
   const theme = useTheme();
-  const [infoOpen, setInfoOpen] = useState(false);
 
   const base = getNodeColors(props.type, props.isRoot);
 
@@ -151,7 +158,7 @@ export function NodeCard(props: {
         lowNoiseEndStep={props.lowNoiseEndStep}
         paramDeltas={props.paramDeltas}
         branchSuggestion={props.branchSuggestion}
-        onOpen={() => setInfoOpen(true)}
+        onOpen={() => props.onOpenDetails?.(props.nodeId)}
         onAdd={props.onAdd}
         onVideoOpened={props.onVideoOpened}
         highlightUnseenEnabled={props.highlightUnseenEnabled}
@@ -173,46 +180,6 @@ export function NodeCard(props: {
       </GraphCard>
 
       {/* Info Popup */}
-      <NodeDetailsDialog
-        open={infoOpen}
-        onClose={() => setInfoOpen(false)}
-        nodeId={props.nodeId}
-        type={props.type}
-        videoUrl={props.videoUrl}
-        videoFile={props.videoFile}
-        videoStatus={props.videoStatus}
-        metaSummary={props.metaSummary}
-        prompt={props.prompt}
-        prevParamsId={props.prevParamsId}
-        d={d}
-        highNoiseCfg={props.highNoiseCfg}
-        lowNoiseCfg={props.lowNoiseCfg}
-        highNoiseModelStrength={props.highNoiseModelStrength}
-        lowNoiseModelStrength={props.lowNoiseModelStrength}
-        highNoiseShift={props.highNoiseShift}
-        lowNoiseShift={props.lowNoiseShift}
-        highNoiseSteps={props.highNoiseSteps}
-        lowNoiseSteps={props.lowNoiseSteps}
-        highNoiseStartStep={props.highNoiseStartStep}
-        lowNoiseStartStep={props.lowNoiseStartStep}
-        highNoiseEndStep={props.highNoiseEndStep}
-        lowNoiseEndStep={props.lowNoiseEndStep}
-        paramDeltas={props.paramDeltas}
-        promptChanged={props.promptChanged}
-        branchSuggestion={props.branchSuggestion}
-        note={props.note}
-        onSaveNote={props.onSaveNote}
-        notesEnabled={props.notesEnabled}
-        categoryScores={props.categoryScores}
-        categoryScoreDeltas={props.categoryScoreDeltas}
-        categoryLabels={props.categoryLabels}
-        categoryVisibility={props.categoryVisibility}
-        onSetCategoryVisible={props.onSetCategoryVisible}
-        onShowAllCategories={props.onShowAllCategories}
-        showWeightSuggestionsEnabled={props.showWeightSuggestionsEnabled ?? true}
-        displayTotalSteps={props.displayTotalSteps}
-        displayLowStepPct={props.displayLowStepPct}
-      />
     </>
   );
 }

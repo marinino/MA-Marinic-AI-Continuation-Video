@@ -51,7 +51,9 @@ export function ParamNode(props: NodeProps<any>) {
         graphCardContentMode={props.data.graphCardContentMode}
         displayTotalSteps={props.data.displayTotalSteps}
         displayLowStepPct={props.data.displayLowStepPct}
-      ></NodeCard>
+        parameterHistory={props.data.parameterHistory}
+        onOpenDetails={props.data.onOpenDetails}
+      />
     </div>
   );
 }

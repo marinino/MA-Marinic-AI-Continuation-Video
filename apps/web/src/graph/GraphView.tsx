@@ -75,6 +75,7 @@ import {
   findPrevParamsId,
   collectSubtreeNodeIds,
   getHiddenDescendantIds,
+  buildParameterHistoryFromBranchSteps,
 } from "./graph_helpers/selectors";
 import { useManualTimelineImport } from "./hooks/useManualTimelineImport";
 import { DeleteNodeDialog } from "./dialogs/DeleteNodeDialog";
@@ -101,6 +102,8 @@ import {
   StandardCategoryKey,
 } from "./types/ui";
 import { DEFAULT_BASE_ORDER } from "./graph_helpers/sliderLogic";
+import { buildCompareCategoryDeltas, buildCompareDelta } from "./graph_helpers/compareLogic";
+import { NodeDetailsDialog } from "./dialogs/NodeDetailsDialog";
 
 // edgeTypes
 const edgeTypes = { labeled: LabeledEdge };
@@ -283,6 +286,44 @@ export function GraphView(props: {
 
   const [formulaWeights, setFormulaWeights] = useState<FormulaWeights>(() => loadFormulaWeights());
   const [sliderOrder, setSliderOrder] = useState<string[]>(() => loadSliderOrder());
+
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsNodeId, setDetailsNodeId] = useState<string | null>(null);
+
+  const [compareSourceNodeId, setCompareSourceNodeId] = useState<string | null>(null);
+  const [isComparePicking, setIsComparePicking] = useState(false);
+  const [compareTargetNodeId, setCompareTargetNodeId] = useState<string | null>(null);
+
+  const finishComparePick = useCallback(
+    (targetNodeId: string) => {
+      if (!compareSourceNodeId) return;
+
+      if (targetNodeId === compareSourceNodeId) return;
+
+      setCompareTargetNodeId(targetNodeId);
+      setIsComparePicking(false);
+      setDetailsNodeId(compareSourceNodeId);
+      setDetailsOpen(true);
+    },
+    [compareSourceNodeId]
+  );
+
+  const handleOpenDetails = useCallback(
+    (nodeId: string) => {
+      if (isComparePicking && compareSourceNodeId) {
+        finishComparePick(nodeId);
+        return;
+      }
+
+      setDetailsNodeId(nodeId);
+      setDetailsOpen(true);
+    },
+    [isComparePicking, compareSourceNodeId, finishComparePick]
+  );
+
+  const handleCloseDetails = useCallback(() => {
+    setDetailsOpen(false);
+  }, []);
 
   const [customSliders, setCustomSliders] = useState<CustomScoreSlider[]>(() =>
     loadCustomSliders()
@@ -721,6 +762,13 @@ export function GraphView(props: {
     [g, vp.saveViewport]
   );
 
+  const handleStartCompare = useCallback((nodeId: string) => {
+    setCompareSourceNodeId(nodeId);
+    setCompareTargetNodeId(null);
+    setIsComparePicking(true);
+    setDetailsOpen(false);
+  }, []);
+
   const confirmDeleteNode = useCallback(() => {
     if (!deleteTargetId || deleteTargetIds.length === 0) return;
 
@@ -786,6 +834,8 @@ export function GraphView(props: {
         categoryVisibility,
         onSetCategoryVisible: setCategoryVisible,
         onShowAllCategories: showAllCategories,
+        onOpenDetails: handleOpenDetails,
+
         onAdd: (nodeId: string) => {
           g.setClickedNodeId(nodeId);
           props.onChange((prev) => ({
@@ -871,6 +921,7 @@ export function GraphView(props: {
       if (n.type !== "params") return n;
 
       const branchSteps = collectParamBranchSteps(n.id, precomputedById, edges);
+      console.log("branchSteps", n.id, branchSteps);
 
       const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
         minSteps: 5,
@@ -880,11 +931,14 @@ export function GraphView(props: {
         recencyWindow: 15,
       });
 
+      const parameterHistory = buildParameterHistoryFromBranchSteps(branchSteps, precomputedById);
+
       return {
         ...n,
         data: {
           ...(n.data as any),
           branchSuggestion,
+          parameterHistory,
         },
       };
     });
@@ -903,7 +957,54 @@ export function GraphView(props: {
     categoryLabels,
     categoryVisibility,
     props.graphCardContentMode,
+    handleOpenDetails,
   ]);
+
+  const detailsNode = useMemo(() => {
+    if (!detailsNodeId) return null;
+    return nodesForUI.find((n) => n.id === detailsNodeId) ?? null;
+  }, [detailsNodeId, nodesForUI]);
+
+  const compareBaseNode = useMemo(() => {
+    if (!compareTargetNodeId) return null;
+    return nodesForUI.find((n) => n.id === compareTargetNodeId) ?? null;
+  }, [compareTargetNodeId, nodesForUI]);
+
+  const detailsNodeData = detailsNode?.data as any | undefined;
+  const compareBaseNodeData = compareBaseNode?.data as any | undefined;
+
+  const effectiveDelta = useMemo(() => {
+    if (!detailsNodeData) return null;
+
+    if (
+      compareSourceNodeId &&
+      compareTargetNodeId &&
+      detailsNode?.id === compareSourceNodeId &&
+      compareBaseNodeData
+    ) {
+      return buildCompareDelta(detailsNodeData, compareBaseNodeData);
+    }
+
+    return detailsNodeData.paramDeltas ?? detailsNodeData.d ?? null;
+  }, [detailsNode, detailsNodeData, compareSourceNodeId, compareTargetNodeId, compareBaseNodeData]);
+
+  const effectiveCategoryScoreDeltas = useMemo(() => {
+    if (!detailsNodeData) return null;
+
+    if (
+      compareSourceNodeId &&
+      compareTargetNodeId &&
+      detailsNode?.id === compareSourceNodeId &&
+      compareBaseNodeData
+    ) {
+      return buildCompareCategoryDeltas(
+        detailsNodeData.categoryScores,
+        compareBaseNodeData.categoryScores
+      );
+    }
+
+    return detailsNodeData.categoryScoreDeltas ?? null;
+  }, [detailsNode, detailsNodeData, compareSourceNodeId, compareTargetNodeId, compareBaseNodeData]);
 
   // ---------- Root create ----------
   function createRoot() {
@@ -1289,6 +1390,12 @@ export function GraphView(props: {
   const onNodeClick: NodeMouseHandler = (evt, node) => {
     const target = evt.target as HTMLElement | null;
     if (target?.closest("button, a, [role='button'], .MuiDialog-root")) return;
+
+    if (isComparePicking && compareSourceNodeId) {
+      finishComparePick(node.id);
+      return;
+    }
+
     if (node.type !== "clip") return;
 
     g.setClickedNodeId(node.id);
@@ -1520,6 +1627,54 @@ export function GraphView(props: {
           setHideTargetIds([]);
         }}
         onConfirm={confirmHideNode}
+      />
+
+      <NodeDetailsDialog
+        open={detailsOpen && !!detailsNode}
+        onClose={handleCloseDetails}
+        nodeId={detailsNode?.id ?? ""}
+        type={(detailsNode?.type as "clip" | "params" | "edit") ?? "clip"}
+        d={(effectiveDelta as any) ?? {}}
+        videoUrl={(detailsNodeData?.videoUrl as string | null | undefined) ?? null}
+        videoFile={detailsNodeData?.videoFile}
+        videoStatus={detailsNodeData?.videoStatus}
+        metaSummary={detailsNodeData?.metaSummary}
+        prompt={detailsNodeData?.prompt}
+        prevParamsId={detailsNodeData?.prevParamsId}
+        highNoiseCfg={detailsNodeData?.highNoiseCfg}
+        lowNoiseCfg={detailsNodeData?.lowNoiseCfg}
+        highNoiseModelStrength={detailsNodeData?.highNoiseModelStrength}
+        lowNoiseModelStrength={detailsNodeData?.lowNoiseModelStrength}
+        highNoiseShift={detailsNodeData?.highNoiseShift}
+        lowNoiseShift={detailsNodeData?.lowNoiseShift}
+        highNoiseSteps={detailsNodeData?.highNoiseSteps}
+        lowNoiseSteps={detailsNodeData?.lowNoiseSteps}
+        highNoiseStartStep={detailsNodeData?.highNoiseStartStep}
+        lowNoiseStartStep={detailsNodeData?.lowNoiseStartStep}
+        highNoiseEndStep={detailsNodeData?.highNoiseEndStep}
+        lowNoiseEndStep={detailsNodeData?.lowNoiseEndStep}
+        displayTotalSteps={detailsNodeData?.displayTotalSteps}
+        displayLowStepPct={detailsNodeData?.displayLowStepPct}
+        categoryScores={detailsNodeData?.categoryScores}
+        categoryScoreDeltas={effectiveCategoryScoreDeltas as any}
+        categoryLabels={detailsNodeData?.categoryLabels}
+        paramDeltas={detailsNodeData?.paramDeltas}
+        promptChanged={detailsNodeData?.promptChanged}
+        branchSuggestion={detailsNodeData?.branchSuggestion}
+        note={detailsNodeData?.note}
+        onSaveNote={saveNodeNote}
+        notesEnabled={props.notesEnabled}
+        showWeightSuggestionsEnabled={props.showWeightSuggestionsEnabled}
+        categoryVisibility={categoryVisibility}
+        onSetCategoryVisible={setCategoryVisible}
+        onShowAllCategories={showAllCategories}
+        parameterHistory={detailsNodeData?.parameterHistory}
+        onStartCompare={handleStartCompare}
+        compareBaseNodeLabel={
+          compareSourceNodeId === detailsNode?.id
+            ? ((compareBaseNodeData?.label as string | undefined) ?? compareTargetNodeId) || null
+            : null
+        }
       />
     </div>
   );

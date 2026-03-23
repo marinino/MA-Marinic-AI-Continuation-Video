@@ -18,6 +18,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { getVisibleCategoryEntries } from "../graph_helpers/clipDialogLogic";
+import { truncateLabel } from "../graph_helpers/layout";
 
 export type NodeCardPreviewProps = {
   nodeId: string;
@@ -180,8 +181,8 @@ export function GraphCard(props: NodeCardPreviewProps) {
             key: `category-${entry.key}`,
             label:
               entry.delta != null
-                ? `${entry.label}: ${entry.value} ${fmt(entry.delta, 2)}`
-                : `${entry.label}: ${entry.value}`,
+                ? `${truncateLabel(entry.label)}: ${entry.value} ${fmt(entry.delta, 2)}`
+                : `${truncateLabel(entry.label)}: ${entry.value}`,
             sx: entry.delta != null ? deltaChipSx(entry.delta) : {},
           }))
       : []),

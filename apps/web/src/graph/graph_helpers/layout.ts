@@ -139,3 +139,7 @@ export function centerOnNode(
     }
   });
 }
+
+export function truncateLabel(str: string, max = 13) {
+  return str.length > max ? str.slice(0, max) + "..." : str;
+}

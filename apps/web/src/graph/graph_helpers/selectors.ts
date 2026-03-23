@@ -1,5 +1,6 @@
 import type { Project } from "@ma/shared";
 import type { Edge as RFEdge, Node as RFNode } from "reactflow";
+import { BranchNodeLike, ParameterHistoryMap } from "../types/ui";
 
 /**
  * EXACT behavior from mega-file:
@@ -180,4 +181,99 @@ export function getHiddenDescendantIds(nodeId: string, nodes: RFNode[], edges: R
   }
 
   return Array.from(result);
+}
+
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v);
+}
+
+function getStepData(step: any) {
+  if (step?.data) return step.data;
+  if (step?.node?.data) return step.node.data;
+  return step;
+}
+
+export function buildParameterHistoryFromBranchSteps(
+  branchSteps: any[],
+  nodesById: Map<string, RFNode>
+): ParameterHistoryMap {
+  const raw = Array.isArray(branchSteps) ? branchSteps.slice(-10) : [];
+
+  const normalized = raw
+    .map((step, index) => {
+      const nodeId = step?.nodeId;
+      const node = nodeId ? nodesById.get(nodeId) : null;
+      const d = (node?.data as any) ?? null;
+
+      if (!d) return null;
+
+      const highStart = d.highNoiseStartStep;
+      const highEnd = d.highNoiseEndStep;
+      const lowStart = d.lowNoiseStartStep;
+      const lowEnd = d.lowNoiseEndStep;
+
+      const hasStepWindow =
+        isFiniteNumber(highStart) &&
+        isFiniteNumber(highEnd) &&
+        isFiniteNumber(lowStart) &&
+        isFiniteNumber(lowEnd);
+
+      const highSteps = hasStepWindow ? highEnd - highStart : null;
+      const lowSteps = hasStepWindow ? lowEnd - lowStart : null;
+      const totalSteps = highSteps != null && lowSteps != null ? highSteps + lowSteps : null;
+
+      const lowStepPct =
+        totalSteps != null && totalSteps > 0 && lowSteps != null
+          ? (lowSteps / totalSteps) * 100
+          : null;
+
+      return {
+        index: index + 1,
+        highNoiseCfg: isFiniteNumber(d.highNoiseCfg) ? d.highNoiseCfg : null,
+        highNoiseShift: isFiniteNumber(d.highNoiseShift) ? d.highNoiseShift : null,
+        highNoiseModelStrength: isFiniteNumber(d.highNoiseModelStrength)
+          ? d.highNoiseModelStrength
+          : null,
+        totalSteps,
+        lowStepPct,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+
+  return {
+    highNoiseCfg: normalized
+      .filter((x) => x.highNoiseCfg != null)
+      .map((x) => ({
+        index: x.index,
+        value: x.highNoiseCfg as number,
+      })),
+
+    highNoiseShift: normalized
+      .filter((x) => x.highNoiseShift != null)
+      .map((x) => ({
+        index: x.index,
+        value: x.highNoiseShift as number,
+      })),
+
+    highNoiseModelStrength: normalized
+      .filter((x) => x.highNoiseModelStrength != null)
+      .map((x) => ({
+        index: x.index,
+        value: x.highNoiseModelStrength as number,
+      })),
+
+    totalSteps: normalized
+      .filter((x) => x.totalSteps != null)
+      .map((x) => ({
+        index: x.index,
+        value: x.totalSteps as number,
+      })),
+
+    lowStepPct: normalized
+      .filter((x) => x.lowStepPct != null)
+      .map((x) => ({
+        index: x.index,
+        value: x.lowStepPct as number,
+      })),
+  };
 }

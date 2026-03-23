@@ -378,3 +378,38 @@ export type DerivedRanges = {
   highSteps: ParamRange;
   lowSteps: ParamRange;
 };
+
+export type BranchNodeLike = {
+  highNoiseCfg?: number;
+  highNoiseShift?: number;
+  highNoiseModelStrength?: number;
+  highNoiseStartStep?: number;
+  highNoiseEndStep?: number;
+  lowNoiseStartStep?: number;
+  lowNoiseEndStep?: number;
+};
+
+export type ParameterBarColorKey =
+  | "highCfg"
+  | "highShift"
+  | "highStrength"
+  | "highSteps"
+  | "lowSteps";
+
+export type Item = {
+  key: string;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  delta?: number | null;
+  decimals?: number;
+  colorKey: ParameterBarColorKey;
+};
+
+export type HistoryPoint = {
+  index: number;
+  value: number;
+};
+
+export type ParameterHistoryMap = Record<string, HistoryPoint[]>;
