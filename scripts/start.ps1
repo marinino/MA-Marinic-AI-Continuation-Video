@@ -1,7 +1,8 @@
 #requires -Version 5.1
 
 param (
-  [switch]$DownloadModels
+  [switch]$DownloadModels,
+  [switch]$CpuOnly
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -253,7 +254,7 @@ if (-not (Test-Path $venvPy)) {
 }
 
 Write-Info "Upgrading pip tooling"
-& $venvPy -m pip install --upgrade pip setuptools wheel
+& $venvPy -m pip install --upgrade pip "setuptools<82" wheel
 
 # 3) Install requirements (filtered: skip comfy-kitchen)
 $REQ_IN  = Join-Path $COMFY_DIR "requirements.txt"
@@ -406,9 +407,17 @@ Write-Host "Has package.json? " (Test-Path (Join-Path $BACKEND_DIR "package.json
 $comfyArgs = @(
   "$COMFY_DIR\main.py",
   "--listen", "127.0.0.1",
-  "--port", "$COMFY_PORT",
-  "--cuda-malloc"
+  "--port", "$COMFY_PORT"
 )
+
+if ($CpuOnly) {
+  Write-Info "Starting ComfyUI in CPU-only mode"
+  $comfyArgs += "--cpu"
+} else {
+  Write-Info "Starting ComfyUI with CUDA settings"
+  $comfyArgs += "--cuda-malloc"
+}
+
 Start-Bg "ComfyUI" $venvPy $comfyArgs $COMFY_DIR
 
 Write-Host "BACKEND_DIR=$BACKEND_DIR"

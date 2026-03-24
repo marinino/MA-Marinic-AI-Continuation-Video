@@ -300,7 +300,7 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
         </DialogTitle>
 
         <DialogContent>
-          <Stack spacing={1} sx={{ mt: 2 }}>
+          <Stack spacing={1}>
             {props.videoStatus === "generating" && (
               <>
                 <Typography variant="body2" color="text.secondary">
@@ -321,8 +321,8 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
             ) : props.type === "params" ? (
               <>
                 {props.compareBaseNodeLabel && (
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                    Comparing against: {props.compareBaseNodeLabel}
+                  <Typography variant="caption" color="text.secondary">
+                    Comparing against: {props.compareBaseNodeLabel} (First node takes role as parent node)
                   </Typography>
                 )}
                 <Stack direction="row" spacing={0.5} alignItems="center">
@@ -345,7 +345,7 @@ export function NodeDetailsDialog(props: NodeDetailsDialogProps) {
                 </Typography>
 
                 {parameterItems.length > 0 && (
-                  <ParameterBarGroup items={parameterItems} history={props.parameterHistory} />
+                  <ParameterBarGroup items={parameterItems} history={props.parameterHistory} isInCompareMode={Boolean(props.compareBaseNodeLabel)} />
                 )}
 
                 {props.showWeightSuggestionsEnabled && props.branchSuggestion && (

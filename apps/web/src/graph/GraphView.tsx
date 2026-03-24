@@ -626,6 +626,12 @@ export function GraphView(props: {
     } as const;
   }
 
+  const exitCompareMode = useCallback(() => {
+  setIsComparePicking(false);
+  setCompareSourceNodeId(null);
+  setCompareTargetNodeId(null);
+}, []);
+
   const confirmHideNode = useCallback(() => {
     if (!hideTargetId || hideTargetIds.length === 0) return;
 
@@ -1432,14 +1438,41 @@ export function GraphView(props: {
       </Paper>
 
       {/* Root */}
-      {!hasRoot && (
-        <Paper elevation={2} sx={{ position: "absolute", zIndex: 10, top: 12, left: 12, p: 1 }}>
-          <Button variant="contained" onClick={createRoot}>
-            Start Root
-          </Button>
-        </Paper>
-      )}
-
+     {/* Top-left status / root action */}
+{isComparePicking ? (
+  <Paper
+    elevation={2}
+    sx={{
+      position: "absolute",
+      zIndex: 10,
+      top: 12,
+      left: 12,
+      p: 1.25,
+      borderLeft: 6,
+      borderLeftColor: "warning.main",
+      bgcolor: "warning.50",
+      minWidth: 260,
+    }}
+  >
+    <Stack direction="row" spacing={1.5} alignItems="center">
+      <StatusDot state="running" />
+      <Box sx={{ fontSize: 14, fontWeight: 600 }}>
+        Compare mode: Choose second node
+      </Box>
+      <Button size="small" variant="outlined" onClick={exitCompareMode}>
+  Cancel
+</Button>
+    </Stack>
+  </Paper>
+) : (
+  !hasRoot && (
+    <Paper elevation={2} sx={{ position: "absolute", zIndex: 10, top: 12, left: 12, p: 1 }}>
+      <Button variant="contained" onClick={createRoot}>
+        Start Root
+      </Button>
+    </Paper>
+  )
+)}
       <ReactFlow
         onInit={(instance) => setRfInstance(instance)}
         nodes={nodesForUI}

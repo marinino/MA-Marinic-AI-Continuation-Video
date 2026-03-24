@@ -25,9 +25,11 @@ export function fmtPlain(v: number, decimals: number) {
 export function ParameterBarGroup({
   items,
   history = {},
+  isInCompareMode
 }: {
   items: Item[];
   history?: ParameterHistoryMap;
+  isInCompareMode: boolean | null
 }) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
@@ -35,6 +37,8 @@ export function ParameterBarGroup({
     () => items.find((item) => item.key === selectedKey) ?? null,
     [items, selectedKey]
   );
+
+  console.log(isInCompareMode)
 
   return (
     <Box
@@ -47,7 +51,7 @@ export function ParameterBarGroup({
         borderColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
       })}
     >
-      {!selectedItem ? (
+      {!selectedItem || isInCompareMode ? (
         <>
           <Box
             sx={{
