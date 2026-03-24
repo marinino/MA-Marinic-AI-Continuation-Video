@@ -112,8 +112,8 @@ export function NodeCard(props: {
   onShowAllCategories?: () => void;
   showWeightSuggestionsEnabled?: boolean;
   graphCardContentMode?: GraphCardContentMode;
-  displayTotalSteps: number;
-  displayLowStepPct: number;
+  displayTotalSteps?: number;
+  displayLowStepPct?: number;
   parameterHistory?: ParameterHistoryMap;
 
   onOpenDetails?: (nodeId: string) => void;

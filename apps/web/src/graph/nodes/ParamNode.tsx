@@ -52,7 +52,7 @@ export function ParamNode(props: NodeProps<any>) {
         displayTotalSteps={props.data.displayTotalSteps}
         displayLowStepPct={props.data.displayLowStepPct}
         parameterHistory={props.data.parameterHistory}
-        onOpenDetails={props.data.onOpenDetails}
+onOpenDetails={props.data.onOpenDetails}
       />
     </div>
   );

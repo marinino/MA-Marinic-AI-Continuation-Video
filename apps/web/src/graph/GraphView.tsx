@@ -26,6 +26,7 @@ import {
   openTimelineInResolve,
   resolveExportTimeline,
   uploadTimelineFile,
+  comfyBuildVideoUrl,
 } from "../api";
 import { parsedChangelogLines } from "../utils/parseTimelineChangelog";
 
@@ -63,7 +64,7 @@ import { StatusDot } from "./components/StatusDot";
 import { JobsPanel } from "./components/JobsPanel";
 
 // MUI
-import { Box, Button, Paper, Stack } from "@mui/material";
+import { Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import {
   centerOnNode,
   countBranches,
@@ -380,22 +381,25 @@ export function GraphView(props: {
     });
   }, []);
 
-  const patchFormulaWeights = useCallback(
-    <K extends keyof FormulaWeights>(cat: K, patch: Partial<FormulaWeights[K]>) => {
-      setFormulaWeights((prev) => {
-        const next: FormulaWeights = {
-          ...prev,
-          [cat]: {
-            ...prev[cat],
-            ...patch,
-          },
-        };
-        saveFormulaWeights(next);
-        return next;
-      });
-    },
-    []
-  );
+const patchFormulaWeights = useCallback(
+  <K extends keyof FormulaWeights>(cat: K, patch: Partial<FormulaWeights[K]>) => {
+    setFormulaWeights((prev) => {
+      const current = prev[cat] as FormulaWeights[K] & Record<string, unknown>;
+
+      const next: FormulaWeights = {
+        ...prev,
+        [cat]: {
+          ...current,
+          ...patch,
+        } as FormulaWeights[K],
+      };
+
+      saveFormulaWeights(next);
+      return next;
+    });
+  },
+  []
+);
 
   const resetFormulaWeights = useCallback(() => {
     setFormulaWeights(DEFAULT_FORMULA_WEIGHTS);
@@ -814,157 +818,274 @@ export function GraphView(props: {
     requestAnimationFrame(vp.saveViewport);
   }, [deleteTargetId, deleteTargetIds, g, props.onChange, vp.saveViewport]);
 
-  const nodesForUI = useMemo(() => {
-    const nodes = g.nodesWithRootFlag as Node[];
-    const edges = g.rfEdges as Edge[];
+const nodesForUI = useMemo(() => {
+  const nodes = g.nodesWithRootFlag as Node[];
+  const edges = g.rfEdges as Edge[];
 
-    const nodesById = new Map(nodes.map((n) => [n.id, n]));
-    const incoming = buildIncomingMap(edges);
+  const nodesById = new Map(nodes.map((n) => [n.id, n]));
+  const incoming = buildIncomingMap(edges);
 
-    // 1) Erst alle Nodes für UI vorbereiten, aber branchSuggestion noch leer lassen
-    const precomputedNodes = nodes.map((n) => {
-      const baseData = (n.data as any) ?? {};
+  const precomputedNodes = nodes.map((n: RFNode) => {
+    const baseData = (n.data as any) ?? {};
 
-      const injectedCommon = {
-        ...baseData,
-        videoOpened: Boolean(baseData?.videoOpened),
-        highlightUnseenEnabled: props.highlightUnseenEnabled,
-        notesEnabled: props.notesEnabled,
-        showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
-        graphCardContentMode: props.graphCardContentMode,
-        onSaveNote: saveNodeNote,
-        markVideoOpened,
-        onDelete: handleDeleteNode,
-        onHide: handleHideNode,
-        categoryLabels,
-        categoryVisibility,
-        onSetCategoryVisible: setCategoryVisible,
-        onShowAllCategories: showAllCategories,
-        onOpenDetails: handleOpenDetails,
+    const injectedCommon = {
+      ...baseData,
+      videoOpened: Boolean(baseData?.videoOpened),
+      highlightUnseenEnabled: props.highlightUnseenEnabled,
+      notesEnabled: props.notesEnabled,
+      showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
+      graphCardContentMode: props.graphCardContentMode,
+      onSaveNote: saveNodeNote,
+      markVideoOpened,
+      onDelete: handleDeleteNode,
+      onHide: handleHideNode,
+      categoryLabels,
+      categoryVisibility,
+      onSetCategoryVisible: setCategoryVisible,
+      onShowAllCategories: showAllCategories,
+      onOpenDetails: handleOpenDetails,
 
-        onAdd: (nodeId: string) => {
-          g.setClickedNodeId(nodeId);
-          props.onChange((prev) => ({
-            ...prev,
-            uiState: { ...(prev.uiState ?? {}), selectedNodeId: nodeId },
-          }));
-          setActionDialogOpen(true);
-        },
-      };
+      onAdd: (nodeId: string) => {
+        g.setClickedNodeId(nodeId);
+        props.onChange((prev) => ({
+          ...prev,
+          uiState: { ...(prev.uiState ?? {}), selectedNodeId: nodeId },
+        }));
+        setActionDialogOpen(true);
+      },
+    };
 
-      if (n.type !== "params") {
-        return { ...n, data: injectedCommon, hidden: Boolean(baseData?.isHidden) };
-      }
-
-      const prevParamsId = findPrevParamsId(n.id, nodesById, incoming);
-      const prevParamsData = prevParamsId ? (nodesById.get(prevParamsId)?.data as any) : null;
-
-      const curPrompt = injectedCommon.prompt ?? "";
-      const prevPrompt = prevParamsData?.prompt ?? "";
-
-      const promptChanged =
-        typeof curPrompt === "string" &&
-        typeof prevPrompt === "string" &&
-        curPrompt.trim() !== prevPrompt.trim();
-
-      const deltas = prevParamsData
-        ? {
-            highNoiseCfg: numDelta(injectedCommon, prevParamsData, "highNoiseCfg"),
-            lowNoiseCfg: numDelta(injectedCommon, prevParamsData, "lowNoiseCfg"),
-
-            highNoiseShift: numDelta(injectedCommon, prevParamsData, "highNoiseShift"),
-            lowNoiseShift: numDelta(injectedCommon, prevParamsData, "lowNoiseShift"),
-
-            highNoiseModelStrength: numDelta(
-              injectedCommon,
-              prevParamsData,
-              "highNoiseModelStrength"
-            ),
-            lowNoiseModelStrength: numDelta(
-              injectedCommon,
-              prevParamsData,
-              "lowNoiseModelStrength"
-            ),
-
-            highNoiseSteps: numDelta(injectedCommon, prevParamsData, "highNoiseSteps"),
-            lowNoiseSteps: numDelta(injectedCommon, prevParamsData, "lowNoiseSteps"),
-
-            highNoiseStartStep: numDelta(injectedCommon, prevParamsData, "highNoiseStartStep"),
-            lowNoiseStartStep: numDelta(injectedCommon, prevParamsData, "lowNoiseStartStep"),
-
-            highNoiseEndStep: numDelta(injectedCommon, prevParamsData, "highNoiseEndStep"),
-            lowNoiseEndStep: numDelta(injectedCommon, prevParamsData, "lowNoiseEndStep"),
-            displayTotalSteps: numDelta(injectedCommon, prevParamsData, "displayTotalSteps"),
-            displayLowStepPct: numDelta(injectedCommon, prevParamsData, "displayLowStepPct"),
-          }
-        : null;
-
-      const curScores = injectedCommon.categoryScores;
-      const prevScores = prevParamsData?.categoryScores;
-
-      const categoryScoreDeltas =
-        curScores && prevScores ? buildScoreDeltaMap(curScores, prevScores) : null;
+    // ---------- clip ----------
+    if (n.type === "clip") {
+      const videoFile = baseData.videoFile ?? null;
+      const videoStatus = baseData.videoStatus;
+      const videoUrl = baseData.videoUrl ?? (videoFile ? comfyBuildVideoUrl(videoFile) : null);
 
       return {
         ...n,
         hidden: Boolean(baseData?.isHidden),
         data: {
           ...injectedCommon,
-          prevParamsId,
-          paramDeltas: deltas,
-          categoryScoreDeltas,
-          promptChanged,
-          branchSuggestion: null,
+          videoFile,
+          videoStatus,
+          videoUrl,
         },
       };
-    });
+    }
 
-    // 2) Jetzt Map auf Basis der bereits angereicherten Nodes bauen
-    const precomputedById = new Map(precomputedNodes.map((n) => [n.id, n as RFNode]));
+    // ---------- edit ----------
+    if (n.type === "edit") {
+      const exportInfo = baseData?.export;
+      const timeline = baseData?.timeline;
+      const importedAt = timeline?.importedAt;
+      const changelog = (timeline?.changelog as any[]) ?? [];
+      const prevEffectKeys: string[] = baseData?.prevEffectKeys ?? [];
 
-    // 3) Jetzt branchSuggestion wirklich berechnen
-    return precomputedNodes.map((n) => {
-      if (n.type !== "params") return n;
+      const { summaryLines, detailLines } = parsedChangelogLines(changelog, prevEffectKeys);
 
-      const branchSteps = collectParamBranchSteps(n.id, precomputedById, edges);
-      console.log("branchSteps", n.id, branchSteps);
+      const counts = changelog.reduce((acc, c) => {
+        acc[c.type] = (acc[c.type] ?? 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
 
-      const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
-        minSteps: 5,
-        minCategoryDeltaAbs: 1,
-        minParamDeltaAbs: 0.01,
-        minStreak: 5,
-        recencyWindow: 15,
-      });
+      const metaSummary = (
+        <Stack spacing={0.75}>
+          <Typography variant="body2" color="text.secondary">
+            Tool: {baseData?.tool ?? "resolve"}
+          </Typography>
 
-      const parameterHistory = buildParameterHistoryFromBranchSteps(branchSteps, precomputedById);
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Chip size="small" label={exportInfo?.status ?? "waiting"} />
+            {importedAt && (
+              <Typography variant="caption" color="text.secondary">
+                {new Date(importedAt).toLocaleString()}
+              </Typography>
+            )}
+          </Stack>
+
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Chip
+              size="small"
+              color={changelog.length ? "success" : "default"}
+              label={changelog.length ? `changes: ${changelog.length}` : "no timeline diff"}
+            />
+            {Object.keys(counts).length > 0 && (
+              <Typography variant="caption" color="text.secondary">
+                {Object.entries(counts)
+                  .map(([k, v]) => `${k}:${v}`)
+                  .join(" · ")}
+              </Typography>
+            )}
+          </Stack>
+
+          {changelog.length > 0 && (
+            <Box sx={{ mt: 0.5 }}>
+              <Stack spacing={1}>
+                {summaryLines.map((line, i) => (
+                  <Typography key={i} variant="body2">
+                    {line}
+                  </Typography>
+                ))}
+
+                {detailLines.length > 0 && (
+                  <>
+                    <Typography variant="subtitle2" sx={{ mt: 1 }}>
+                      Details
+                    </Typography>
+
+                    <Stack spacing={0.5}>
+                      {detailLines.map((line, i) => (
+                        <Typography
+                          key={i}
+                          variant="caption"
+                          sx={{ opacity: 0.85, overflowWrap: "anywhere" }}
+                        >
+                          {line}
+                        </Typography>
+                      ))}
+                    </Stack>
+                  </>
+                )}
+              </Stack>
+            </Box>
+          )}
+        </Stack>
+      );
 
       return {
         ...n,
+        hidden: Boolean(baseData?.isHidden),
         data: {
-          ...(n.data as any),
-          branchSuggestion,
-          parameterHistory,
+          ...injectedCommon,
+          export: exportInfo,
+          timeline,
+          importedAt,
+          changelog,
+          summaryLines,
+          detailLines,
+          prevEffectKeys,
+          metaSummary,
         },
       };
+    }
+
+    // ---------- params ----------
+    if (n.type !== "params") {
+      return {
+        ...n,
+        hidden: Boolean(baseData?.isHidden),
+        data: injectedCommon,
+      };
+    }
+
+    const prevParamsId = findPrevParamsId(n.id, nodesById, incoming);
+    const prevParamsData = prevParamsId ? (nodesById.get(prevParamsId)?.data as any) : null;
+
+    const curPrompt = injectedCommon.prompt ?? "";
+    const prevPrompt = prevParamsData?.prompt ?? "";
+
+    const promptChanged =
+      typeof curPrompt === "string" &&
+      typeof prevPrompt === "string" &&
+      curPrompt.trim() !== prevPrompt.trim();
+
+    const deltas = prevParamsData
+      ? {
+          highNoiseCfg: numDelta(injectedCommon, prevParamsData, "highNoiseCfg"),
+          lowNoiseCfg: numDelta(injectedCommon, prevParamsData, "lowNoiseCfg"),
+
+          highNoiseShift: numDelta(injectedCommon, prevParamsData, "highNoiseShift"),
+          lowNoiseShift: numDelta(injectedCommon, prevParamsData, "lowNoiseShift"),
+
+          highNoiseModelStrength: numDelta(
+            injectedCommon,
+            prevParamsData,
+            "highNoiseModelStrength"
+          ),
+          lowNoiseModelStrength: numDelta(
+            injectedCommon,
+            prevParamsData,
+            "lowNoiseModelStrength"
+          ),
+
+          highNoiseSteps: numDelta(injectedCommon, prevParamsData, "highNoiseSteps"),
+          lowNoiseSteps: numDelta(injectedCommon, prevParamsData, "lowNoiseSteps"),
+
+          highNoiseStartStep: numDelta(injectedCommon, prevParamsData, "highNoiseStartStep"),
+          lowNoiseStartStep: numDelta(injectedCommon, prevParamsData, "lowNoiseStartStep"),
+
+          highNoiseEndStep: numDelta(injectedCommon, prevParamsData, "highNoiseEndStep"),
+          lowNoiseEndStep: numDelta(injectedCommon, prevParamsData, "lowNoiseEndStep"),
+          displayTotalSteps: numDelta(injectedCommon, prevParamsData, "displayTotalSteps"),
+          displayLowStepPct: numDelta(injectedCommon, prevParamsData, "displayLowStepPct"),
+        }
+      : null;
+
+    const curScores = injectedCommon.categoryScores;
+    const prevScores = prevParamsData?.categoryScores;
+
+    const categoryScoreDeltas =
+      curScores && prevScores ? buildScoreDeltaMap(curScores, prevScores) : null;
+
+    return {
+      ...n,
+      hidden: Boolean(baseData?.isHidden),
+      data: {
+        ...injectedCommon,
+        prevParamsId,
+        paramDeltas: deltas,
+        categoryScoreDeltas,
+        promptChanged,
+        branchSuggestion: null,
+      },
+    };
+  });
+
+  const precomputedById = new Map(precomputedNodes.map((n) => [n.id, n as RFNode]));
+
+  return precomputedNodes.map((n) => {
+    if (n.type !== "params") return n;
+
+    const branchSteps = collectParamBranchSteps(n.id, precomputedById, edges);
+
+    const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
+      minSteps: 5,
+      minCategoryDeltaAbs: 1,
+      minParamDeltaAbs: 0.01,
+      minStreak: 5,
+      recencyWindow: 15,
     });
-  }, [
-    g.nodesWithRootFlag,
-    g.rfEdges,
-    g.setClickedNodeId,
-    props.onChange,
-    markVideoOpened,
-    saveNodeNote,
-    handleDeleteNode,
-    handleHideNode,
-    props.highlightUnseenEnabled,
-    props.notesEnabled,
-    props.showWeightSuggestionsEnabled,
-    categoryLabels,
-    categoryVisibility,
-    props.graphCardContentMode,
-    handleOpenDetails,
-  ]);
+
+    const parameterHistory = buildParameterHistoryFromBranchSteps(branchSteps, precomputedById);
+
+    return {
+      ...n,
+      data: {
+        ...(n.data as any),
+        branchSuggestion,
+        parameterHistory,
+      },
+    };
+  });
+}, [
+  g.nodesWithRootFlag,
+  g.rfEdges,
+  g.setClickedNodeId,
+  props.onChange,
+  markVideoOpened,
+  saveNodeNote,
+  handleDeleteNode,
+  handleHideNode,
+  props.highlightUnseenEnabled,
+  props.notesEnabled,
+  props.showWeightSuggestionsEnabled,
+  categoryLabels,
+  categoryVisibility,
+  props.graphCardContentMode,
+  handleOpenDetails,
+  setCategoryVisible,
+  showAllCategories,
+]);
 
   const detailsNode = useMemo(() => {
     if (!detailsNodeId) return null;
@@ -1393,25 +1514,25 @@ export function GraphView(props: {
   }
 
   // ---------- node click ----------
-  const onNodeClick: NodeMouseHandler = (evt, node) => {
-    const target = evt.target as HTMLElement | null;
-    if (target?.closest("button, a, [role='button'], .MuiDialog-root")) return;
+const onNodeClick: NodeMouseHandler = (evt, node) => {
+  const target = evt.target as HTMLElement | null;
+  if (target?.closest("button, a, [role='button'], .MuiDialog-root")) return;
 
-    if (isComparePicking && compareSourceNodeId) {
-      finishComparePick(node.id);
-      return;
-    }
+  if (isComparePicking && compareSourceNodeId) {
+    finishComparePick(node.id);
+    return;
+  }
 
-    if (node.type !== "clip") return;
+  if (node.type !== "clip" && node.type !== "edit") return;
 
-    g.setClickedNodeId(node.id);
-    props.onChange((prev) => ({
-      ...prev,
-      uiState: { ...(prev.uiState ?? {}), selectedNodeId: node.id },
-    }));
+  g.setClickedNodeId(node.id);
+  props.onChange((prev) => ({
+    ...prev,
+    uiState: { ...(prev.uiState ?? {}), selectedNodeId: node.id },
+  }));
 
-    setActionDialogOpen(true);
-  };
+  setActionDialogOpen(true);
+};
 
   return (
     <div style={{ height: "100%", position: "relative" }}>

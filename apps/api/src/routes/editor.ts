@@ -81,6 +81,7 @@ export async function editorRoutes(app: FastifyInstance) {
 
     try {
       openResolve();
+      console.log(body.filename)
 
       if (body.filename) {
         const absPath = path.join(COMFY_INPUT_DIR, body.filename);
