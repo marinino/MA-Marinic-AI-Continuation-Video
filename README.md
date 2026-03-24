@@ -94,6 +94,13 @@ Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/pyenv
 .\install-pyenv-win.ps1
 ```
 
+then install the correct Python version
+
+```
+pyenv install 3.11.9
+pyenv global 3.11.9
+```
+
 ### Frontend zeigt "Loading..."
 
 Ursache: Backend läuft nicht.
