@@ -12,6 +12,7 @@ Shared Types: packages/shared (Zod + TS Types)
 
 - Node.js (empfohlen: LTS)
 - pnpm (Workspace Package Manager)
+- pynenv
 
 Versionen prüfen:
 node -v
