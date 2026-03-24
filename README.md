@@ -13,6 +13,7 @@ Shared Types: packages/shared (Zod + TS Types)
 - Node.js (empfohlen: LTS)
 - pnpm (Workspace Package Manager)
 - pynenv
+- DaVinci Resolve (If manual editing is planned)
 
 Versionen prüfen:
 node -v
