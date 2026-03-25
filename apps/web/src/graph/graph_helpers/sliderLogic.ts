@@ -1,3 +1,4 @@
+import { clamp } from "reactflow";
 import { ClipDialogProps } from "../dialogs/ClipDialog";
 import {
   SimpleReal,
@@ -8,24 +9,35 @@ import {
   SafeKey,
   StandardCategoryKey,
   ScoreMap,
+  CleanWeights,
+  CustomScoreSlider,
+  FormulaWeights,
+  NormalizedFeatureValues,
 } from "../types/ui";
 import { useClipDialogLogic } from "./clipDialogLogic";
 
-export const DEFAULT_CATEGORY_LABELS: Record<string, string> = {
-  creativity: "Creativity",
-  promptFaithfulness: "Prompt",
-  motion: "Motion",
-  transitionSmoothness: "Transition",
-  videoFaithfulness: "Video",
-};
+export function normalizeWeights(w: Partial<CleanWeights>): CleanWeights {
+  return {
+    steps: w.steps ?? 0,
+    ratio: w.ratio ?? 0,
+    shift: w.shift ?? 0,
+    cfg: w.cfg ?? 0,
+    strength: w.strength ?? 0,
+    bias: w.bias ?? 0,
+  };
+}
 
-export const DEFAULT_BASE_ORDER: StandardCategoryKey[] = [
-  "creativity",
-  "promptFaithfulness",
-  "motion",
-  "transitionSmoothness",
-  "videoFaithfulness",
-];
+export function applyWeights(w: CleanWeights, values: NormalizedFeatureValues) {
+  const raw =
+    w.steps * values.steps +
+    w.ratio * values.ratio +
+    w.shift * values.shift +
+    w.cfg * values.cfg +
+    w.strength * values.strength +
+    w.bias;
+
+  return clamp(raw, 0, 1);
+}
 
 export function useSliderLogic({
   computeScoresFromReal,
@@ -100,5 +112,5 @@ export function useSliderLogic({
       { value: b.max, label: String(fmt(b.max)) },
     ];
   }
-  return { beginDrag, computeEffectsFor, endDrag, marksFor, toSafeKey, DEFAULT_CATEGORY_LABELS };
+  return { beginDrag, computeEffectsFor, endDrag, marksFor, toSafeKey };
 }

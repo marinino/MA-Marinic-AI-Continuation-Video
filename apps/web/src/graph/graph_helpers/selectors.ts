@@ -2,12 +2,6 @@ import type { Project } from "@ma/shared";
 import type { Edge as RFEdge, Node as RFNode } from "reactflow";
 import { BranchNodeLike, ParameterHistoryMap } from "../types/ui";
 
-/**
- * EXACT behavior from mega-file:
- * - best case: clip.data.producedByEditId
- * - fallback: incoming edge edit_out (edit -> clip)
- * - NO fallback via edit_in (parent clip), intentionally
- */
 export function resolveEditIdForClipId(project: Project, clipId: string): string | null {
   const clip = project.nodes.find((n) => n.id === clipId) as any;
   const direct = clip?.data?.producedByEditId ?? null;
@@ -19,18 +13,10 @@ export function resolveEditIdForClipId(project: Project, clipId: string): string
   return null;
 }
 
-/**
- * EXACT: selected node id from uiState
- */
 export function getSelectedNodeId(project: Project): string | null {
   return project.uiState?.selectedNodeId ?? null;
 }
 
-/**
- * EXACT mega-file logic:
- * - If selected node is edit: return it
- * - If selected node is clip: resolve editId that produced that clip
- */
 export function getCurrentEditId(project: Project): string | null {
   const sel = getSelectedNodeId(project);
   if (!sel) return null;
@@ -45,10 +31,6 @@ export function getCurrentEditId(project: Project): string | null {
   return null;
 }
 
-/**
- * EXACT: clip->edit relationship for "parent edit" context
- * (used elsewhere; kept for parity)
- */
 export function findEditNodeIdForClipProject(project: Project, clipId: string): string | null {
   const incomingFromEdit = project.edges.find((e) => e.target === clipId && e.type === "edit_out");
   if (incomingFromEdit) return incomingFromEdit.source;
@@ -64,9 +46,6 @@ export function findOutClipIdForEditProject(project: Project, editId: string): s
   return out?.target ?? null;
 }
 
-/**
- * EXACT mega-file: find previous edit by walking edit.data.parentClipId then find edit that has outClipId==parentClipId
- */
 export function findPrevEditId(project: Project, currentEditId: string): string | null {
   const editNode = project.nodes.find((n) => n.id === currentEditId) as any;
   const parentClipId = editNode?.data?.parentClipId;
@@ -87,9 +66,6 @@ export function getPrevEffectKeysFromParentClip(project: Project, parentClipId: 
   return prevEdit?.data?.effectKeys ?? [];
 }
 
-/**
- * EXACT: baseline stored timeline filename for a clip = storedTimelineFilename from the edit that produced that clip.
- */
 export function getBaselineStoredTimelineFilenameForClip(
   project: Project,
   clipId: string
@@ -113,7 +89,6 @@ export function getBaselineStoredTimelineFilenameForClip(
 export function buildIncomingMap(edges: RFEdge[]) {
   const m = new Map<string, RFEdge>();
   for (const e of edges) {
-    // eindeutig: pro target genau 1 incoming
     m.set(e.target, e);
   }
   return m;
@@ -124,7 +99,6 @@ export function findPrevParamsId(
   nodesById: Map<string, RFNode>,
   incoming: Map<string, RFEdge>
 ) {
-  // params <- clip <- params
   const e0 = incoming.get(paramsNodeId);
   if (!e0) return null;
   const parentClipId = e0.source;

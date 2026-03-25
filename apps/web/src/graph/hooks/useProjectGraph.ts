@@ -8,8 +8,6 @@ type Args = {
   project: Project;
   onChange: (updater: Project | ((prev: Project) => Project)) => void;
   showEdgeLabels: boolean;
-
-  // ✅ NEW: handler for the "+" button inside node UI
   onAdd?: (nodeId: string) => void;
 };
 
@@ -25,7 +23,6 @@ export function useProjectGraph({ project, onChange, showEdgeLabels, onAdd }: Ar
     project.uiState?.selectedNodeId ?? null
   );
 
-  // sync project → RF
   useEffect(() => {
     const next = toRF(project, showEdgeLabels);
     setRfNodes(next.nodes);
@@ -52,9 +49,6 @@ export function useProjectGraph({ project, onChange, showEdgeLabels, onAdd }: Ar
         data: {
           ...(n.data as any),
           isRoot,
-
-          // ✅ THIS WAS IN YOUR MEGA FILE:
-          // plus-button uses data.onAdd(nodeId)
           onAdd: (nodeId: string) => onAdd?.(nodeId),
         },
       };

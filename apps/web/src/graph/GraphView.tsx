@@ -40,7 +40,6 @@ import {
   deriveV2VParamsFromSimple,
   useCategoryScores,
   getScoreRanges,
-  DEFAULT_FORMULA_WEIGHTS,
   computeAllScores,
   numDelta,
   scoreDelta,
@@ -99,12 +98,14 @@ import {
   CustomScoreSlider,
   FormulaWeights,
   GraphCardContentMode,
+  GraphCardDisplayMode,
   OrderedSliderItem,
   StandardCategoryKey,
 } from "./types/ui";
-import { DEFAULT_BASE_ORDER } from "./graph_helpers/sliderLogic";
 import { buildCompareCategoryDeltas, buildCompareDelta } from "./graph_helpers/compareLogic";
 import { NodeDetailsDialog } from "./dialogs/NodeDetailsDialog";
+import { DEFAULT_FORMULA_WEIGHTS, DEFAULT_BASE_ORDER } from "./graph_helpers/presets";
+import { ImportVideoDialog } from "./dialogs/ImportVideoDialog";
 
 // edgeTypes
 const edgeTypes = { labeled: LabeledEdge };
@@ -120,6 +121,7 @@ export function GraphView(props: {
   notesEnabled: boolean;
   showWeightSuggestionsEnabled: boolean;
   graphCardContentMode: GraphCardContentMode;
+  graphCardDisplayMode: GraphCardDisplayMode;
   restrictCategories: boolean;
 }) {
   // ---------- reactflow instance ----------
@@ -295,6 +297,11 @@ export function GraphView(props: {
   const [isComparePicking, setIsComparePicking] = useState(false);
   const [compareTargetNodeId, setCompareTargetNodeId] = useState<string | null>(null);
 
+  const [importVideoDialogOpen, setImportVideoDialogOpen] = useState(false);
+  const [importVideoFile, setImportVideoFile] = useState<File | null>(null);
+  const [importVideoUploading, setImportVideoUploading] = useState(false);
+  const [importVideoStatus, setImportVideoStatus] = useState("");
+
   const finishComparePick = useCallback(
     (targetNodeId: string) => {
       if (!compareSourceNodeId) return;
@@ -324,6 +331,9 @@ export function GraphView(props: {
 
   const handleCloseDetails = useCallback(() => {
     setDetailsOpen(false);
+    setCompareSourceNodeId(null);
+    setCompareTargetNodeId(null);
+    setIsComparePicking(false);
   }, []);
 
   const [customSliders, setCustomSliders] = useState<CustomScoreSlider[]>(() =>
@@ -381,25 +391,25 @@ export function GraphView(props: {
     });
   }, []);
 
-const patchFormulaWeights = useCallback(
-  <K extends keyof FormulaWeights>(cat: K, patch: Partial<FormulaWeights[K]>) => {
-    setFormulaWeights((prev) => {
-      const current = prev[cat] as FormulaWeights[K] & Record<string, unknown>;
+  const patchFormulaWeights = useCallback(
+    <K extends keyof FormulaWeights>(cat: K, patch: Partial<FormulaWeights[K]>) => {
+      setFormulaWeights((prev) => {
+        const current = prev[cat] as FormulaWeights[K] & Record<string, unknown>;
 
-      const next: FormulaWeights = {
-        ...prev,
-        [cat]: {
-          ...current,
-          ...patch,
-        } as FormulaWeights[K],
-      };
+        const next: FormulaWeights = {
+          ...prev,
+          [cat]: {
+            ...current,
+            ...patch,
+          } as FormulaWeights[K],
+        };
 
-      saveFormulaWeights(next);
-      return next;
-    });
-  },
-  []
-);
+        saveFormulaWeights(next);
+        return next;
+      });
+    },
+    []
+  );
 
   const resetFormulaWeights = useCallback(() => {
     setFormulaWeights(DEFAULT_FORMULA_WEIGHTS);
@@ -631,10 +641,10 @@ const patchFormulaWeights = useCallback(
   }
 
   const exitCompareMode = useCallback(() => {
-  setIsComparePicking(false);
-  setCompareSourceNodeId(null);
-  setCompareTargetNodeId(null);
-}, []);
+    setIsComparePicking(false);
+    setCompareSourceNodeId(null);
+    setCompareTargetNodeId(null);
+  }, []);
 
   const confirmHideNode = useCallback(() => {
     if (!hideTargetId || hideTargetIds.length === 0) return;
@@ -818,274 +828,282 @@ const patchFormulaWeights = useCallback(
     requestAnimationFrame(vp.saveViewport);
   }, [deleteTargetId, deleteTargetIds, g, props.onChange, vp.saveViewport]);
 
-const nodesForUI = useMemo(() => {
-  const nodes = g.nodesWithRootFlag as Node[];
-  const edges = g.rfEdges as Edge[];
+  const nodesForUI = useMemo(() => {
+    const nodes = g.nodesWithRootFlag as Node[];
+    const edges = g.rfEdges as Edge[];
 
-  const nodesById = new Map(nodes.map((n) => [n.id, n]));
-  const incoming = buildIncomingMap(edges);
+    const nodesById = new Map(nodes.map((n) => [n.id, n]));
+    const incoming = buildIncomingMap(edges);
 
-  const precomputedNodes = nodes.map((n: RFNode) => {
-    const baseData = (n.data as any) ?? {};
+    const precomputedNodes = nodes.map((n: RFNode) => {
+      const baseData = (n.data as any) ?? {};
 
-    const injectedCommon = {
-      ...baseData,
-      videoOpened: Boolean(baseData?.videoOpened),
-      highlightUnseenEnabled: props.highlightUnseenEnabled,
-      notesEnabled: props.notesEnabled,
-      showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
-      graphCardContentMode: props.graphCardContentMode,
-      onSaveNote: saveNodeNote,
-      markVideoOpened,
-      onDelete: handleDeleteNode,
-      onHide: handleHideNode,
-      categoryLabels,
-      categoryVisibility,
-      onSetCategoryVisible: setCategoryVisible,
-      onShowAllCategories: showAllCategories,
-      onOpenDetails: handleOpenDetails,
+      const injectedCommon = {
+        ...baseData,
+        videoOpened: Boolean(baseData?.videoOpened),
+        highlightUnseenEnabled: props.highlightUnseenEnabled,
+        notesEnabled: props.notesEnabled,
+        showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
+        graphCardContentMode: props.graphCardContentMode,
+        graphCardDisplayMode: props.graphCardDisplayMode,
+        onSaveNote: saveNodeNote,
+        markVideoOpened,
+        onDelete: handleDeleteNode,
+        onHide: handleHideNode,
+        categoryLabels,
+        categoryVisibility,
+        onSetCategoryVisible: setCategoryVisible,
+        onShowAllCategories: showAllCategories,
+        onOpenDetails: handleOpenDetails,
+        onStartCompare: handleStartCompare,
+        isComparePicking,
+        compareSourceNodeId,
 
-      onAdd: (nodeId: string) => {
-        g.setClickedNodeId(nodeId);
-        props.onChange((prev) => ({
-          ...prev,
-          uiState: { ...(prev.uiState ?? {}), selectedNodeId: nodeId },
-        }));
-        setActionDialogOpen(true);
-      },
-    };
-
-    // ---------- clip ----------
-    if (n.type === "clip") {
-      const videoFile = baseData.videoFile ?? null;
-      const videoStatus = baseData.videoStatus;
-      const videoUrl = baseData.videoUrl ?? (videoFile ? comfyBuildVideoUrl(videoFile) : null);
-
-      return {
-        ...n,
-        hidden: Boolean(baseData?.isHidden),
-        data: {
-          ...injectedCommon,
-          videoFile,
-          videoStatus,
-          videoUrl,
+        onAdd: (nodeId: string) => {
+          g.setClickedNodeId(nodeId);
+          props.onChange((prev) => ({
+            ...prev,
+            uiState: { ...(prev.uiState ?? {}), selectedNodeId: nodeId },
+          }));
+          setActionDialogOpen(true);
         },
       };
-    }
 
-    // ---------- edit ----------
-    if (n.type === "edit") {
-      const exportInfo = baseData?.export;
-      const timeline = baseData?.timeline;
-      const importedAt = timeline?.importedAt;
-      const changelog = (timeline?.changelog as any[]) ?? [];
-      const prevEffectKeys: string[] = baseData?.prevEffectKeys ?? [];
+      // ---------- clip ----------
+      if (n.type === "clip") {
+        const videoFile = baseData.videoFile ?? null;
+        const videoStatus = baseData.videoStatus;
+        const videoUrl = baseData.videoUrl ?? (videoFile ? comfyBuildVideoUrl(videoFile) : null);
 
-      const { summaryLines, detailLines } = parsedChangelogLines(changelog, prevEffectKeys);
+        return {
+          ...n,
+          hidden: Boolean(baseData?.isHidden),
+          data: {
+            ...injectedCommon,
+            videoFile,
+            videoStatus,
+            videoUrl,
+          },
+        };
+      }
 
-      const counts = changelog.reduce((acc, c) => {
-        acc[c.type] = (acc[c.type] ?? 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+      // ---------- edit ----------
+      if (n.type === "edit") {
+        const exportInfo = baseData?.export;
+        const timeline = baseData?.timeline;
+        const importedAt = timeline?.importedAt;
+        const changelog = (timeline?.changelog as any[]) ?? [];
+        const prevEffectKeys: string[] = baseData?.prevEffectKeys ?? [];
 
-      const metaSummary = (
-        <Stack spacing={0.75}>
-          <Typography variant="body2" color="text.secondary">
-            Tool: {baseData?.tool ?? "resolve"}
-          </Typography>
+        const { summaryLines, detailLines } = parsedChangelogLines(changelog, prevEffectKeys);
 
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Chip size="small" label={exportInfo?.status ?? "waiting"} />
-            {importedAt && (
-              <Typography variant="caption" color="text.secondary">
-                {new Date(importedAt).toLocaleString()}
-              </Typography>
-            )}
-          </Stack>
+        const counts = changelog.reduce(
+          (acc, c) => {
+            acc[c.type] = (acc[c.type] ?? 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>
+        );
 
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Chip
-              size="small"
-              color={changelog.length ? "success" : "default"}
-              label={changelog.length ? `changes: ${changelog.length}` : "no timeline diff"}
-            />
-            {Object.keys(counts).length > 0 && (
-              <Typography variant="caption" color="text.secondary">
-                {Object.entries(counts)
-                  .map(([k, v]) => `${k}:${v}`)
-                  .join(" · ")}
-              </Typography>
-            )}
-          </Stack>
+        const metaSummary = (
+          <Stack spacing={0.75}>
+            <Typography variant="body2" color="text.secondary">
+              Tool: {baseData?.tool ?? "resolve"}
+            </Typography>
 
-          {changelog.length > 0 && (
-            <Box sx={{ mt: 0.5 }}>
-              <Stack spacing={1}>
-                {summaryLines.map((line, i) => (
-                  <Typography key={i} variant="body2">
-                    {line}
-                  </Typography>
-                ))}
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip size="small" label={exportInfo?.status ?? "waiting"} />
+              {importedAt && (
+                <Typography variant="caption" color="text.secondary">
+                  {new Date(importedAt).toLocaleString()}
+                </Typography>
+              )}
+            </Stack>
 
-                {detailLines.length > 0 && (
-                  <>
-                    <Typography variant="subtitle2" sx={{ mt: 1 }}>
-                      Details
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip
+                size="small"
+                color={changelog.length ? "success" : "default"}
+                label={changelog.length ? `changes: ${changelog.length}` : "no timeline diff"}
+              />
+              {Object.keys(counts).length > 0 && (
+                <Typography variant="caption" color="text.secondary">
+                  {Object.entries(counts)
+                    .map(([k, v]) => `${k}:${v}`)
+                    .join(" · ")}
+                </Typography>
+              )}
+            </Stack>
+
+            {changelog.length > 0 && (
+              <Box sx={{ mt: 0.5 }}>
+                <Stack spacing={1}>
+                  {summaryLines.map((line, i) => (
+                    <Typography key={i} variant="body2">
+                      {line}
                     </Typography>
+                  ))}
 
-                    <Stack spacing={0.5}>
-                      {detailLines.map((line, i) => (
-                        <Typography
-                          key={i}
-                          variant="caption"
-                          sx={{ opacity: 0.85, overflowWrap: "anywhere" }}
-                        >
-                          {line}
-                        </Typography>
-                      ))}
-                    </Stack>
-                  </>
-                )}
-              </Stack>
-            </Box>
-          )}
-        </Stack>
-      );
+                  {detailLines.length > 0 && (
+                    <>
+                      <Typography variant="subtitle2" sx={{ mt: 1 }}>
+                        Details
+                      </Typography>
+
+                      <Stack spacing={0.5}>
+                        {detailLines.map((line, i) => (
+                          <Typography
+                            key={i}
+                            variant="caption"
+                            sx={{ opacity: 0.85, overflowWrap: "anywhere" }}
+                          >
+                            {line}
+                          </Typography>
+                        ))}
+                      </Stack>
+                    </>
+                  )}
+                </Stack>
+              </Box>
+            )}
+          </Stack>
+        );
+
+        return {
+          ...n,
+          hidden: Boolean(baseData?.isHidden),
+          data: {
+            ...injectedCommon,
+            export: exportInfo,
+            timeline,
+            importedAt,
+            changelog,
+            summaryLines,
+            detailLines,
+            prevEffectKeys,
+            metaSummary,
+          },
+        };
+      }
+
+      // ---------- params ----------
+      if (n.type !== "params") {
+        return {
+          ...n,
+          hidden: Boolean(baseData?.isHidden),
+          data: injectedCommon,
+        };
+      }
+
+      const prevParamsId = findPrevParamsId(n.id, nodesById, incoming);
+      const prevParamsData = prevParamsId ? (nodesById.get(prevParamsId)?.data as any) : null;
+
+      const curPrompt = injectedCommon.prompt ?? "";
+      const prevPrompt = prevParamsData?.prompt ?? "";
+
+      const promptChanged =
+        typeof curPrompt === "string" &&
+        typeof prevPrompt === "string" &&
+        curPrompt.trim() !== prevPrompt.trim();
+
+      const deltas = prevParamsData
+        ? {
+            highNoiseCfg: numDelta(injectedCommon, prevParamsData, "highNoiseCfg"),
+            lowNoiseCfg: numDelta(injectedCommon, prevParamsData, "lowNoiseCfg"),
+
+            highNoiseShift: numDelta(injectedCommon, prevParamsData, "highNoiseShift"),
+            lowNoiseShift: numDelta(injectedCommon, prevParamsData, "lowNoiseShift"),
+
+            highNoiseModelStrength: numDelta(
+              injectedCommon,
+              prevParamsData,
+              "highNoiseModelStrength"
+            ),
+            lowNoiseModelStrength: numDelta(
+              injectedCommon,
+              prevParamsData,
+              "lowNoiseModelStrength"
+            ),
+
+            highNoiseSteps: numDelta(injectedCommon, prevParamsData, "highNoiseSteps"),
+            lowNoiseSteps: numDelta(injectedCommon, prevParamsData, "lowNoiseSteps"),
+
+            highNoiseStartStep: numDelta(injectedCommon, prevParamsData, "highNoiseStartStep"),
+            lowNoiseStartStep: numDelta(injectedCommon, prevParamsData, "lowNoiseStartStep"),
+
+            highNoiseEndStep: numDelta(injectedCommon, prevParamsData, "highNoiseEndStep"),
+            lowNoiseEndStep: numDelta(injectedCommon, prevParamsData, "lowNoiseEndStep"),
+            displayTotalSteps: numDelta(injectedCommon, prevParamsData, "displayTotalSteps"),
+            displayLowStepPct: numDelta(injectedCommon, prevParamsData, "displayLowStepPct"),
+          }
+        : null;
+
+      const curScores = injectedCommon.categoryScores;
+      const prevScores = prevParamsData?.categoryScores;
+
+      const categoryScoreDeltas =
+        curScores && prevScores ? buildScoreDeltaMap(curScores, prevScores) : null;
 
       return {
         ...n,
         hidden: Boolean(baseData?.isHidden),
         data: {
           ...injectedCommon,
-          export: exportInfo,
-          timeline,
-          importedAt,
-          changelog,
-          summaryLines,
-          detailLines,
-          prevEffectKeys,
-          metaSummary,
+          prevParamsId,
+          paramDeltas: deltas,
+          categoryScoreDeltas,
+          promptChanged,
+          branchSuggestion: null,
         },
       };
-    }
-
-    // ---------- params ----------
-    if (n.type !== "params") {
-      return {
-        ...n,
-        hidden: Boolean(baseData?.isHidden),
-        data: injectedCommon,
-      };
-    }
-
-    const prevParamsId = findPrevParamsId(n.id, nodesById, incoming);
-    const prevParamsData = prevParamsId ? (nodesById.get(prevParamsId)?.data as any) : null;
-
-    const curPrompt = injectedCommon.prompt ?? "";
-    const prevPrompt = prevParamsData?.prompt ?? "";
-
-    const promptChanged =
-      typeof curPrompt === "string" &&
-      typeof prevPrompt === "string" &&
-      curPrompt.trim() !== prevPrompt.trim();
-
-    const deltas = prevParamsData
-      ? {
-          highNoiseCfg: numDelta(injectedCommon, prevParamsData, "highNoiseCfg"),
-          lowNoiseCfg: numDelta(injectedCommon, prevParamsData, "lowNoiseCfg"),
-
-          highNoiseShift: numDelta(injectedCommon, prevParamsData, "highNoiseShift"),
-          lowNoiseShift: numDelta(injectedCommon, prevParamsData, "lowNoiseShift"),
-
-          highNoiseModelStrength: numDelta(
-            injectedCommon,
-            prevParamsData,
-            "highNoiseModelStrength"
-          ),
-          lowNoiseModelStrength: numDelta(
-            injectedCommon,
-            prevParamsData,
-            "lowNoiseModelStrength"
-          ),
-
-          highNoiseSteps: numDelta(injectedCommon, prevParamsData, "highNoiseSteps"),
-          lowNoiseSteps: numDelta(injectedCommon, prevParamsData, "lowNoiseSteps"),
-
-          highNoiseStartStep: numDelta(injectedCommon, prevParamsData, "highNoiseStartStep"),
-          lowNoiseStartStep: numDelta(injectedCommon, prevParamsData, "lowNoiseStartStep"),
-
-          highNoiseEndStep: numDelta(injectedCommon, prevParamsData, "highNoiseEndStep"),
-          lowNoiseEndStep: numDelta(injectedCommon, prevParamsData, "lowNoiseEndStep"),
-          displayTotalSteps: numDelta(injectedCommon, prevParamsData, "displayTotalSteps"),
-          displayLowStepPct: numDelta(injectedCommon, prevParamsData, "displayLowStepPct"),
-        }
-      : null;
-
-    const curScores = injectedCommon.categoryScores;
-    const prevScores = prevParamsData?.categoryScores;
-
-    const categoryScoreDeltas =
-      curScores && prevScores ? buildScoreDeltaMap(curScores, prevScores) : null;
-
-    return {
-      ...n,
-      hidden: Boolean(baseData?.isHidden),
-      data: {
-        ...injectedCommon,
-        prevParamsId,
-        paramDeltas: deltas,
-        categoryScoreDeltas,
-        promptChanged,
-        branchSuggestion: null,
-      },
-    };
-  });
-
-  const precomputedById = new Map(precomputedNodes.map((n) => [n.id, n as RFNode]));
-
-  return precomputedNodes.map((n) => {
-    if (n.type !== "params") return n;
-
-    const branchSteps = collectParamBranchSteps(n.id, precomputedById, edges);
-
-    const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
-      minSteps: 5,
-      minCategoryDeltaAbs: 1,
-      minParamDeltaAbs: 0.01,
-      minStreak: 5,
-      recencyWindow: 15,
     });
 
-    const parameterHistory = buildParameterHistoryFromBranchSteps(branchSteps, precomputedById);
+    const precomputedById = new Map(precomputedNodes.map((n) => [n.id, n as RFNode]));
 
-    return {
-      ...n,
-      data: {
-        ...(n.data as any),
-        branchSuggestion,
-        parameterHistory,
-      },
-    };
-  });
-}, [
-  g.nodesWithRootFlag,
-  g.rfEdges,
-  g.setClickedNodeId,
-  props.onChange,
-  markVideoOpened,
-  saveNodeNote,
-  handleDeleteNode,
-  handleHideNode,
-  props.highlightUnseenEnabled,
-  props.notesEnabled,
-  props.showWeightSuggestionsEnabled,
-  categoryLabels,
-  categoryVisibility,
-  props.graphCardContentMode,
-  handleOpenDetails,
-  setCategoryVisible,
-  showAllCategories,
-]);
+    return precomputedNodes.map((n) => {
+      if (n.type !== "params") return n;
+
+      const branchSteps = collectParamBranchSteps(n.id, precomputedById, edges);
+
+      const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
+        minSteps: 5,
+        minCategoryDeltaAbs: 1,
+        minParamDeltaAbs: 0.01,
+        minStreak: 5,
+        recencyWindow: 15,
+      });
+
+      const parameterHistory = buildParameterHistoryFromBranchSteps(branchSteps, precomputedById);
+
+      return {
+        ...n,
+        data: {
+          ...(n.data as any),
+          branchSuggestion,
+          parameterHistory,
+        },
+      };
+    });
+  }, [
+    g.nodesWithRootFlag,
+    g.rfEdges,
+    g.setClickedNodeId,
+    props.onChange,
+    markVideoOpened,
+    saveNodeNote,
+    handleDeleteNode,
+    handleHideNode,
+    props.highlightUnseenEnabled,
+    props.notesEnabled,
+    props.showWeightSuggestionsEnabled,
+    props.graphCardDisplayMode,
+    categoryLabels,
+    categoryVisibility,
+    props.graphCardContentMode,
+    handleOpenDetails,
+    setCategoryVisible,
+    showAllCategories,
+  ]);
 
   const detailsNode = useMemo(() => {
     if (!detailsNodeId) return null;
@@ -1513,26 +1531,179 @@ const nodesForUI = useMemo(() => {
     });
   }
 
-  // ---------- node click ----------
-const onNodeClick: NodeMouseHandler = (evt, node) => {
-  const target = evt.target as HTMLElement | null;
-  if (target?.closest("button, a, [role='button'], .MuiDialog-root")) return;
+  async function handleCreateImportedBranch() {
+    if (!importVideoFile) return;
 
-  if (isComparePicking && compareSourceNodeId) {
-    finishComparePick(node.id);
-    return;
+    const parentId = g.clickedNodeId;
+    if (!parentId) {
+      setImportVideoStatus("No parent clip selected.");
+      return;
+    }
+
+    setImportVideoUploading(true);
+    setImportVideoStatus("Uploading…");
+
+    try {
+      const stored = await comfyUploadVideo(importVideoFile);
+
+      const importId = nanoid();
+      const clipId = nanoid();
+
+      const edgeParentToImport: RFEdge = {
+        id: nanoid(),
+        source: parentId,
+        target: importId,
+        type: "labeled",
+        data: {
+          label: "import",
+          showLabel: props.showEdgeLabels,
+        },
+        sourceHandle: "out",
+        targetHandle: "in",
+      };
+
+      const edgeImportToClip: RFEdge = {
+        id: nanoid(),
+        source: importId,
+        target: clipId,
+        type: "labeled",
+        data: {
+          label: "output",
+          showLabel: props.showEdgeLabels,
+        },
+        sourceHandle: "out",
+        targetHandle: "in",
+      };
+
+      g.setRfEdges((prevEdges) => {
+        const nextEdges = [...prevEdges, edgeParentToImport, edgeImportToClip];
+
+        g.setRfNodes((prevNodes) => {
+          const fromNode = prevNodes.find((n) => n.id === parentId);
+          const baseX = fromNode?.position.x ?? 50;
+          const baseY = fromNode?.position.y ?? 80;
+
+          const branchIndex = countBranches(nextEdges, parentId);
+
+          const NODE_GAP_X = 60;
+          const BRANCH_SPACING = 140;
+
+          const importSize = getDefaultNodeSize("import" as any);
+          const clipSize = getDefaultNodeSize("clip");
+
+          const desiredImport = {
+            x: baseX + clipSize.w + NODE_GAP_X,
+            y: baseY + (branchIndex - 1) * BRANCH_SPACING,
+          };
+
+          const importPos = findFreePosition(desiredImport, prevNodes, {
+            stepY: 50,
+            pad: 40,
+            newNodeType: "import" as any,
+            newNodeWidth: importSize?.w ?? 240,
+            newNodeHeight: importSize?.h ?? 100,
+            extraBottom: 20,
+          });
+
+          const desiredClip = {
+            x: importPos.x + (importSize?.w ?? 240) + NODE_GAP_X,
+            y: importPos.y,
+          };
+
+          const tempImportNode: RFNode = {
+            id: importId,
+            type: "import",
+            position: importPos,
+            data: {} as any,
+            width: importSize?.w ?? 240,
+            height: importSize?.h ?? 100,
+          };
+
+          const clipPos = findFreePosition(desiredClip, [...prevNodes, tempImportNode], {
+            stepY: 50,
+            pad: 30,
+            newNodeType: "clip",
+            newNodeWidth: clipSize.w,
+            newNodeHeight: clipSize.h,
+            extraBottom: 20,
+          });
+
+          const importNode: RFNode = {
+            id: importId,
+            type: "import",
+            position: importPos,
+            data: {
+              label: "Imported Video",
+              importedFileName: stored.filename,
+              parentClipId: parentId,
+            } as any,
+            draggable: true,
+          };
+
+          const clipNode: RFNode = {
+            id: clipId,
+            type: "clip",
+            position: clipPos,
+            data: {
+              label: "Imported Clip",
+              videoFile: stored,
+              videoStatus: "done",
+              videoOpened: false,
+            } as any,
+            draggable: true,
+          };
+
+          const nextNodes = [...prevNodes, importNode, clipNode];
+
+          g.commit(nextNodes, nextEdges);
+
+          props.onChange((prev) => ({
+            ...prev,
+            uiState: { ...(prev.uiState ?? {}), selectedNodeId: clipId },
+          }));
+
+          if (rfInstance) {
+            centerOnNode(rfInstance, clipId, { onAfter: vp.saveViewport });
+          } else {
+            requestAnimationFrame(vp.saveViewport);
+          }
+
+          return nextNodes;
+        });
+
+        return nextEdges;
+      });
+
+      setImportVideoDialogOpen(false);
+      setImportVideoFile(null);
+      setImportVideoStatus("");
+      setImportVideoUploading(false);
+    } catch (e: any) {
+      setImportVideoStatus(`Error: ${e?.message ?? String(e)}`);
+      setImportVideoUploading(false);
+    }
   }
 
-  if (node.type !== "clip" && node.type !== "edit") return;
+  // ---------- node click ----------
+  const onNodeClick: NodeMouseHandler = (evt, node) => {
+    const target = evt.target as HTMLElement | null;
+    if (target?.closest("button, a, [role='button'], .MuiDialog-root")) return;
 
-  g.setClickedNodeId(node.id);
-  props.onChange((prev) => ({
-    ...prev,
-    uiState: { ...(prev.uiState ?? {}), selectedNodeId: node.id },
-  }));
+    if (isComparePicking && compareSourceNodeId) {
+      finishComparePick(node.id);
+      return;
+    }
 
-  setActionDialogOpen(true);
-};
+    if (node.type !== "clip" && node.type !== "edit" && node.type !== "import") return;
+
+    g.setClickedNodeId(node.id);
+    props.onChange((prev) => ({
+      ...prev,
+      uiState: { ...(prev.uiState ?? {}), selectedNodeId: node.id },
+    }));
+
+    setActionDialogOpen(true);
+  };
 
   return (
     <div style={{ height: "100%", position: "relative" }}>
@@ -1559,41 +1730,39 @@ const onNodeClick: NodeMouseHandler = (evt, node) => {
       </Paper>
 
       {/* Root */}
-     {/* Top-left status / root action */}
-{isComparePicking ? (
-  <Paper
-    elevation={2}
-    sx={{
-      position: "absolute",
-      zIndex: 10,
-      top: 12,
-      left: 12,
-      p: 1.25,
-      borderLeft: 6,
-      borderLeftColor: "warning.main",
-      bgcolor: "warning.50",
-      minWidth: 260,
-    }}
-  >
-    <Stack direction="row" spacing={1.5} alignItems="center">
-      <StatusDot state="running" />
-      <Box sx={{ fontSize: 14, fontWeight: 600 }}>
-        Compare mode: Choose second node
-      </Box>
-      <Button size="small" variant="outlined" onClick={exitCompareMode}>
-  Cancel
-</Button>
-    </Stack>
-  </Paper>
-) : (
-  !hasRoot && (
-    <Paper elevation={2} sx={{ position: "absolute", zIndex: 10, top: 12, left: 12, p: 1 }}>
-      <Button variant="contained" onClick={createRoot}>
-        Start Root
-      </Button>
-    </Paper>
-  )
-)}
+      {/* Top-left status / root action */}
+      {isComparePicking ? (
+        <Paper
+          elevation={2}
+          sx={{
+            position: "absolute",
+            zIndex: 10,
+            top: 12,
+            left: 12,
+            p: 1.25,
+            borderLeft: 6,
+            borderLeftColor: "warning.main",
+            bgcolor: "warning.50",
+            minWidth: 260,
+          }}
+        >
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <StatusDot state="running" />
+            <Box sx={{ fontSize: 14, fontWeight: 600 }}>Compare mode: Choose second node</Box>
+            <Button size="small" variant="outlined" onClick={exitCompareMode}>
+              Cancel
+            </Button>
+          </Stack>
+        </Paper>
+      ) : (
+        !hasRoot && (
+          <Paper elevation={2} sx={{ position: "absolute", zIndex: 10, top: 12, left: 12, p: 1 }}>
+            <Button variant="contained" onClick={createRoot}>
+              Start Root
+            </Button>
+          </Paper>
+        )
+      )}
       <ReactFlow
         onInit={(instance) => setRfInstance(instance)}
         nodes={nodesForUI}
@@ -1638,6 +1807,12 @@ const onNodeClick: NodeMouseHandler = (evt, node) => {
         }}
         onShowHiddenChildren={() => {
           if (g.clickedNodeId) showHiddenChildren(g.clickedNodeId);
+          setActionDialogOpen(false);
+        }}
+        onOpenImportVideo={() => {
+          setImportVideoFile(null);
+          setImportVideoStatus("");
+          setImportVideoDialogOpen(true);
           setActionDialogOpen(false);
         }}
       />
@@ -1783,6 +1958,20 @@ const onNodeClick: NodeMouseHandler = (evt, node) => {
         onConfirm={confirmHideNode}
       />
 
+      <ImportVideoDialog
+        open={importVideoDialogOpen}
+        file={importVideoFile}
+        uploading={importVideoUploading}
+        statusText={importVideoStatus}
+        onClose={() => {
+          setImportVideoDialogOpen(false);
+          setImportVideoFile(null);
+          setImportVideoStatus("");
+        }}
+        onFileChange={setImportVideoFile}
+        onCreate={handleCreateImportedBranch}
+      />
+
       <NodeDetailsDialog
         open={detailsOpen && !!detailsNode}
         onClose={handleCloseDetails}
@@ -1823,7 +2012,6 @@ const onNodeClick: NodeMouseHandler = (evt, node) => {
         onSetCategoryVisible={setCategoryVisible}
         onShowAllCategories={showAllCategories}
         parameterHistory={detailsNodeData?.parameterHistory}
-        onStartCompare={handleStartCompare}
         compareBaseNodeLabel={
           compareSourceNodeId === detailsNode?.id
             ? ((compareBaseNodeData?.label as string | undefined) ?? compareTargetNodeId) || null

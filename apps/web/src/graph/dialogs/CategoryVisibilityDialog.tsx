@@ -7,8 +7,8 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { fmt } from "../nodes/Node";
 import { SelectedCategory } from "../types/ui";
+import { fmt } from "../hooks/useV2VParams";
 
 export type CategoryVisibilityDialogProps = {
   open: boolean;

@@ -21,6 +21,8 @@ export function getDefaultNodeSize(type?: string) {
       return { w: 420, h: 170 };
     case "edit":
       return { w: 280, h: 170 };
+    case "import":
+      return { w: 280, h: 170 };
     case "clip":
     default:
       return { w: 220, h: 120 };

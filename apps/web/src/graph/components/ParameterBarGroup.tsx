@@ -1,14 +1,14 @@
-import { Box, Tooltip, Typography, IconButton } from "@mui/material";
+import { Box, Tooltip, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import HorizontalRuleIcon from "@mui/icons-material/HorizontalRule";
 
-import { useMemo, useState } from "react";
-import { fmt } from "../nodes/Node";
+import { useState } from "react";
 import { normalize } from "../graph_helpers/clipDialogLogic";
-import { ParameterBarColorKey, Item, ParameterHistoryMap, HistoryPoint } from "../types/ui";
+import { ParameterBarColorKey, Item, ParameterHistoryMap } from "../types/ui";
 import { ZoomedParameterView } from "./ZoomedParameterView";
+import { fmtPlain, fmt } from "../hooks/useV2VParams";
 
 const COLORS: Record<ParameterBarColorKey, string> = {
   highCfg: "#0072B2",
@@ -18,27 +18,15 @@ const COLORS: Record<ParameterBarColorKey, string> = {
   lowSteps: "#D55E00",
 };
 
-export function fmtPlain(v: number, decimals: number) {
-  return fmt(v, decimals).replace(/[()+]/g, "");
-}
-
 export function ParameterBarGroup({
   items,
   history = {},
-  isInCompareMode
 }: {
   items: Item[];
   history?: ParameterHistoryMap;
-  isInCompareMode: boolean | null
 }) {
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-
-  const selectedItem = useMemo(
-    () => items.find((item) => item.key === selectedKey) ?? null,
-    [items, selectedKey]
-  );
-
-  console.log(isInCompareMode)
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
   return (
     <Box
@@ -51,170 +39,154 @@ export function ParameterBarGroup({
         borderColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
       })}
     >
-      {!selectedItem || isInCompareMode ? (
-        <>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 2,
-              mb: 1,
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: 999,
-                  bgcolor: "rgba(0,0,0,0.25)",
-                }}
-              />
-              <Typography variant="caption" color="text.secondary">
-                Parent node value
-              </Typography>
-            </Box>
+      {!isZoomed ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+          {items.map((item) => {
+            const { key, label, value, min, max, delta, decimals = 2, colorKey } = item;
 
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: 999,
-                  bgcolor: "text.primary",
-                }}
-              />
-              <Typography variant="caption" color="text.secondary">
-                Current node value
-              </Typography>
-            </Box>
-          </Box>
+            const color = COLORS[colorKey];
+            const currentPct = normalize(value, min, max) * 100;
 
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`,
-              alignItems: "end",
-              columnGap: 2,
-            }}
-          >
-            {items.map((item) => {
-              const { key, label, value, min, max, delta, decimals = 2, colorKey } = item;
+            const prevValue = delta != null ? value - delta : null;
+            const prevPct = prevValue != null ? normalize(prevValue, min, max) * 100 : null;
 
-              const color = COLORS[colorKey];
-              const currentPct = normalize(value, min, max) * 100;
+            const showPrevBar = hoveredKey === key && prevPct != null;
 
-              const prevValue = delta != null ? value - delta : null;
-              const prevPct = prevValue != null ? normalize(prevValue, min, max) * 100 : null;
+            const direction =
+              delta == null ? null : delta > 0 ? (
+                <KeyboardArrowUpIcon sx={{ fontSize: 16 }} />
+              ) : delta < 0 ? (
+                <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />
+              ) : (
+                <HorizontalRuleIcon sx={{ fontSize: 16 }} />
+              );
 
-              const direction =
-                delta == null ? null : delta > 0 ? (
-                  <KeyboardArrowUpIcon sx={{ fontSize: 16 }} />
-                ) : delta < 0 ? (
-                  <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />
-                ) : (
-                  <HorizontalRuleIcon sx={{ fontSize: 16 }} />
-                );
+            const tooltip =
+              prevValue != null
+                ? `${label} · old ${fmtPlain(prevValue, decimals)} · now ${fmtPlain(
+                    value,
+                    decimals
+                  )} · Δ ${fmt(delta ?? 0, decimals)}`
+                : `${label} · ${fmtPlain(value, decimals)}`;
 
-              const tooltip =
-                prevValue != null
-                  ? `${label} · old ${fmtPlain(prevValue, decimals)} · now ${fmtPlain(
-                      value,
-                      decimals
-                    )} · Δ ${fmt(delta ?? 0, decimals)}`
-                  : `${label} · ${fmtPlain(value, decimals)}`;
-
-              return (
+            return (
+              <Tooltip key={key} title={tooltip} arrow>
                 <Box
-                  key={key}
+                  onClick={() => {if( history[key]?.length > 0) setIsZoomed(true)}}
+                  onMouseEnter={() => setHoveredKey(key)}
+                  onMouseLeave={() => setHoveredKey((curr) => (curr === key ? null : curr))}
                   sx={{
-                    display: "flex",
-                    flexDirection: "column",
+                    display: "grid",
+                    gridTemplateColumns: "120px minmax(0, 1fr) auto",
                     alignItems: "center",
-                    minWidth: 0,
+                    gap: 1.25,
+                    cursor: "pointer",
                   }}
                 >
-                  <Tooltip title={tooltip} arrow>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      opacity: 0.8,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {label}
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0.5,
+                    }}
+                  >
                     <Box
-                      onClick={() => setSelectedKey(key)}
                       sx={{
-                        height: 170,
+                        position: "relative",
+                        height: 12,
                         width: "100%",
-                        display: "flex",
-                        alignItems: "flex-end",
-                        justifyContent: "center",
-                        gap: 0.5,
-                        cursor: "pointer",
+                        borderRadius: 999,
+                        overflow: "hidden",
+                        bgcolor: alpha(color, 0.15),
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          height: "100%",
+                          width: `${currentPct}%`,
+                          minWidth: currentPct > 0 ? 6 : 0,
+                          borderRadius: 999,
+                          bgcolor: color,
+                          transition: "width 180ms ease",
+                        }}
+                      />
+                    </Box>
+
+                    <Box
+                      sx={{
+                        position: "relative",
+                        height: 12,
+                        width: "100%",
+                        borderRadius: 999,
+                        overflow: "hidden",
+                        bgcolor: alpha(color, 0.075),
+                        opacity: showPrevBar ? 1 : 0,
+                        transition: "opacity 150ms ease",
+                        pointerEvents: "none",
                       }}
                     >
                       {prevPct != null && (
                         <Box
                           sx={{
-                            width: 20,
-                            height: `${prevPct}%`,
-                            minHeight: prevPct > 0 ? 4 : 0,
-                            borderRadius: 1,
-                            bgcolor: alpha(color, 0.35),
+                            height: "100%",
+                            width: `${prevPct}%`,
+                            minWidth: prevPct > 0 ? 6 : 0,
+                            borderRadius: 999,
+                            bgcolor: color,
+                            opacity: 0.5,
+                            transition: "width 180ms ease",
                           }}
                         />
                       )}
-
-                      <Box
-                        sx={{
-                          width: 20,
-                          height: `${currentPct}%`,
-                          minHeight: currentPct > 0 ? 4 : 0,
-                          borderRadius: 1,
-                          bgcolor: color,
-                        }}
-                      />
                     </Box>
-                  </Tooltip>
+                  </Box>
 
                   <Box
                     sx={{
-                      mt: 0.75,
+                      minWidth: 58,
                       display: "flex",
-                      flexDirection: "column",
                       alignItems: "center",
+                      justifyContent: "flex-end",
                       gap: 0.25,
-                      minHeight: 32,
+                      color: "text.secondary",
                     }}
                   >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.25,
-                        color: "text.secondary",
-                      }}
-                    >
-                      <Typography variant="caption">{fmtPlain(value, decimals)}</Typography>
-                      {direction}
-                    </Box>
-
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        opacity: 0.7,
-                        fontSize: "0.65rem",
-                        textAlign: "center",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {label}
-                    </Typography>
+                    <Typography variant="caption">{fmtPlain(value, decimals)}</Typography>
+                    {direction}
                   </Box>
                 </Box>
-              );
-            })}
-          </Box>
-        </>
+              </Tooltip>
+            );
+          })}
+          <Typography
+            variant="caption"
+            sx={{
+              mt: 1,
+              opacity: 0.6,
+              display: "block",
+            }}
+          >
+            Hover to see the parent value (faded). Click a parameter to view the history across the
+            branch.
+          </Typography>
+        </Box>
       ) : (
         <ZoomedParameterView
-          item={selectedItem}
-          history={history[selectedItem.key] ?? []}
-          onClose={() => setSelectedKey(null)}
+          items={items}
+          history={history}
+          onClose={() => setIsZoomed(false)}
           colors={COLORS}
         />
       )}

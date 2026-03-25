@@ -1,96 +1,17 @@
 import { useMemo } from "react";
 import {
   CategoryScores,
-  CleanWeights,
   CustomScoreSlider,
-  DerivedRanges,
   FormulaWeights,
-  NormalizedFeatureValues,
-  ParamRange,
+  Item,
+  ParamDelats,
   ScoreRanges,
   SimpleReal,
   SpeedMode,
 } from "../types/ui";
 import { SAFE_PRESETS } from "./useV2VSliders";
-
-export const DEFAULT_FORMULA_WEIGHTS: FormulaWeights = {
-  promptFaithfulness: {
-    steps: 0.1,
-    ratio: 0.2,
-    shift: 0,
-    cfg: 0.7,
-    strength: -0.05,
-    bias: 0,
-  },
-
-  videoFaithfulness: {
-    steps: 0.05,
-    ratio: 0.7,
-    shift: -0.25,
-    cfg: 0,
-    strength: -0.25,
-    bias: 0,
-  },
-
-  transitionSmoothness: {
-    steps: 0.45,
-    ratio: 0.4,
-    shift: -0.1,
-    cfg: 0,
-    strength: -0.15,
-    bias: 0.05,
-  },
-
-  motion: {
-    steps: 0.1,
-    ratio: -0.15,
-    shift: 0.55,
-    cfg: 0,
-    strength: 0.35,
-    bias: 0.25,
-  },
-
-  creativity: {
-    steps: 0,
-    ratio: -0.35,
-    shift: 0.3,
-    cfg: -0.3,
-    strength: 0.5,
-    bias: 0.2,
-  },
-};
-
-export const DEFAULT_CUSTOM_W: CustomScoreSlider["w"] = {
-  steps: 0,
-  ratio: 0,
-  shift: 0,
-  cfg: 0,
-  strength: 0,
-  bias: 0,
-};
-
-export function normalizeWeights(w: Partial<CleanWeights>): CleanWeights {
-  return {
-    steps: w.steps ?? 0,
-    ratio: w.ratio ?? 0,
-    shift: w.shift ?? 0,
-    cfg: w.cfg ?? 0,
-    strength: w.strength ?? 0,
-    bias: w.bias ?? 0,
-  };
-}
-
-export function applyWeights(w: CleanWeights, values: NormalizedFeatureValues) {
-  const raw =
-    w.steps * values.steps +
-    w.ratio * values.ratio +
-    w.shift * values.shift +
-    w.cfg * values.cfg +
-    w.strength * values.strength +
-    w.bias;
-
-  return clamp(raw, 0, 1);
-}
+import { applyWeights } from "../graph_helpers/sliderLogic";
+import { DEFAULT_FORMULA_WEIGHTS } from "../graph_helpers/presets";
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -172,13 +93,6 @@ export function sliderToIntRange(slider: number, min: number, max: number) {
   return Math.round(sliderToRange(slider, min, max));
 }
 
-/**
- * EXACT mega-file behavior:
- * - totalSteps rounded
- * - lowSteps = round(totalSteps * stepRatio01), min 1
- * - highSteps = totalSteps - lowSteps, min 1
- * - high phase first, low phase second
- */
 export function deriveV2VParamsFromSimple(opts: {
   totalSteps: number;
   stepRatio01: number; // low share 0..1
@@ -210,11 +124,6 @@ export function deriveV2VParamsFromSimple(opts: {
     highNoiseModelStrength: opts.highStrength,
   };
 }
-
-/**
- * EXACT mega-file formula and ranges.
- * NOTE: these "scores" are UI-only, but you said nothing should differ.
- */
 
 export function getScoreRanges(mode: "quick" | "quality"): ScoreRanges {
   return mode === "quick"
@@ -299,9 +208,6 @@ export function computeCategoryScoresFromSimple(
   };
 }
 
-/**
- * Hook wrapper for computed scores
- */
 export function useCategoryScores(
   simpleReal: {
     totalSteps: number;
@@ -443,4 +349,123 @@ export function useCategoryIds(customSliders: CustomScoreSlider[]) {
     defaultCategoryIds: DEFAULT_CATEGORY_IDS,
     allCategoryIds,
   };
+}
+
+export function fmtPlain(v: number, decimals: number) {
+  return fmt(v, decimals).replace(/[()+]/g, "");
+}
+
+export function deltaChipSx(delta: number | null | undefined) {
+  if (typeof delta !== "number" || !Number.isFinite(delta) || delta === 0) return undefined;
+
+  return {
+    border: "1px solid",
+    borderColor: delta > 0 ? "#4dabf5" : "#f73378",
+    boxShadow: delta > 0 ? "0 0 0 1px rgba(2,136,209,0.15)" : "0 0 0 1px rgba(211,47,47,0.15)",
+  } as const;
+}
+
+export function fmt(d: number | null | undefined, decimals = 2) {
+  if (typeof d !== "number" || !Number.isFinite(d) || d === 0) return "";
+  const sign = d > 0 ? "+" : "−";
+  return `(${sign}${Math.abs(d).toFixed(decimals)})`;
+}
+
+export function buildParameterItems(args: {
+  highNoiseCfg?: number;
+  highNoiseShift?: number;
+  highNoiseModelStrength?: number;
+  totalStepsValue?: number | null;
+  totalStepsDelta?: number | null;
+  lowStepPctValue?: number | null;
+  lowStepPctDelta?: number | null;
+  d?: ParamDelats | null;
+  PARAM_RANGES: {
+    highCfg: {
+      min: number;
+      max: number;
+    };
+    highShift: {
+      min: number;
+      max: number;
+    };
+    highStrength: {
+      min: number;
+      max: number;
+    };
+    highSteps: {
+      min: number;
+      max: number;
+    };
+    lowSteps: {
+      min: number;
+      max: number;
+    };
+  };
+}): Item[] {
+  const items: Item[] = [];
+
+  if (args.highNoiseCfg != null) {
+    items.push({
+      key: "highNoiseCfg",
+      label: "High CFG",
+      value: args.highNoiseCfg,
+      min: args.PARAM_RANGES.highCfg.min,
+      max: args.PARAM_RANGES.highCfg.max,
+      delta: args.d?.highNoiseCfg,
+      colorKey: "highCfg",
+    });
+  }
+
+  if (args.highNoiseShift != null) {
+    items.push({
+      key: "highNoiseShift",
+      label: "High Shift",
+      value: args.highNoiseShift,
+      min: args.PARAM_RANGES.highShift.min,
+      max: args.PARAM_RANGES.highShift.max,
+      delta: args.d?.highNoiseShift,
+      colorKey: "highShift",
+    });
+  }
+
+  if (args.highNoiseModelStrength != null) {
+    items.push({
+      key: "highNoiseModelStrength",
+      label: "High Strength",
+      value: args.highNoiseModelStrength,
+      min: args.PARAM_RANGES.highStrength.min,
+      max: args.PARAM_RANGES.highStrength.max,
+      delta: args.d?.highNoiseModelStrength,
+      colorKey: "highStrength",
+    });
+  }
+
+  if (args.totalStepsValue != null) {
+    items.push({
+      key: "totalSteps",
+      label: "Total Steps",
+      value: args.totalStepsValue,
+      min: 4,
+      max: 24,
+      delta: args.totalStepsDelta,
+      decimals: 0,
+      colorKey: "highSteps",
+    });
+  }
+
+  if (args.lowStepPctValue != null) {
+    items.push({
+      key: "lowStepPct",
+      label: "Low Step %",
+      value: args.lowStepPctValue,
+      min: 50,
+      max: 80,
+      delta: args.lowStepPctDelta,
+      decimals: 0,
+      colorKey: "lowSteps",
+    });
+  }
+
+  return items;
 }

@@ -49,10 +49,14 @@ export function ParamNode(props: NodeProps<any>) {
         onShowAllCategories={props.data.onShowAllCategories}
         showWeightSuggestionsEnabled={props.data.showWeightSuggestionsEnabled}
         graphCardContentMode={props.data.graphCardContentMode}
+        graphCardDisplayMode={props.data.graphCardDisplayMode}
         displayTotalSteps={props.data.displayTotalSteps}
         displayLowStepPct={props.data.displayLowStepPct}
         parameterHistory={props.data.parameterHistory}
-onOpenDetails={props.data.onOpenDetails}
+        onOpenDetails={props.data.onOpenDetails}
+        onStartCompare={props.data.onStartCompare}
+        isComparePicking={props.data.isComparePicking}
+        compareSourceNodeId={props.data.compareSourceNodeId}
       />
     </div>
   );

@@ -2,23 +2,27 @@ import * as React from "react";
 import { Card, CardContent, Typography, Chip, Stack, Box, IconButton } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import type { NodeType } from "@ma/shared";
-import { deltaChipSx, fmt } from "../nodes/Node";
+
 import {
   BrachSuggestion,
   CategoryDeltaMap,
   CategoryLabelMap,
   CategoryScoreMap,
   GraphCardContentMode,
+  GraphCardDisplayMode,
   ParamDelats,
   SummaryChip,
 } from "../types/ui";
-import { DEFAULT_CATEGORY_LABELS } from "../graph_helpers/sliderLogic";
 
+import CompareIcon from "@mui/icons-material/Compare";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { getVisibleCategoryEntries } from "../graph_helpers/clipDialogLogic";
 import { truncateLabel } from "../graph_helpers/layout";
+import { fmt, deltaChipSx, buildParameterItems, deriveRangesFromPresets } from "../hooks/useV2VParams";
+import { SAFE_PRESETS } from "../hooks/useV2VSliders";
+import { ParameterBarGroup } from "./ParameterBarGroup";
 
 export type NodeCardPreviewProps = {
   nodeId: string;
@@ -63,6 +67,7 @@ export type NodeCardPreviewProps = {
   categoryLabels?: CategoryLabelMap;
   categoryVisibility?: Record<string, boolean>;
   graphCardContentMode?: GraphCardContentMode;
+  graphCardDisplayMode?: GraphCardDisplayMode
 
   onDelete?: (nodeId: string) => void;
   canDelete?: boolean;
@@ -71,6 +76,9 @@ export type NodeCardPreviewProps = {
   canHide?: boolean;
   displayTotalSteps?: number;
   displayLowStepPct?: number;
+  onStartCompare?: (nodeId: string) => void;
+  isComparePicking?: boolean;
+  compareSourceNodeId?: string | null;
 };
 
 export function GraphCard(props: NodeCardPreviewProps) {
@@ -254,6 +262,23 @@ export function GraphCard(props: NodeCardPreviewProps) {
 
   const hasNote = Boolean(props.note?.trim());
 
+    const PARAM_RANGES = React.useMemo(
+      () => deriveRangesFromPresets([...SAFE_PRESETS.quality, ...SAFE_PRESETS.quick]),
+      []
+    );
+
+  const parameterItems = buildParameterItems({
+  highNoiseCfg: props.highNoiseCfg,
+  highNoiseShift: props.highNoiseShift,
+  highNoiseModelStrength: props.highNoiseModelStrength,
+  totalStepsValue: currentTotalSteps,
+  totalStepsDelta,
+  lowStepPctValue: currentLowStepPct,
+  lowStepPctDelta,
+  d: props.paramDeltas,
+  PARAM_RANGES,
+});
+
   return (
     <Card
       sx={{
@@ -331,6 +356,23 @@ export function GraphCard(props: NodeCardPreviewProps) {
               </IconButton>
             )}
 
+            {props.type === "params" && !props.isComparePicking && (
+              <IconButton
+                size="small"
+                title="Add node"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  props.onStartCompare?.(props.nodeId);
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
+                <CompareIcon fontSize="small" />
+              </IconButton>
+            )}
             {props.canHide !== false && (
               <IconButton
                 size="small"
@@ -389,7 +431,7 @@ export function GraphCard(props: NodeCardPreviewProps) {
 
         {(summaryChips.length > 0 || hasNote) && (
           <>
-            {summaryChips.length > 0 && (
+            {summaryChips.length > 0 && props.graphCardDisplayMode === "chips" && (
               <Box
                 sx={{
                   mt: 1,
@@ -420,6 +462,14 @@ export function GraphCard(props: NodeCardPreviewProps) {
               </Box>
             )}
 
+                        {props.type === "params" && props.graphCardDisplayMode === "bars" && parameterItems.length > 0 && (
+  <Box sx={{ mt: 1 }}>
+    <ParameterBarGroup
+      items={parameterItems}
+    />
+  </Box>
+)}
+
             {props.notesEnabled && hasNote && (
               <Box sx={{ mt: summaryChips.length > 0 ? 0.75 : 1 }}>
                 <Chip
@@ -444,6 +494,8 @@ export function GraphCard(props: NodeCardPreviewProps) {
                 />
               </Box>
             )}
+
+
           </>
         )}
       </CardContent>

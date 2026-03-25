@@ -17,7 +17,7 @@ import {
   SimpleReal,
   SimpleSliderKey,
 } from "../types/ui";
-import { DEFAULT_CATEGORY_LABELS } from "./sliderLogic";
+import { DEFAULT_CATEGORY_LABELS } from "./presets";
 
 export function axisValue(id: AxisId, allScores: Record<string, number>) {
   return allScores[String(id)] ?? 0;

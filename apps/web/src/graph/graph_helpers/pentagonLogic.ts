@@ -2,12 +2,12 @@ import React from "react";
 import { axisLabel, axisValue } from "./clipDialogLogic";
 import { AxisId, CustomScoreSlider } from "../types/ui";
 import { getAxisBlockReason } from "./axisSimilarity";
-import { DEFAULT_FORMULA_WEIGHTS } from "../hooks/useV2VParams";
 import {
   loadPentagonAxes,
   savePentagonAxes,
   normalizePentagonAxes,
 } from "../../utils/localStorage";
+import { DEFAULT_FORMULA_WEIGHTS } from "./presets";
 
 export function pentagonLogic(
   allScores: Record<string, number>,

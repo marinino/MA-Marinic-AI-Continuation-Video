@@ -29,8 +29,6 @@ import { SAFE_PRESETS, useV2VSliders } from "../hooks/useV2VSliders";
 import {
   computeAllScores,
   computeCategoryScoresFromSimple,
-  DEFAULT_CUSTOM_W,
-  DEFAULT_FORMULA_WEIGHTS,
   deriveV2VParamsFromSimple,
   getScoreRanges,
 } from "../hooks/useV2VParams";
@@ -64,6 +62,7 @@ import {
   V2VTab,
 } from "../types/ui";
 import { renderOrderedSliderItem } from "../components/RenderedOrderedSliders";
+import { DEFAULT_CUSTOM_W } from "../graph_helpers/presets";
 
 export type ClipDialogProps = {
   open: boolean;

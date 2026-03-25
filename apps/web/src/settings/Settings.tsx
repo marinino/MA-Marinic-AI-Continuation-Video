@@ -10,7 +10,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import { GraphCardContentMode } from "../graph/types/ui";
+import { GraphCardContentMode, GraphCardDisplayMode } from "../graph/types/ui";
 import { BooleanToggleRow } from "../graph/components/BooleanToggleRow";
 
 type SettingsProps = {
@@ -26,6 +26,8 @@ type SettingsProps = {
   showWeightSuggestionsEnabled: boolean;
   graphCardContentMode: GraphCardContentMode;
   setGraphCardContentMode: (value: GraphCardContentMode) => void;
+  graphCardDisplayMode: GraphCardDisplayMode;
+  setGraphCardDisplayMode: (value: GraphCardDisplayMode) => void;
   restrictCategories: boolean;
   setRestrictCategories: (value: boolean) => void;
 };
@@ -43,6 +45,8 @@ export function Settings({
   showWeightSuggestionsEnabled,
   graphCardContentMode,
   setGraphCardContentMode,
+  graphCardDisplayMode,
+  setGraphCardDisplayMode,
   restrictCategories,
   setRestrictCategories,
 }: SettingsProps) {
@@ -144,6 +148,55 @@ export function Settings({
             </Button>
           </ButtonGroup>
         </Box>
+
+        <Box
+  sx={{
+    mt: 2,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 2,
+  }}
+>
+  <Box sx={{ display: "flex", flexDirection: "column", maxWidth: "70%" }}>
+    <Typography>Graph card style</Typography>
+
+    <Typography variant="caption" color="text.secondary">
+      Choose whether graph cards display values as chips or bars
+    </Typography>
+  </Box>
+
+  <ButtonGroup
+    variant="contained"
+    sx={{
+      boxShadow: "none",
+      "& .MuiButton-root:first-of-type": {
+        borderTopLeftRadius: 100,
+        borderBottomLeftRadius: 100,
+      },
+      "& .MuiButton-root:last-of-type": {
+        borderTopRightRadius: 100,
+        borderBottomRightRadius: 100,
+      },
+    }}
+  >
+    <Button
+      disableElevation
+      variant={graphCardDisplayMode === "chips" ? "contained" : "outlined"}
+      onClick={() => setGraphCardDisplayMode("chips")}
+    >
+      Chips
+    </Button>
+
+    <Button
+      disableElevation
+      variant={graphCardDisplayMode === "bars" ? "contained" : "outlined"}
+      onClick={() => setGraphCardDisplayMode("bars")}
+    >
+      Bars
+    </Button>
+  </ButtonGroup>
+</Box>
       </DialogContent>
 
       <DialogActions>

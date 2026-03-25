@@ -12,9 +12,12 @@ import { EditNode } from "./EditNode";
 import {
   BrachSuggestion,
   GraphCardContentMode,
+  GraphCardDisplayMode,
   ParamDelats,
   ParameterHistoryMap,
 } from "../types/ui";
+import { deltaChipSx } from "../hooks/useV2VParams";
+import { ImportNode } from "./ImportNode";
 
 function getNodeColors(kind: NodeType, isRoot: boolean) {
   if (isRoot) return { border: "#ff9800", bg: "#FFF8E1" }; // Root Clip
@@ -25,38 +28,9 @@ function getNodeColors(kind: NodeType, isRoot: boolean) {
       return { border: "#8bc34a", bg: "#E8F5E9" };
     case "edit":
       return { border: "#9c27b0", bg: "#F3E5F5" };
+    case "import":
+      return { border: "#00897b", bg: "#E0F2F1" };
   }
-}
-
-export function fmt(d: number | null | undefined, decimals = 2) {
-  if (typeof d !== "number" || !Number.isFinite(d) || d === 0) return "";
-  const sign = d > 0 ? "+" : "−";
-  return `(${sign}${Math.abs(d).toFixed(decimals)})`;
-}
-
-export function deltaChipSx(delta: number | null | undefined) {
-  if (typeof delta !== "number" || !Number.isFinite(delta) || delta === 0) return undefined;
-
-  return {
-    border: "1px solid",
-    borderColor: delta > 0 ? "#4dabf5" : "#f73378", // blau vs rot
-    // optional: bisschen stärker sichtbar
-    boxShadow: delta > 0 ? "0 0 0 1px rgba(2,136,209,0.15)" : "0 0 0 1px rgba(211,47,47,0.15)",
-  } as const;
-}
-
-export function withOptionalDelta(
-  label: string,
-  value: string | number | null | undefined,
-  delta: number | null | undefined,
-  digits = 2
-) {
-  const hasDelta = delta != null;
-  return hasDelta ? `${label}: ${value} ${fmt(delta, digits)}` : `${label}: ${value}`;
-}
-
-export function deltaSxOrNeutral(delta: number | null | undefined) {
-  return delta != null ? deltaChipSx(delta) : {};
 }
 
 export function NodeCard(props: {
@@ -112,11 +86,15 @@ export function NodeCard(props: {
   onShowAllCategories?: () => void;
   showWeightSuggestionsEnabled?: boolean;
   graphCardContentMode?: GraphCardContentMode;
+  graphCardDisplayMode?: GraphCardDisplayMode
   displayTotalSteps?: number;
   displayLowStepPct?: number;
   parameterHistory?: ParameterHistoryMap;
 
   onOpenDetails?: (nodeId: string) => void;
+  onStartCompare?: (nodeId: string) => void;
+  isComparePicking?: boolean;
+  compareSourceNodeId?: string | null;
 }) {
   const theme = useTheme();
 
@@ -169,12 +147,16 @@ export function NodeCard(props: {
         categoryLabels={props.categoryLabels}
         categoryVisibility={props.categoryVisibility}
         graphCardContentMode={props.graphCardContentMode}
+        graphCardDisplayMode={props.graphCardDisplayMode}
         onDelete={props.onDelete}
         canDelete={props.canDelete}
         onHide={props.onHide}
         canHide={props.canHide}
         displayTotalSteps={props.displayTotalSteps}
         displayLowStepPct={props.displayLowStepPct}
+        onStartCompare={props.onStartCompare}
+        isComparePicking={props.isComparePicking}
+        compareSourceNodeId={props.compareSourceNodeId}
       >
         {props.children}
       </GraphCard>
@@ -188,4 +170,5 @@ export const nodeTypes = {
   clip: ClipNode,
   params: ParamNode,
   edit: EditNode,
+  import: ImportNode,
 };

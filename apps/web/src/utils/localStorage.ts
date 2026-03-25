@@ -1,5 +1,4 @@
-import { DEFAULT_BASE_ORDER } from "../graph/graph_helpers/sliderLogic";
-import { DEFAULT_FORMULA_WEIGHTS } from "../graph/hooks/useV2VParams";
+import { DEFAULT_FORMULA_WEIGHTS, DEFAULT_BASE_ORDER } from "../graph/graph_helpers/presets";
 import { AppSettings, CustomScoreSlider, FormulaWeights } from "../graph/types/ui";
 
 const KEY_FORMULA = "ma:v2v:formulaWeights:v1";
@@ -105,6 +104,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notesEnabled: true,
   showWeightSuggestionsEnabled: true,
   graphCardContentMode: "parameters",
+  graphCardDisplayMode: "chips",
   restrictCategories: true,
 };
 
@@ -125,6 +125,11 @@ export function loadSettings(): AppSettings {
         parsed?.graphCardContentMode === "parameters"
           ? parsed.graphCardContentMode
           : DEFAULT_SETTINGS.graphCardContentMode,
+      graphCardDisplayMode:
+        parsed?.graphCardDisplayMode === "chips" ||
+        parsed?.graphCardDisplayMode === "bars"
+          ? parsed.graphCardDisplayMode
+          : DEFAULT_SETTINGS.graphCardDisplayMode,
       restrictCategories: parsed?.restrictCategories !== false,
     };
   } catch {

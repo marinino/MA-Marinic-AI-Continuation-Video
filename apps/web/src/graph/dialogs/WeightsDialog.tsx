@@ -66,7 +66,7 @@ export function WeightsDialog(props: {
                   [field.key]: Number(e.target.value),
                 } as Partial<CleanWeights>)
               }
-              inputProps={{ step: 0.05 }}
+              slotProps={{ htmlInput: { step: 0.05 } }}
               helperText={field.helper}
               fullWidth
             />

@@ -1,7 +1,6 @@
 import { nanoid } from "nanoid";
 import type { Edge as RFEdge, Node as RFNode, ReactFlowInstance } from "reactflow";
 import type { Project, StoredMediaFile } from "@ma/shared";
-
 import { comfyUploadVideo, uploadTimelineFile } from "../../api";
 import { parsedChangelogLines } from "../../utils/parseTimelineChangelog";
 import {
@@ -16,10 +15,8 @@ type UseManualTimelineImportArgs = {
   project: Project;
   onChange: (updater: Project | ((prev: Project) => Project)) => void;
   showEdgeLabels: boolean;
-
   rfInstance: ReactFlowInstance | null;
   saveViewport: () => void;
-
   g: {
     rfNodes: RFNode[];
     rfEdges: RFEdge[];
@@ -27,11 +24,9 @@ type UseManualTimelineImportArgs = {
     setRfEdges: React.Dispatch<React.SetStateAction<RFEdge[]>>;
     commit: (nodes?: RFNode[], edges?: RFEdge[]) => void;
   };
-
   uploadedTimelineFile: File | null;
   editedVideoFile: File | null;
   manualEditDraft: ManualEditDraft | null;
-
   setUploadedTimelineFile: React.Dispatch<React.SetStateAction<File | null>>;
   setEditedVideoFile: React.Dispatch<React.SetStateAction<File | null>>;
   setManualEditDraft: React.Dispatch<React.SetStateAction<ManualEditDraft | null>>;

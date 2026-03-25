@@ -64,28 +64,34 @@ export default function App({
     initialSettings.graphCardContentMode
   );
 
+  const [graphCardDisplayMode, setGraphCardDisplayMode] = useState(
+  initialSettings.graphCardDisplayMode
+);
+
   const [restrictCategories, setRestrictCategories] = useState(initialSettings.restrictCategories);
 
   const dirtyRef = useRef(false);
   const projectRef = useRef<Project | null>(null);
 
-  useEffect(() => {
-    saveSettings({
-      showEdgeLabels,
-      highlightUnseenEnabled,
-      notesEnabled,
-      showWeightSuggestionsEnabled,
-      graphCardContentMode,
-      restrictCategories,
-    });
-  }, [
+useEffect(() => {
+  saveSettings({
     showEdgeLabels,
     highlightUnseenEnabled,
     notesEnabled,
     showWeightSuggestionsEnabled,
     graphCardContentMode,
+    graphCardDisplayMode,
     restrictCategories,
-  ]);
+  });
+}, [
+  showEdgeLabels,
+  highlightUnseenEnabled,
+  notesEnabled,
+  showWeightSuggestionsEnabled,
+  graphCardContentMode,
+  graphCardDisplayMode,
+  restrictCategories,
+]);
 
   useEffect(() => {
     let cancelled = false;
@@ -293,6 +299,7 @@ export default function App({
               showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
               graphCardContentMode={graphCardContentMode}
               restrictCategories={restrictCategories}
+              graphCardDisplayMode={graphCardDisplayMode}
             />
           </ReactFlowProvider>
         </Box>
@@ -313,6 +320,8 @@ export default function App({
         setGraphCardContentMode={setGraphCardContentMode}
         restrictCategories={restrictCategories}
         setRestrictCategories={setRestrictCategories}
+          graphCardDisplayMode={graphCardDisplayMode}
+  setGraphCardDisplayMode={setGraphCardDisplayMode}
       />
 
       <InformationDialog open={legendOpen} onClose={() => setLegendOpen(false)} />

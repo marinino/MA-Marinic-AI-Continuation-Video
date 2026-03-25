@@ -18,7 +18,6 @@ export function useDavinciTimeline(args: {
   const [errorDialog, setErrorDialog] = useState<{ title: string; message: string } | null>(null);
 
   function requireTimelineFromContext(): { stored: string; url: string } | null {
-    // 1) Für laufenden Manual-Edit immer Draft-Kontext bevorzugen
     if (manualEditDraft) {
       const stored = getBaselineStoredTimelineFilenameForClip(project, manualEditDraft.fromClipId);
 
@@ -40,7 +39,6 @@ export function useDavinciTimeline(args: {
       return { stored, url };
     }
 
-    // 2) Fallback: altes Verhalten über selected node
     const editId = getCurrentEditId(project);
 
     if (!editId) {

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const NodeTypeSchema = z.enum(["clip", "params", "edit"]);
+export const NodeTypeSchema = z.enum(["clip", "params", "edit", "import"]);
 
 export const BaseNodeSchema = z.object({
   id: z.string(),
@@ -55,7 +55,17 @@ export const EditNodeDataSchema = z
   })
   .passthrough();
 
-export const EdgeTypeSchema = z.enum(["input", "output", "edit_in", "edit_out"]);
+export const ImportNodeDataSchema = z
+  .object({
+    label: z.string(),
+    importedFileName: z.string().optional(),
+    parentClipId: z.string().optional(),
+    note: z.string().optional(),
+    isHidden: z.boolean().optional(),
+  })
+  .passthrough();
+
+export const EdgeTypeSchema = z.enum(["input", "output", "edit_in", "edit_out", "import"]);
 
 export const EdgeSchema = z.object({
   id: z.string(),
@@ -97,6 +107,7 @@ export const NodeSchema = z.discriminatedUnion("type", [
   BaseNodeSchema.extend({ type: z.literal("clip"), data: ClipNodeDataSchema }),
   BaseNodeSchema.extend({ type: z.literal("params"), data: ParamNodeDataSchema }),
   BaseNodeSchema.extend({ type: z.literal("edit"), data: EditNodeDataSchema }),
+  BaseNodeSchema.extend({ type: z.literal("import"), data: ImportNodeDataSchema }),
 ]);
 
 export const ProjectSchema = z.object({
@@ -111,6 +122,7 @@ export const ProjectSchema = z.object({
       clip: z.boolean().default(true),
       params: z.boolean().default(true),
       edit: z.boolean().default(true),
+      import: z.boolean().default(true),
     }),
   }),
 });

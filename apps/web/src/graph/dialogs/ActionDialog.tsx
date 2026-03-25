@@ -21,6 +21,7 @@ export type ActionDialogProps = {
   showHiddenChildrenButton: boolean;
   onShowHiddenChildren: () => void;
   hiddenChildrenCount: number;
+  onOpenImportVideo: () => void;
 };
 
 export function ActionDialog(props: ActionDialogProps) {
@@ -62,6 +63,9 @@ export function ActionDialog(props: ActionDialogProps) {
           </Button>
           <Button variant="outlined" onClick={props.onManualEdit}>
             Edit current clip
+          </Button>
+          <Button variant="outlined" onClick={props.onOpenImportVideo}>
+            Import video
           </Button>
           <Button variant="contained" onClick={props.onGenerate} disabled={!props.canGenerate}>
             Generate Continuation

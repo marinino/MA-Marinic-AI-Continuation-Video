@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import type { StoredMediaFile } from "@ma/shared";
 
-import { comfyBuildVideoUrl, comfyFindVideoFromHistory, comfyGetHistory } from "../../../src/api"; // <-- adjust path!
+import { comfyBuildVideoUrl, comfyFindVideoFromHistory, comfyGetHistory } from "../../../src/api";
 import { Job } from "../types/ui";
 
 function pickMediaFile(output: any): StoredMediaFile | null {
@@ -120,7 +120,7 @@ export function useComfyJobs() {
           );
         },
         100 * 60 * 100000
-      ); // EXACT mega-file value
+      );
       timeoutMapRef.current.set(jobId, timeout);
 
       const finalizeSuccess = (file: StoredMediaFile) => {
@@ -155,10 +155,8 @@ export function useComfyJobs() {
         }
 
         if (msg?.type === "executed") {
-          // IMPORTANT: filter to this job's prompt_id
           if (msg?.data?.prompt_id && msg.data.prompt_id !== prompt_id) return;
 
-          // EXACT mega-file: node/display_node === "123"
           if (String(msg?.data?.node ?? msg?.data?.display_node) === "123") {
             const file = pickMediaFile(msg?.data?.output);
             if (file) finalizeSuccess(file);
@@ -238,7 +236,6 @@ export function useComfyJobs() {
 
   useEffect(() => {
     return () => {
-      // cleanup everything
       for (const j of jobsRef.current) cleanup(j.id);
     };
   }, []);
@@ -246,6 +243,6 @@ export function useComfyJobs() {
   return {
     jobs,
     enqueue,
-    setJobs, // optional, but useful
+    setJobs,
   };
 }

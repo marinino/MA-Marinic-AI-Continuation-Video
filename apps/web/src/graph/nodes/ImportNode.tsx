@@ -1,11 +1,8 @@
-import { StoredMediaFile } from "@ma/shared";
-import { Typography } from "@mui/material";
-import { NodeProps, Handle, Position } from "reactflow";
-import { comfyBuildVideoUrl } from "../../api";
+import { Handle, NodeProps, Position } from "reactflow";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { NodeCard } from "./Node";
-import MovieIcon from "@mui/icons-material/Movie";
 
-export function ClipNode(props: NodeProps<any>) {
+export function ImportNode(props: NodeProps<any>) {
   return (
     <div style={{ position: "relative" }}>
       <Handle id="in" type="target" position={Position.Left} />
@@ -13,17 +10,11 @@ export function ClipNode(props: NodeProps<any>) {
 
       <NodeCard
         nodeId={props.id}
-        onAdd={props.data?.onAdd}
-        icon={<MovieIcon fontSize="small" />}
-        title="Clip"
-        type="clip"
-        isRoot={Boolean(props.data?.isRoot)}
+        icon={<UploadFileIcon fontSize="small" />}
+        title="Import"
+        type="import"
+        isRoot={false}
         selected={props.selected}
-        videoUrl={props.data?.videoUrl}
-        videoFile={props.data?.videoFile}
-        videoStatus={props.data?.videoStatus}
-        videoOpened={props.data?.videoOpened}
-        onVideoOpened={props.data?.markVideoOpened}
         note={props.data?.note}
         onSaveNote={props.data?.onSaveNote}
         onDelete={props.data?.onDelete}
@@ -32,6 +23,8 @@ export function ClipNode(props: NodeProps<any>) {
         canHide={!props.data?.isRoot}
         highlightUnseenEnabled={props.data?.highlightUnseenEnabled}
         notesEnabled={props.data?.notesEnabled}
+        showWeightSuggestionsEnabled={props.data?.showWeightSuggestionsEnabled}
+        graphCardContentMode={props.data?.graphCardContentMode}
         onOpenDetails={props.data?.onOpenDetails}
       />
     </div>

@@ -346,6 +346,7 @@ export type AppSettings = {
   notesEnabled: boolean;
   showWeightSuggestionsEnabled: boolean;
   graphCardContentMode: GraphCardContentMode;
+  graphCardDisplayMode: GraphCardDisplayMode;
   restrictCategories: boolean;
 };
 
@@ -413,3 +414,5 @@ export type HistoryPoint = {
 };
 
 export type ParameterHistoryMap = Record<string, HistoryPoint[]>;
+
+export type GraphCardDisplayMode = "chips" | "bars";

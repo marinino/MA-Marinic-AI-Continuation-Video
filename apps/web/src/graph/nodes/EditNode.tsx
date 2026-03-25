@@ -13,13 +13,9 @@ export function EditNode(props: NodeProps<any>) {
   ): boolean {
     switch (kind) {
       case "clip_added":
-        return lines.some(
-          (line) => line.startsWith("Added ") && line.endsWith("frames to video")
-        );
+        return lines.some((line) => line.startsWith("Added ") && line.endsWith("frames to video"));
       case "clip_removed":
-        return lines.some(
-          (line) => line.startsWith("Cut ") && line.endsWith("frames from video")
-        );
+        return lines.some((line) => line.startsWith("Cut ") && line.endsWith("frames from video"));
       case "effect_added":
         return lines.some((line) => line.startsWith("Added effect"));
       default:
