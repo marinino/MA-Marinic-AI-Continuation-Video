@@ -171,7 +171,7 @@ export function buildParameterHistoryFromBranchSteps(
   branchSteps: any[],
   nodesById: Map<string, RFNode>
 ): ParameterHistoryMap {
-  const raw = Array.isArray(branchSteps) ? branchSteps.slice(-10) : [];
+  const raw = Array.isArray(branchSteps) ? branchSteps : [];
 
   const normalized = raw
     .map((step, index) => {
