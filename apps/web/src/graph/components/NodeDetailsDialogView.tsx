@@ -111,13 +111,7 @@ export function NodeDetailsDialogView({
                     : "No prompt set yet."}
                 </Typography>
 
-                {logic.parameterItems.length > 0 && !Boolean(props.compareBaseNodeLabel) && (
-                  <ParameterBarGroup
-                    items={logic.parameterItems}
-                    history={props.parameterHistory}
-                    isFromChip={false}
-                  />
-                )}
+
 
                 {logic.parameterItems.length > 0 && Boolean(props.compareBaseNodeLabel) && (
                   <CompareParameterBarGroup items={logic.parameterItems} />
@@ -189,36 +183,22 @@ export function NodeDetailsDialogView({
                     </>
                   )}
 
-                <Divider />
 
-                <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                  <strong>Category scores</strong>
-                </Typography>
-
-                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                  {logic.visibleCategoryEntries.map((entry) => (
-                    <Chip
-                      key={entry.key}
-                      size="small"
-                      label={`${entry.label}: ${entry.value} ${logic.fmt(entry.delta, 2)}`}
-                      sx={logic.deltaChipSx(entry.delta)}
-                      onClick={() => logic.openCategoryDialog(entry)}
-                    />
-                  ))}
-
-                  <Chip
-                    sx={{ borderStyle: "dashed", opacity: 0.8 }}
-                    size="small"
-                    variant="outlined"
-                    label="Show all categories"
-                    onClick={() => props.onShowAllCategories?.()}
-                  />
-                </Stack>
+      
               </>
             ) : props.type === "import" ? (
               <Typography variant="body2" color="text.secondary">
                 This is an import node, the user manually uploaded a video here.
               </Typography>
+            ) : props.videoUrl ? (
+              <>
+                <video src={props.videoUrl} controls style={{ width: "100%", borderRadius: 8 }} />
+                {props.videoFile?.filename && (
+                  <Typography variant="caption" color="text.secondary">
+                    {props.videoFile.filename}
+                  </Typography>
+                )}
+              </>
             ) : (
               <Typography variant="body2" color="text.secondary">
                 Unkown node type

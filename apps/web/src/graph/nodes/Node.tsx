@@ -96,6 +96,7 @@ export function NodeCard(props: {
   onStartCompare?: (nodeId: string) => void;
   isComparePicking?: boolean;
   compareSourceNodeId?: string | null;
+  onSelectNode?: (nodeId: string) => void;
 }) {
   const theme = useTheme();
 
@@ -159,6 +160,7 @@ export function NodeCard(props: {
         isComparePicking={props.isComparePicking}
         compareSourceNodeId={props.compareSourceNodeId}
         showOnlyChangedParameters={props.showOnlyChangedParameters}
+        onSelectNode={props.onSelectNode}
       >
         {props.children}
       </GraphCard>

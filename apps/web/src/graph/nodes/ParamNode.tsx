@@ -58,6 +58,7 @@ export function ParamNode(props: NodeProps<any>) {
         isComparePicking={props.data.isComparePicking}
         compareSourceNodeId={props.data.compareSourceNodeId}
         showOnlyChangedParameters={props.data.showOnlyChangedParameters}
+        onSelectNode={props.data.onSelectNode}
       />
     </div>
   );

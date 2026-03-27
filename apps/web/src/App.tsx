@@ -28,6 +28,7 @@ import { InformationDialog } from "./graph/dialogs/InformationDialog";
 
 import { loadSettings, saveSettings } from "./utils/localStorage";
 import { LoadProjectDialog } from "./graph/dialogs/LoadProjectsDialog";
+import { CategoryScoresSidebar } from "./graph/components/CategoryScoresSidebar";
 
 type ColorMode = "light" | "dark";
 
@@ -73,6 +74,34 @@ export default function App({
   const [showOnlyChangedParameters, setShowOnlyChangedParameters] = useState(
     initialSettings.showOnlyChangedParameters
   );
+
+  const [isCategorySidebarOpen, setIsCategorySidebarOpen] = useState(true);
+
+const [sidebarData, setSidebarData] = useState<{
+  selectedNodeLabel: string | null;
+  computed: any | null;
+  orderedSliderItems: any[];
+  clipLogic: any;
+  parameterItems: any[];
+  parameterHistory: any;
+  compareBaseNodeLabel: string | null;
+  note: string;
+  notesEnabled: boolean;
+  onChangeNote?: (value: string) => void;
+  onSaveNote?: () => void;
+}>({
+  selectedNodeLabel: null,
+  computed: null,
+  orderedSliderItems: [],
+  clipLogic: null,
+  parameterItems: [],
+  parameterHistory: {},
+  compareBaseNodeLabel: null,
+  note: "",
+  notesEnabled: false,
+  onChangeNote: undefined,
+  onSaveNote: undefined,
+});
 
   const dirtyRef = useRef(false);
   const projectRef = useRef<Project | null>(null);
@@ -294,22 +323,69 @@ export default function App({
           </Toolbar>
         </AppBar>
 
-        <Box sx={{ flexGrow: 1 }}>
-          <ReactFlowProvider>
-            <GraphView
-              project={project}
-              onChange={onChange}
-              showEdgeLabels={showEdgeLabels}
-              highlightUnseenEnabled={highlightUnseenEnabled}
-              notesEnabled={notesEnabled}
-              showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
-              graphCardContentMode={graphCardContentMode}
-              restrictCategories={restrictCategories}
-              graphCardDisplayMode={graphCardDisplayMode}
-              showOnlyChangedParameters={showOnlyChangedParameters}
-            />
-          </ReactFlowProvider>
-        </Box>
+<Box
+  sx={{
+    flexGrow: 1,
+    minHeight: 0,
+    display: "flex",
+    overflow: "hidden",
+  }}
+>
+<Box
+  sx={{
+    flex: isCategorySidebarOpen ? "0 0 33%" : "0 0 52px",
+    width: isCategorySidebarOpen ? "33%" : "52px",
+    minWidth: 0,
+    maxWidth: isCategorySidebarOpen ? "33%" : "52px",
+    height: "100%",
+    borderRight: "1px solid",
+    borderColor: "divider",
+    bgcolor: "background.paper",
+    overflow: "hidden",
+    transition: "width 0.2s ease, flex-basis 0.2s ease",
+  }}
+>
+<CategoryScoresSidebar
+  open={isCategorySidebarOpen}
+  onToggle={() => setIsCategorySidebarOpen((prev) => !prev)}
+  selectedNodeLabel={sidebarData.selectedNodeLabel}
+  orderedSliderItems={sidebarData.orderedSliderItems}
+  computed={sidebarData.computed}
+  clipLogic={sidebarData.clipLogic}
+  parameterItems={sidebarData.parameterItems}
+  parameterHistory={sidebarData.parameterHistory}
+  compareBaseNodeLabel={sidebarData.compareBaseNodeLabel}
+  notesEnabled={sidebarData.notesEnabled}
+  note={sidebarData.note}
+  onChangeNote={sidebarData.onChangeNote}
+  onSaveNote={sidebarData.onSaveNote}
+/>
+  </Box>
+
+  <Box
+    sx={{
+      flex: 1,
+      minWidth: 0,
+      minHeight: 0,
+    }}
+  >
+    <ReactFlowProvider>
+      <GraphView
+        project={project}
+        onChange={onChange}
+        showEdgeLabels={showEdgeLabels}
+        highlightUnseenEnabled={highlightUnseenEnabled}
+        notesEnabled={notesEnabled}
+        showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
+        graphCardContentMode={graphCardContentMode}
+        restrictCategories={restrictCategories}
+        graphCardDisplayMode={graphCardDisplayMode}
+        showOnlyChangedParameters={showOnlyChangedParameters}
+        onSidebarDataChange={setSidebarData}
+      />
+    </ReactFlowProvider>
+  </Box>
+</Box>
       </Box>
 
       <Settings

@@ -85,6 +85,7 @@ export type NodeCardPreviewProps = {
   isComparePicking?: boolean;
   compareSourceNodeId?: string | null;
   showOnlyChangedParameters: boolean;
+  onSelectNode?: (nodeId: string) => void;
 };
 
 export function GraphCard(props: NodeCardPreviewProps) {
@@ -320,15 +321,26 @@ export function GraphCard(props: NodeCardPreviewProps) {
           : null),
       }}
       onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
+  e.preventDefault();
+  e.stopPropagation();
 
-        if (props.type === "clip") {
-          props.onVideoOpened?.(props.nodeId);
-        }
+  props.onSelectNode?.(props.nodeId);
 
-        props.onOpen();
-      }}
+  if (props.type === "clip") {
+    props.onVideoOpened?.(props.nodeId);
+    props.onOpen();
+    return;
+  }
+
+  if (props.type === "edit" || props.type === "import") {
+    props.onOpen();
+    return;
+  }
+
+  if (props.type === "params") {
+    return;
+  }
+}}
       onMouseDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
