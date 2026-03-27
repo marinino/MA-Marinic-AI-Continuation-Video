@@ -50,6 +50,7 @@ export function NodeCard(props: {
   metaSummary?: React.ReactNode;
   highlightUnseenEnabled?: boolean;
   notesEnabled: boolean;
+  showOnlyChangedParameters: boolean;
 
   highNoiseCfg?: number;
   lowNoiseCfg?: number;
@@ -86,7 +87,7 @@ export function NodeCard(props: {
   onShowAllCategories?: () => void;
   showWeightSuggestionsEnabled?: boolean;
   graphCardContentMode?: GraphCardContentMode;
-  graphCardDisplayMode?: GraphCardDisplayMode
+  graphCardDisplayMode?: GraphCardDisplayMode;
   displayTotalSteps?: number;
   displayLowStepPct?: number;
   parameterHistory?: ParameterHistoryMap;
@@ -157,6 +158,7 @@ export function NodeCard(props: {
         onStartCompare={props.onStartCompare}
         isComparePicking={props.isComparePicking}
         compareSourceNodeId={props.compareSourceNodeId}
+        showOnlyChangedParameters={props.showOnlyChangedParameters}
       >
         {props.children}
       </GraphCard>

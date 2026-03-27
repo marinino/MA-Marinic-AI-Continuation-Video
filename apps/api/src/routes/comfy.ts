@@ -8,7 +8,6 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 
-
 const COMFY_URL = process.env.COMFY_URL ?? "http://127.0.0.1:8188";
 const COMFY_WS = COMFY_URL.replace(/^http/, "ws");
 

@@ -65,16 +65,30 @@ export default function App({
   );
 
   const [graphCardDisplayMode, setGraphCardDisplayMode] = useState(
-  initialSettings.graphCardDisplayMode
-);
+    initialSettings.graphCardDisplayMode
+  );
 
   const [restrictCategories, setRestrictCategories] = useState(initialSettings.restrictCategories);
+
+  const [showOnlyChangedParameters, setShowOnlyChangedParameters] = useState(
+    initialSettings.showOnlyChangedParameters
+  );
 
   const dirtyRef = useRef(false);
   const projectRef = useRef<Project | null>(null);
 
-useEffect(() => {
-  saveSettings({
+  useEffect(() => {
+    saveSettings({
+      showEdgeLabels,
+      highlightUnseenEnabled,
+      notesEnabled,
+      showWeightSuggestionsEnabled,
+      graphCardContentMode,
+      graphCardDisplayMode,
+      restrictCategories,
+      showOnlyChangedParameters,
+    });
+  }, [
     showEdgeLabels,
     highlightUnseenEnabled,
     notesEnabled,
@@ -82,16 +96,8 @@ useEffect(() => {
     graphCardContentMode,
     graphCardDisplayMode,
     restrictCategories,
-  });
-}, [
-  showEdgeLabels,
-  highlightUnseenEnabled,
-  notesEnabled,
-  showWeightSuggestionsEnabled,
-  graphCardContentMode,
-  graphCardDisplayMode,
-  restrictCategories,
-]);
+    showOnlyChangedParameters,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -300,6 +306,7 @@ useEffect(() => {
               graphCardContentMode={graphCardContentMode}
               restrictCategories={restrictCategories}
               graphCardDisplayMode={graphCardDisplayMode}
+              showOnlyChangedParameters={showOnlyChangedParameters}
             />
           </ReactFlowProvider>
         </Box>
@@ -320,8 +327,10 @@ useEffect(() => {
         setGraphCardContentMode={setGraphCardContentMode}
         restrictCategories={restrictCategories}
         setRestrictCategories={setRestrictCategories}
-          graphCardDisplayMode={graphCardDisplayMode}
-  setGraphCardDisplayMode={setGraphCardDisplayMode}
+        graphCardDisplayMode={graphCardDisplayMode}
+        setGraphCardDisplayMode={setGraphCardDisplayMode}
+        showOnlyChangedParameters={showOnlyChangedParameters}
+        setShowOnlyChangedParameters={setShowOnlyChangedParameters}
       />
 
       <InformationDialog open={legendOpen} onClose={() => setLegendOpen(false)} />

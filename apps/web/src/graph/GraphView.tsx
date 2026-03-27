@@ -123,6 +123,7 @@ export function GraphView(props: {
   graphCardContentMode: GraphCardContentMode;
   graphCardDisplayMode: GraphCardDisplayMode;
   restrictCategories: boolean;
+  showOnlyChangedParameters: boolean;
 }) {
   // ---------- reactflow instance ----------
   const rf = useReactFlow();
@@ -846,6 +847,7 @@ export function GraphView(props: {
         showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
         graphCardContentMode: props.graphCardContentMode,
         graphCardDisplayMode: props.graphCardDisplayMode,
+        showOnlyChangedParameters: props.showOnlyChangedParameters,
         onSaveNote: saveNodeNote,
         markVideoOpened,
         onDelete: handleDeleteNode,
@@ -1097,6 +1099,7 @@ export function GraphView(props: {
     props.notesEnabled,
     props.showWeightSuggestionsEnabled,
     props.graphCardDisplayMode,
+    props.showOnlyChangedParameters,
     categoryLabels,
     categoryVisibility,
     props.graphCardContentMode,

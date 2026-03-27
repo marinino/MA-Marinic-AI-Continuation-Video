@@ -30,6 +30,8 @@ type SettingsProps = {
   setGraphCardDisplayMode: (value: GraphCardDisplayMode) => void;
   restrictCategories: boolean;
   setRestrictCategories: (value: boolean) => void;
+  showOnlyChangedParameters: boolean;
+  setShowOnlyChangedParameters: (value: boolean) => void;
 };
 
 export function Settings({
@@ -49,6 +51,8 @@ export function Settings({
   setGraphCardDisplayMode,
   restrictCategories,
   setRestrictCategories,
+  showOnlyChangedParameters,
+  setShowOnlyChangedParameters,
 }: SettingsProps) {
   return (
     <Dialog
@@ -98,6 +102,13 @@ export function Settings({
           description="When enabled the categories which are displayed in the pentagon and triangle can not be choosen freely and will be disabled if the selection is not deemed meaningful"
           value={restrictCategories}
           onChange={setRestrictCategories}
+        />
+
+        <BooleanToggleRow
+          label="Only show the changed parameters in the graph"
+          description="When enabled the nodes in the graph will only show the parameters that have changed from their parent node"
+          value={showOnlyChangedParameters}
+          onChange={setShowOnlyChangedParameters}
         />
 
         <Box
@@ -150,53 +161,53 @@ export function Settings({
         </Box>
 
         <Box
-  sx={{
-    mt: 2,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 2,
-  }}
->
-  <Box sx={{ display: "flex", flexDirection: "column", maxWidth: "70%" }}>
-    <Typography>Graph card style</Typography>
+          sx={{
+            mt: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+          }}
+        >
+          <Box sx={{ display: "flex", flexDirection: "column", maxWidth: "70%" }}>
+            <Typography>Graph card style</Typography>
 
-    <Typography variant="caption" color="text.secondary">
-      Choose whether graph cards display values as chips or bars
-    </Typography>
-  </Box>
+            <Typography variant="caption" color="text.secondary">
+              Choose whether graph cards display values as chips or bars
+            </Typography>
+          </Box>
 
-  <ButtonGroup
-    variant="contained"
-    sx={{
-      boxShadow: "none",
-      "& .MuiButton-root:first-of-type": {
-        borderTopLeftRadius: 100,
-        borderBottomLeftRadius: 100,
-      },
-      "& .MuiButton-root:last-of-type": {
-        borderTopRightRadius: 100,
-        borderBottomRightRadius: 100,
-      },
-    }}
-  >
-    <Button
-      disableElevation
-      variant={graphCardDisplayMode === "chips" ? "contained" : "outlined"}
-      onClick={() => setGraphCardDisplayMode("chips")}
-    >
-      Chips
-    </Button>
+          <ButtonGroup
+            variant="contained"
+            sx={{
+              boxShadow: "none",
+              "& .MuiButton-root:first-of-type": {
+                borderTopLeftRadius: 100,
+                borderBottomLeftRadius: 100,
+              },
+              "& .MuiButton-root:last-of-type": {
+                borderTopRightRadius: 100,
+                borderBottomRightRadius: 100,
+              },
+            }}
+          >
+            <Button
+              disableElevation
+              variant={graphCardDisplayMode === "chips" ? "contained" : "outlined"}
+              onClick={() => setGraphCardDisplayMode("chips")}
+            >
+              Chips
+            </Button>
 
-    <Button
-      disableElevation
-      variant={graphCardDisplayMode === "bars" ? "contained" : "outlined"}
-      onClick={() => setGraphCardDisplayMode("bars")}
-    >
-      Bars
-    </Button>
-  </ButtonGroup>
-</Box>
+            <Button
+              disableElevation
+              variant={graphCardDisplayMode === "bars" ? "contained" : "outlined"}
+              onClick={() => setGraphCardDisplayMode("bars")}
+            >
+              Bars
+            </Button>
+          </ButtonGroup>
+        </Box>
       </DialogContent>
 
       <DialogActions>

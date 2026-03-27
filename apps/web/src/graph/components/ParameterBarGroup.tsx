@@ -21,12 +21,18 @@ const COLORS: Record<ParameterBarColorKey, string> = {
 export function ParameterBarGroup({
   items,
   history = {},
+  isFromChip = false,
+  showOnlyChangedParameters = false,
 }: {
   items: Item[];
   history?: ParameterHistoryMap;
+  isFromChip?: boolean;
+  showOnlyChangedParameters?: boolean;
 }) {
   const [isZoomed, setIsZoomed] = useState(false);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+
+  const visibleItems = showOnlyChangedParameters ? items.filter((item) => item.delta) : items;
 
   return (
     <Box
@@ -41,7 +47,7 @@ export function ParameterBarGroup({
     >
       {!isZoomed ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-          {items.map((item) => {
+          {visibleItems.map((item) => {
             const { key, label, value, min, max, delta, decimals = 2, colorKey } = item;
 
             const color = COLORS[colorKey];
@@ -72,7 +78,9 @@ export function ParameterBarGroup({
             return (
               <Tooltip key={key} title={tooltip} arrow>
                 <Box
-                  onClick={() => {if( history[key]?.length > 0) setIsZoomed(true)}}
+                  onClick={() => {
+                    if (!isFromChip) setIsZoomed(true);
+                  }}
                   onMouseEnter={() => setHoveredKey(key)}
                   onMouseLeave={() => setHoveredKey((curr) => (curr === key ? null : curr))}
                   sx={{
@@ -170,17 +178,19 @@ export function ParameterBarGroup({
               </Tooltip>
             );
           })}
-          <Typography
-            variant="caption"
-            sx={{
-              mt: 1,
-              opacity: 0.6,
-              display: "block",
-            }}
-          >
-            Hover to see the parent value (faded). Click a parameter to view the history across the
-            branch.
-          </Typography>
+          {!isFromChip && (
+            <Typography
+              variant="caption"
+              sx={{
+                mt: 1,
+                opacity: 0.6,
+                display: "block",
+              }}
+            >
+              Hover to see the parent value (faded). Click a parameter to view the history across
+              the branch.
+            </Typography>
+          )}
         </Box>
       ) : (
         <ZoomedParameterView

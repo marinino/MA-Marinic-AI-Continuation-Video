@@ -20,7 +20,12 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { getVisibleCategoryEntries } from "../graph_helpers/clipDialogLogic";
 import { truncateLabel } from "../graph_helpers/layout";
-import { fmt, deltaChipSx, buildParameterItems, deriveRangesFromPresets } from "../hooks/useV2VParams";
+import {
+  fmt,
+  deltaChipSx,
+  buildParameterItems,
+  deriveRangesFromPresets,
+} from "../hooks/useV2VParams";
 import { SAFE_PRESETS } from "../hooks/useV2VSliders";
 import { ParameterBarGroup } from "./ParameterBarGroup";
 
@@ -67,7 +72,7 @@ export type NodeCardPreviewProps = {
   categoryLabels?: CategoryLabelMap;
   categoryVisibility?: Record<string, boolean>;
   graphCardContentMode?: GraphCardContentMode;
-  graphCardDisplayMode?: GraphCardDisplayMode
+  graphCardDisplayMode?: GraphCardDisplayMode;
 
   onDelete?: (nodeId: string) => void;
   canDelete?: boolean;
@@ -79,6 +84,7 @@ export type NodeCardPreviewProps = {
   onStartCompare?: (nodeId: string) => void;
   isComparePicking?: boolean;
   compareSourceNodeId?: string | null;
+  showOnlyChangedParameters: boolean;
 };
 
 export function GraphCard(props: NodeCardPreviewProps) {
@@ -262,22 +268,22 @@ export function GraphCard(props: NodeCardPreviewProps) {
 
   const hasNote = Boolean(props.note?.trim());
 
-    const PARAM_RANGES = React.useMemo(
-      () => deriveRangesFromPresets([...SAFE_PRESETS.quality, ...SAFE_PRESETS.quick]),
-      []
-    );
+  const PARAM_RANGES = React.useMemo(
+    () => deriveRangesFromPresets([...SAFE_PRESETS.quality, ...SAFE_PRESETS.quick]),
+    []
+  );
 
   const parameterItems = buildParameterItems({
-  highNoiseCfg: props.highNoiseCfg,
-  highNoiseShift: props.highNoiseShift,
-  highNoiseModelStrength: props.highNoiseModelStrength,
-  totalStepsValue: currentTotalSteps,
-  totalStepsDelta,
-  lowStepPctValue: currentLowStepPct,
-  lowStepPctDelta,
-  d: props.paramDeltas,
-  PARAM_RANGES,
-});
+    highNoiseCfg: props.highNoiseCfg,
+    highNoiseShift: props.highNoiseShift,
+    highNoiseModelStrength: props.highNoiseModelStrength,
+    totalStepsValue: currentTotalSteps,
+    totalStepsDelta,
+    lowStepPctValue: currentLowStepPct,
+    lowStepPctDelta,
+    d: props.paramDeltas,
+    PARAM_RANGES,
+  });
 
   return (
     <Card
@@ -462,13 +468,17 @@ export function GraphCard(props: NodeCardPreviewProps) {
               </Box>
             )}
 
-                        {props.type === "params" && props.graphCardDisplayMode === "bars" && parameterItems.length > 0 && (
-  <Box sx={{ mt: 1 }}>
-    <ParameterBarGroup
-      items={parameterItems}
-    />
-  </Box>
-)}
+            {props.type === "params" &&
+              props.graphCardDisplayMode === "bars" &&
+              parameterItems.length > 0 && (
+                <Box sx={{ mt: 1 }}>
+                  <ParameterBarGroup
+                    items={parameterItems}
+                    isFromChip={true}
+                    showOnlyChangedParameters={props.showOnlyChangedParameters}
+                  />
+                </Box>
+              )}
 
             {props.notesEnabled && hasNote && (
               <Box sx={{ mt: summaryChips.length > 0 ? 0.75 : 1 }}>
@@ -494,8 +504,6 @@ export function GraphCard(props: NodeCardPreviewProps) {
                 />
               </Box>
             )}
-
-
           </>
         )}
       </CardContent>

@@ -22,8 +22,6 @@ import { ParameterBarGroup } from "../components/ParameterBarGroup";
 import { NodeDetailsDialogProps } from "../types/props";
 import { useNodeDetailsDialog } from "../hooks/useNodeDetailsDialogLogic";
 import { CompareParameterBarGroup } from "./CompareParameterBarGroup";
-;
-
 type Logic = ReturnType<typeof useNodeDetailsDialog>;
 
 export function NodeDetailsDialogView({
@@ -117,78 +115,79 @@ export function NodeDetailsDialogView({
                   <ParameterBarGroup
                     items={logic.parameterItems}
                     history={props.parameterHistory}
+                    isFromChip={false}
                   />
                 )}
 
                 {logic.parameterItems.length > 0 && Boolean(props.compareBaseNodeLabel) && (
-                  <CompareParameterBarGroup
-                    items={logic.parameterItems}
-                  />
+                  <CompareParameterBarGroup items={logic.parameterItems} />
                 )}
 
-                {props.showWeightSuggestionsEnabled && props.branchSuggestion && !Boolean(props.compareBaseNodeLabel) && (
-                  <>
-                    <Divider />
+                {props.showWeightSuggestionsEnabled &&
+                  props.branchSuggestion &&
+                  !Boolean(props.compareBaseNodeLabel) && (
+                    <>
+                      <Divider />
 
-                    <Typography variant="caption" sx={{ mt: 1 }}>
-                      <strong>Branch pattern detected</strong>
-                    </Typography>
-
-                    <Stack spacing={0.75}>
-                      <Chip
-                        size="small"
-                        label={`Affected category: ${logic.categoryLabel(
-                          props.branchSuggestion.targetCategory,
-                          logic.mergedCategoryLabels
-                        )}`}
-                        sx={{
-                          alignSelf: "flex-start",
-                          border: "1px solid",
-                          borderColor: "#ff9800",
-                          boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
-                        }}
-                      />
-
-                      <Chip
-                        size="small"
-                        label={`Parameter to adjust: ${logic.paramLabel(props.branchSuggestion.parameter)}`}
-                        sx={{
-                          alignSelf: "flex-start",
-                          border: "1px solid",
-                          borderColor: "#ff9800",
-                          boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
-                        }}
-                      />
-
-                      <Typography
-                        variant="caption"
-                        sx={{ cursor: "pointer", width: "fit-content" }}
-                        onClick={() => logic.setShowSuggestionDetails((prev) => !prev)}
-                      >
-                        {logic.showSuggestionDetails ? "Hide details" : "Click for details"}
+                      <Typography variant="caption" sx={{ mt: 1 }}>
+                        <strong>Branch pattern detected</strong>
                       </Typography>
 
-                      <Collapse in={logic.showSuggestionDetails} timeout="auto" unmountOnExit>
-                        <Stack spacing={0.75}>
-                          <Typography variant="body2" color="text.secondary">
-                            {logic.buildSuggestionMessage({
-                              category: props.branchSuggestion.targetCategory,
-                              categoryLabels: logic.mergedCategoryLabels,
-                              parameter: props.branchSuggestion.parameter,
-                              parameterDirection: props.branchSuggestion.parameterDirection,
-                              hitCount: props.branchSuggestion.hitCount,
-                              streakLength: props.branchSuggestion.streakLength,
-                              avgCategoryDelta: props.branchSuggestion.avgCategoryDelta,
-                              avgParamDelta: props.branchSuggestion.avgParamDelta,
-                              suggestedWeightDeltaPct:
-                                props.branchSuggestion.suggestedWeightDeltaPct,
-                            })}
-                          </Typography>
-                        </Stack>
-                      </Collapse>
-                    </Stack>
-                  </>
-                )}
+                      <Stack spacing={0.75}>
+                        <Chip
+                          size="small"
+                          label={`Affected category: ${logic.categoryLabel(
+                            props.branchSuggestion.targetCategory,
+                            logic.mergedCategoryLabels
+                          )}`}
+                          sx={{
+                            alignSelf: "flex-start",
+                            border: "1px solid",
+                            borderColor: "#ff9800",
+                            boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
+                          }}
+                        />
+
+                        <Chip
+                          size="small"
+                          label={`Parameter to adjust: ${logic.paramLabel(props.branchSuggestion.parameter)}`}
+                          sx={{
+                            alignSelf: "flex-start",
+                            border: "1px solid",
+                            borderColor: "#ff9800",
+                            boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
+                          }}
+                        />
+
+                        <Typography
+                          variant="caption"
+                          sx={{ cursor: "pointer", width: "fit-content" }}
+                          onClick={() => logic.setShowSuggestionDetails((prev) => !prev)}
+                        >
+                          {logic.showSuggestionDetails ? "Hide details" : "Click for details"}
+                        </Typography>
+
+                        <Collapse in={logic.showSuggestionDetails} timeout="auto" unmountOnExit>
+                          <Stack spacing={0.75}>
+                            <Typography variant="body2" color="text.secondary">
+                              {logic.buildSuggestionMessage({
+                                category: props.branchSuggestion.targetCategory,
+                                categoryLabels: logic.mergedCategoryLabels,
+                                parameter: props.branchSuggestion.parameter,
+                                parameterDirection: props.branchSuggestion.parameterDirection,
+                                hitCount: props.branchSuggestion.hitCount,
+                                streakLength: props.branchSuggestion.streakLength,
+                                avgCategoryDelta: props.branchSuggestion.avgCategoryDelta,
+                                avgParamDelta: props.branchSuggestion.avgParamDelta,
+                                suggestedWeightDeltaPct:
+                                  props.branchSuggestion.suggestedWeightDeltaPct,
+                              })}
+                            </Typography>
+                          </Stack>
+                        </Collapse>
+                      </Stack>
+                    </>
+                  )}
 
                 <Divider />
 
@@ -220,9 +219,11 @@ export function NodeDetailsDialogView({
               <Typography variant="body2" color="text.secondary">
                 This is an import node, the user manually uploaded a video here.
               </Typography>
-            )  : (<Typography variant="body2" color="text.secondary">
+            ) : (
+              <Typography variant="body2" color="text.secondary">
                 Unkown node type
-              </Typography>)}
+              </Typography>
+            )}
 
             {props.notesEnabled && (
               <>

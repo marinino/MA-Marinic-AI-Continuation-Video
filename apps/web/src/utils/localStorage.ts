@@ -106,6 +106,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   graphCardContentMode: "parameters",
   graphCardDisplayMode: "chips",
   restrictCategories: true,
+  showOnlyChangedParameters: true,
 };
 
 export function loadSettings(): AppSettings {
@@ -126,11 +127,11 @@ export function loadSettings(): AppSettings {
           ? parsed.graphCardContentMode
           : DEFAULT_SETTINGS.graphCardContentMode,
       graphCardDisplayMode:
-        parsed?.graphCardDisplayMode === "chips" ||
-        parsed?.graphCardDisplayMode === "bars"
+        parsed?.graphCardDisplayMode === "chips" || parsed?.graphCardDisplayMode === "bars"
           ? parsed.graphCardDisplayMode
           : DEFAULT_SETTINGS.graphCardDisplayMode,
       restrictCategories: parsed?.restrictCategories !== false,
+      showOnlyChangedParameters: parsed?.showOnlyChangedParameters !== false,
     };
   } catch {
     return DEFAULT_SETTINGS;

@@ -348,6 +348,7 @@ export type AppSettings = {
   graphCardContentMode: GraphCardContentMode;
   graphCardDisplayMode: GraphCardDisplayMode;
   restrictCategories: boolean;
+  showOnlyChangedParameters: boolean;
 };
 
 export type SummaryChip = {

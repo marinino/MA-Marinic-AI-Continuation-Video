@@ -6,11 +6,15 @@ import {
 } from "../graph_helpers/branchSuggestions";
 import { getVisibleCategoryEntries } from "../graph_helpers/clipDialogLogic";
 import { DEFAULT_CATEGORY_LABELS } from "../graph_helpers/presets";
-import { buildParameterItems, deltaChipSx, deriveRangesFromPresets, fmt } from "../hooks/useV2VParams";
+import {
+  buildParameterItems,
+  deltaChipSx,
+  deriveRangesFromPresets,
+  fmt,
+} from "../hooks/useV2VParams";
 import { SAFE_PRESETS } from "../hooks/useV2VSliders";
 import type { Item, SelectedCategory } from "../types/ui";
 import { NodeDetailsDialogProps } from "../types/props";
-
 
 export function useNodeDetailsDialog(props: NodeDetailsDialogProps) {
   const [localNote, setLocalNote] = useState(props.note ?? "");
@@ -99,8 +103,6 @@ export function useNodeDetailsDialog(props: NodeDetailsDialogProps) {
       ? lowStepPctValue - prevLowStepPctValue
       : null;
 
-
-
   const openParamsInfo = (event: React.MouseEvent<HTMLElement>) => {
     setParamsInfoAnchorEl(event.currentTarget);
   };
@@ -128,32 +130,30 @@ export function useNodeDetailsDialog(props: NodeDetailsDialogProps) {
     props.onClose();
   };
 
-
-const parameterItems = useMemo(
-  () =>
-    buildParameterItems({
-      highNoiseCfg: props.highNoiseCfg,
-      highNoiseShift: props.highNoiseShift,
-      highNoiseModelStrength: props.highNoiseModelStrength,
+  const parameterItems = useMemo(
+    () =>
+      buildParameterItems({
+        highNoiseCfg: props.highNoiseCfg,
+        highNoiseShift: props.highNoiseShift,
+        highNoiseModelStrength: props.highNoiseModelStrength,
+        totalStepsValue,
+        totalStepsDelta,
+        lowStepPctValue,
+        lowStepPctDelta,
+        d: props.d,
+        PARAM_RANGES,
+      }),
+    [
+      props.highNoiseCfg,
+      props.highNoiseShift,
+      props.highNoiseModelStrength,
+      props.d,
       totalStepsValue,
       totalStepsDelta,
       lowStepPctValue,
       lowStepPctDelta,
-      d: props.d,
-      PARAM_RANGES,
-    }),
-  [
-    props.highNoiseCfg,
-    props.highNoiseShift,
-    props.highNoiseModelStrength,
-    props.d,
-    totalStepsValue,
-    totalStepsDelta,
-    lowStepPctValue,
-    lowStepPctDelta,
-  ]
-);
-
+    ]
+  );
 
   return {
     localNote,
@@ -176,7 +176,6 @@ const parameterItems = useMemo(
     parameterItems,
 
     handleSaveAndClose,
-
 
     buildSuggestionMessage,
     categoryLabel,
