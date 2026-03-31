@@ -156,8 +156,6 @@ export function CategoryScoresSidebar({
               <Typography variant="body2" color="text.secondary">
                 No parameter data available.
               </Typography>
-            ) : compareBaseNodeLabel ? (
-              <CompareParameterBarGroup items={parameterItems} />
             ) : (
               <ParameterBarGroup
                 items={parameterItems}

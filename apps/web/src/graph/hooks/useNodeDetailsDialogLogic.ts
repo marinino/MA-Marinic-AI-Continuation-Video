@@ -13,7 +13,7 @@ import {
   fmt,
 } from "../hooks/useV2VParams";
 import { SAFE_PRESETS } from "../hooks/useV2VSliders";
-import type { Item, SelectedCategory } from "../types/ui";
+import type { SelectedCategory } from "../types/ui";
 import { NodeDetailsDialogProps } from "../types/props";
 
 export function useNodeDetailsDialog(props: NodeDetailsDialogProps) {
@@ -21,6 +21,9 @@ export function useNodeDetailsDialog(props: NodeDetailsDialogProps) {
   const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
   const [showSuggestionDetails, setShowSuggestionDetails] = useState(false);
   const [paramsInfoAnchorEl, setParamsInfoAnchorEl] = useState<HTMLElement | null>(null);
+
+  const isComparing = Boolean(props.compareBaseNodeLabel);
+  const compareDeltas = isComparing ? props.d : undefined;
 
   useEffect(() => {
     setLocalNote(props.note ?? "");
@@ -65,13 +68,13 @@ export function useNodeDetailsDialog(props: NodeDetailsDialogProps) {
       : null;
 
   const highStepsDelta =
-    props.d?.highNoiseStartStep != null && props.d?.highNoiseEndStep != null
-      ? props.d.highNoiseEndStep - props.d.highNoiseStartStep
+    compareDeltas?.highNoiseStartStep != null && compareDeltas?.highNoiseEndStep != null
+      ? compareDeltas.highNoiseEndStep - compareDeltas.highNoiseStartStep
       : null;
 
   const lowStepsDelta =
-    props.d?.lowNoiseStartStep != null && props.d?.lowNoiseEndStep != null
-      ? props.d.lowNoiseEndStep - props.d.lowNoiseStartStep
+    compareDeltas?.lowNoiseStartStep != null && compareDeltas?.lowNoiseEndStep != null
+      ? compareDeltas.lowNoiseEndStep - compareDeltas.lowNoiseStartStep
       : null;
 
   const totalStepsValue =
@@ -130,6 +133,67 @@ export function useNodeDetailsDialog(props: NodeDetailsDialogProps) {
     props.onClose();
   };
 
+  useEffect(() => {
+    console.log("NODE DETAILS PARAM INPUT", {
+      compareBaseNodeLabel: props.compareBaseNodeLabel,
+      isComparing,
+
+      highNoiseCfg: props.highNoiseCfg,
+      highNoiseShift: props.highNoiseShift,
+      highNoiseModelStrength: props.highNoiseModelStrength,
+
+      highNoiseStartStep: props.highNoiseStartStep,
+      highNoiseEndStep: props.highNoiseEndStep,
+      lowNoiseStartStep: props.lowNoiseStartStep,
+      lowNoiseEndStep: props.lowNoiseEndStep,
+
+      displayTotalSteps: props.displayTotalSteps,
+      displayLowStepPct: props.displayLowStepPct,
+
+      d: props.d,
+      compareDeltas,
+
+      highStepsValue,
+      lowStepsValue,
+      totalStepsValue,
+      lowStepPctValue,
+
+      highStepsDelta,
+      lowStepsDelta,
+      totalStepsDelta,
+      lowStepPctDelta,
+
+      prevTotalStepsValue,
+      prevLowStepsValue,
+      prevLowStepPctValue,
+    });
+  }, [
+    props.compareBaseNodeLabel,
+    props.highNoiseCfg,
+    props.highNoiseShift,
+    props.highNoiseModelStrength,
+    props.highNoiseStartStep,
+    props.highNoiseEndStep,
+    props.lowNoiseStartStep,
+    props.lowNoiseEndStep,
+    props.displayTotalSteps,
+    props.displayLowStepPct,
+    props.d,
+    compareDeltas,
+    isComparing,
+    highStepsValue,
+    lowStepsValue,
+    totalStepsValue,
+    lowStepPctValue,
+    highStepsDelta,
+    lowStepsDelta,
+    totalStepsDelta,
+    lowStepPctDelta,
+    prevTotalStepsValue,
+    prevLowStepsValue,
+    prevLowStepPctValue,
+  ]);
+
   const parameterItems = useMemo(
     () =>
       buildParameterItems({
@@ -140,18 +204,19 @@ export function useNodeDetailsDialog(props: NodeDetailsDialogProps) {
         totalStepsDelta,
         lowStepPctValue,
         lowStepPctDelta,
-        d: props.d,
+        d: compareDeltas,
         PARAM_RANGES,
       }),
     [
       props.highNoiseCfg,
       props.highNoiseShift,
       props.highNoiseModelStrength,
-      props.d,
       totalStepsValue,
       totalStepsDelta,
       lowStepPctValue,
       lowStepPctDelta,
+      compareDeltas,
+      PARAM_RANGES,
     ]
   );
 

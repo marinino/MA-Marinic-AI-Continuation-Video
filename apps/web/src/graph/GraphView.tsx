@@ -1190,6 +1190,39 @@ export function GraphView(props: {
     return sidebarNodeData.paramDeltas ?? sidebarNodeData.d ?? null;
   }, [sidebarNode, sidebarNodeData, compareSourceNodeId, compareTargetNodeId, compareBaseNodeData]);
 
+  const detailsEffectiveDelta = useMemo(() => {
+  if (!detailsNodeData) return null;
+
+  if (
+    compareSourceNodeId &&
+    compareTargetNodeId &&
+    detailsNode?.id === compareSourceNodeId &&
+    compareBaseNodeData
+  ) {
+    return buildCompareDelta(detailsNodeData, compareBaseNodeData);
+  }
+
+  return detailsNodeData.paramDeltas ?? detailsNodeData.d ?? null;
+}, [detailsNode, detailsNodeData, compareSourceNodeId, compareTargetNodeId, compareBaseNodeData]);
+
+const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
+  if (!detailsNodeData) return null;
+
+  if (
+    compareSourceNodeId &&
+    compareTargetNodeId &&
+    detailsNode?.id === compareSourceNodeId &&
+    compareBaseNodeData
+  ) {
+    return buildCompareCategoryDeltas(
+      detailsNodeData.categoryScores,
+      compareBaseNodeData.categoryScores
+    );
+  }
+
+  return detailsNodeData.categoryScoreDeltas ?? null;
+}, [detailsNode, detailsNodeData, compareSourceNodeId, compareTargetNodeId, compareBaseNodeData]);
+
   const effectiveCategoryScoreDeltas = useMemo(() => {
     if (!sidebarNodeData) return null;
 
@@ -2144,7 +2177,7 @@ export function GraphView(props: {
         onClose={handleCloseDetails}
         nodeId={detailsNode?.id ?? ""}
         type={(detailsNode?.type as "clip" | "params" | "edit") ?? "clip"}
-        d={(effectiveDelta as any) ?? {}}
+        d={(detailsEffectiveDelta as any) ?? {}}
         videoUrl={(detailsNodeData?.videoUrl as string | null | undefined) ?? null}
         videoFile={detailsNodeData?.videoFile}
         videoStatus={detailsNodeData?.videoStatus}
@@ -2166,7 +2199,7 @@ export function GraphView(props: {
         displayTotalSteps={detailsNodeData?.displayTotalSteps}
         displayLowStepPct={detailsNodeData?.displayLowStepPct}
         categoryScores={detailsNodeData?.categoryScores}
-        categoryScoreDeltas={effectiveCategoryScoreDeltas as any}
+        categoryScoreDeltas={detailsEffectiveCategoryScoreDeltas as any}
         categoryLabels={detailsNodeData?.categoryLabels}
         paramDeltas={detailsNodeData?.paramDeltas}
         promptChanged={detailsNodeData?.promptChanged}

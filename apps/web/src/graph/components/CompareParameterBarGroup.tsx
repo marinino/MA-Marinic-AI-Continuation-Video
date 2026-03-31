@@ -29,13 +29,23 @@ export function CompareParameterBarGroup({ items }: { items: Item[] }) {
       })}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-        {items.map((item) => {
-          const { key, label, value, min, max, delta, decimals = 2, colorKey } = item;
+{items.map((item) => {
+  const { key, label, value, min, max, delta, decimals = 2, colorKey } = item;
+
+  const compareValue = value;
+  const baseValue = delta != null ? value - delta : value;
+
+  console.log("COMPARE ITEM", {
+    key,
+    label,
+    rawValue: value,
+    delta,
+    computedBaseValue: baseValue,
+    compareValue,
+  });
 
           const color = COLORS[colorKey];
 
-          const compareValue = value;
-          const baseValue = delta != null ? value - delta : value;
 
           const basePct = normalize(baseValue, min, max) * 100;
           const comparePct = normalize(compareValue, min, max) * 100;
