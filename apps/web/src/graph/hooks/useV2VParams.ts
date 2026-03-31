@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import {
   BuiltInCategoryId,
   CategoryScores,
+  CleanWeights,
   CustomScoreSlider,
   FormulaWeights,
   Item,
@@ -18,10 +19,7 @@ function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
 }
 
-export function simpleToNormalizedValues(
-  s: SimpleReal,
-  ranges: ScoreRanges
-) {
+export function simpleToNormalizedValues(s: SimpleReal, ranges: ScoreRanges) {
   const steps = clamp(
     (s.totalSteps - ranges.steps.min) / Math.max(1e-6, ranges.steps.max - ranges.steps.min),
     0,
@@ -47,7 +45,8 @@ export function simpleToNormalizedValues(
   );
 
   const strength = clamp(
-    (s.highStrength - ranges.strength.min) / Math.max(1e-6, ranges.strength.max - ranges.strength.min),
+    (s.highStrength - ranges.strength.min) /
+      Math.max(1e-6, ranges.strength.max - ranges.strength.min),
     0,
     1
   );
@@ -55,10 +54,81 @@ export function simpleToNormalizedValues(
   return { steps, ratio, shift, cfg, strength };
 }
 
+export function adjustSimpleForScoreTarget(args: {
+  simple: SimpleReal;
+  targetScore: number; // 0..100
+  weights: CleanWeights;
+  ranges: ScoreRanges;
+  clampSimpleWithMode: (s: SimpleReal) => SimpleReal;
+  applySafeConstraintsWithKey: (
+    s: SimpleReal,
+    activeKey: "totalSteps" | "stepRatioPct" | "highShift" | "highCfg" | "highStrength"
+  ) => SimpleReal;
+}): SimpleReal {
+  const { simple, targetScore, weights, ranges, clampSimpleWithMode, applySafeConstraintsWithKey } =
+    args;
+
+  let next = clampSimpleWithMode({ ...simple });
+  const target = clamp(targetScore, 0, 100);
+
+  const featureMap = [
+    {
+      weightKey: "steps" as const,
+      simpleKey: "totalSteps" as const,
+      safeKey: "totalSteps" as const,
+    },
+    {
+      weightKey: "ratio" as const,
+      simpleKey: "stepRatioPct" as const,
+      safeKey: "stepRatioPct" as const,
+    },
+    { weightKey: "shift" as const, simpleKey: "highShift" as const, safeKey: "highShift" as const },
+    { weightKey: "cfg" as const, simpleKey: "highCfg" as const, safeKey: "highCfg" as const },
+    {
+      weightKey: "strength" as const,
+      simpleKey: "highStrength" as const,
+      safeKey: "highStrength" as const,
+    },
+  ];
+
+  const maxIterations = 20;
+
+  for (let i = 0; i < maxIterations; i++) {
+    const values01 = simpleToNormalizedValues(next, ranges);
+    const current = Math.round(applyWeights(weights, values01) * 100);
+    const error = target - current;
+
+    if (Math.abs(error) < 1) break;
+
+    for (const entry of featureMap) {
+      const w = weights[entry.weightKey] ?? 0;
+      if (!w) continue;
+
+      const current01 = values01[entry.weightKey];
+      const signedDirection = Math.sign(error) * Math.sign(w);
+      const step01 = Math.min(0.08, (Math.abs(error) / 100) * Math.abs(w) * 0.35);
+
+      const next01 = clamp(current01 + signedDirection * step01, 0, 1);
+      const denorm = denormalizeSimpleValue(entry.weightKey, next01, ranges);
+
+      (next as any)[entry.simpleKey] = denorm;
+    }
+
+    next = clampSimpleWithMode(next);
+
+    for (const entry of featureMap) {
+      next = applySafeConstraintsWithKey(next, entry.safeKey);
+      next = clampSimpleWithMode(next);
+    }
+  }
+
+  return clampSimpleWithMode(next);
+}
+
 export function adjustSimpleForCategoryTarget(args: {
   simple: SimpleReal;
   categoryId: BuiltInCategoryId;
-  targetScore: number; // 0..100
+  targetScore: number;
   ranges: ScoreRanges;
   formulaWeights: FormulaWeights;
   clampSimpleWithMode: (s: SimpleReal) => SimpleReal;
@@ -80,72 +150,14 @@ export function adjustSimpleForCategoryTarget(args: {
   const weights = formulaWeights[categoryId];
   if (!weights) return simple;
 
-  let next = clampSimpleWithMode({ ...simple });
-  const target = clamp(targetScore, 0, 100);
-
-  const featureMap = [
-    { weightKey: "steps" as const, simpleKey: "totalSteps" as const, safeKey: "totalSteps" as const },
-    { weightKey: "ratio" as const, simpleKey: "stepRatioPct" as const, safeKey: "stepRatioPct" as const },
-    { weightKey: "shift" as const, simpleKey: "highShift" as const, safeKey: "highShift" as const },
-    { weightKey: "cfg" as const, simpleKey: "highCfg" as const, safeKey: "highCfg" as const },
-    {
-      weightKey: "strength" as const,
-      simpleKey: "highStrength" as const,
-      safeKey: "highStrength" as const,
-    },
-  ];
-
-  const maxIterations = 20;
-
-  for (let i = 0; i < maxIterations; i++) {
-    const scores = computeCategoryScoresFromSimple(
-      {
-        totalSteps: next.totalSteps,
-        stepRatio: next.stepRatioPct,
-        highShift: next.highShift,
-        highCfg: next.highCfg,
-        highStrength: next.highStrength,
-      },
-      ranges,
-      formulaWeights
-    );
-
-    const current = scores[categoryId];
-    const error = target - current;
-
-    if (Math.abs(error) < 1) break;
-
-    const values01 = simpleToNormalizedValues(next, ranges);
-
-    for (const entry of featureMap) {
-      const w = weights[entry.weightKey] ?? 0;
-      if (!w) continue;
-
-      const current01 = values01[entry.weightKey];
-
-      // Richtung: wenn Gewicht positiv ist, erhöht mehr Feature auch den Score.
-      // Wenn Gewicht negativ ist, dann umgekehrt.
-      const signedDirection = Math.sign(error) * Math.sign(w);
-
-      // kleiner stabiler Schritt
-      const step01 = Math.min(0.08, (Math.abs(error) / 100) * Math.abs(w) * 0.35);
-
-      const next01 = clamp(current01 + signedDirection * step01, 0, 1);
-      const denorm = denormalizeSimpleValue(entry.weightKey, next01, ranges);
-
-      (next as any)[entry.simpleKey] = denorm;
-    }
-
-    next = clampSimpleWithMode(next);
-
-    // Deine Safe-Constraints weiter respektieren
-    for (const entry of featureMap) {
-      next = applySafeConstraintsWithKey(next, entry.safeKey);
-      next = clampSimpleWithMode(next);
-    }
-  }
-
-  return clampSimpleWithMode(next);
+  return adjustSimpleForScoreTarget({
+    simple,
+    targetScore,
+    weights,
+    ranges,
+    clampSimpleWithMode,
+    applySafeConstraintsWithKey,
+  });
 }
 
 export function denormalizeSimpleValue(
@@ -323,7 +335,7 @@ export function computeCategoryScoresFromSimple(
       highStrength: s.highStrength,
     },
     ranges
-  );;
+  );
 
   return {
     creativity: Math.round(applyWeights(fw.creativity, values) * 100),

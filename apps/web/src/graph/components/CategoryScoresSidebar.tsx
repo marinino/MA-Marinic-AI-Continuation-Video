@@ -17,7 +17,6 @@ import { renderOrderedSliderItem } from "./RenderedOrderedSliders";
 import { ParameterBarGroup } from "./ParameterBarGroup";
 import { CompareParameterBarGroup } from "./CompareParameterBarGroup";
 
-
 type SidebarTab = "categories" | "parameters";
 
 export function CategoryScoresSidebar({
@@ -52,16 +51,16 @@ export function CategoryScoresSidebar({
   const [tab, setTab] = useState<SidebarTab>("categories");
 
   return (
-<Box
-  sx={{
-    width: "100%",
-    height: "100%",
-    minWidth: 0,
-    overflow: "hidden",
-    display: "flex",
-    bgcolor: "background.paper",
-  }}
->
+    <Box
+      sx={{
+        width: "100%",
+        height: "100%",
+        minWidth: 0,
+        overflow: "hidden",
+        display: "flex",
+        bgcolor: "background.paper",
+      }}
+    >
       <Box
         sx={{
           width: 52,
@@ -92,7 +91,9 @@ export function CategoryScoresSidebar({
           <Box sx={{ px: 2, pt: 2, pb: 1 }}>
             <Typography variant="subtitle2">Node inspection</Typography>
             <Typography variant="caption" color="text.secondary">
-              {selectedNodeLabel ? `Selected node: ${selectedNodeLabel}` : "No parameter node selected"}
+              {selectedNodeLabel
+                ? `Selected node: ${selectedNodeLabel}`
+                : "No parameter node selected"}
             </Typography>
           </Box>
 
@@ -122,30 +123,31 @@ export function CategoryScoresSidebar({
                 </Typography>
               ) : (
                 <Box
-  sx={{
-    display: "flex",
-    flexDirection: "column",
-    gap: 1.25,
-    width: "100%",
-    minWidth: 0,
-  }}
->
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1.25,
+                    width: "100%",
+                    minWidth: 0,
+                  }}
+                >
                   {orderedSliderItems.map((item) => (
                     <Box
-  key={item.id}
-  sx={{
-    width: "100%",
-    minWidth: 0,
-  }}
->
+                      key={item.id}
+                      sx={{
+                        width: "100%",
+                        minWidth: 0,
+                      }}
+                    >
                       {renderOrderedSliderItem(
-  item,
-  computed,
-  clipLogic,
-  () => {},
-  () => {},
-  () => {}
-)}
+                        item,
+                        computed,
+                        clipLogic,
+                        () => {},
+                        () => {},
+                        false,
+                        () => {}
+                      )}
                     </Box>
                   ))}
                 </Box>
@@ -164,7 +166,7 @@ export function CategoryScoresSidebar({
               />
             )}
 
-                        {notesEnabled && (
+            {notesEnabled && (
               <>
                 <Divider sx={{ my: 2 }} />
                 <Typography variant="caption" display="block" sx={{ mb: 1 }}>
@@ -180,9 +182,9 @@ export function CategoryScoresSidebar({
                   placeholder="Add notes for this node..."
                 />
 
-                <Button variant="outlined" size="small" onClick={onSaveNote} sx={{mt: 1}}>
-  Save notes
-</Button>
+                <Button variant="outlined" size="small" onClick={onSaveNote} sx={{ mt: 1 }}>
+                  Save notes
+                </Button>
               </>
             )}
           </Box>

@@ -7,8 +7,9 @@ export function CategorySlider(props: {
   onLabelClick?: () => void;
   onChange?: (value: number) => void;
   readonly?: boolean;
+  clickable?: boolean;
 }) {
-  const clickable = !!props.onLabelClick;
+  const clickable = props.clickable ?? false;
   const readonly = props.readonly ?? false;
 
   return (
@@ -16,7 +17,7 @@ export function CategorySlider(props: {
       <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
         <Stack direction="row" spacing={1} alignItems="baseline">
           {clickable ? (
-            <Tooltip title="Click to configure" arrow>
+            <Tooltip title={"Click to configure"} arrow>
               <ButtonBase
                 onClick={props.onLabelClick}
                 sx={{

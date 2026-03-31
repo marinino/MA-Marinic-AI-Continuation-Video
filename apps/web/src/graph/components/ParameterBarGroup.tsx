@@ -35,29 +35,29 @@ export function ParameterBarGroup({
   const visibleItems = showOnlyChangedParameters ? items.filter((item) => item.delta) : items;
 
   return (
-<Box
-  sx={(theme) => ({
-    width: "100%",
-    minWidth: 0,
-    boxSizing: "border-box",
-    bgcolor: "action.hover",
-    borderRadius: 2,
-    px: 2,
-    py: 1.5,
-    border: "1px solid",
-    borderColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
-  })}
->
+    <Box
+      sx={(theme) => ({
+        width: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
+        bgcolor: "action.hover",
+        borderRadius: 2,
+        px: 2,
+        py: 1.5,
+        border: "1px solid",
+        borderColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
+      })}
+    >
       {!isZoomed ? (
-<Box
-  sx={{
-    display: "flex",
-    flexDirection: "column",
-    gap: 1.5,
-    width: "100%",
-    minWidth: 0,
-  }}
->
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 1.5,
+            width: "100%",
+            minWidth: 0,
+          }}
+        >
           {visibleItems.map((item) => {
             const { key, label, value, min, max, delta, decimals = 2, colorKey } = item;
 
@@ -95,14 +95,14 @@ export function ParameterBarGroup({
                   onMouseEnter={() => setHoveredKey(key)}
                   onMouseLeave={() => setHoveredKey((curr) => (curr === key ? null : curr))}
                   sx={{
-  width: "100%",
-  minWidth: 0,
-  display: "grid",
-  gridTemplateColumns: "120px minmax(0, 1fr) auto",
-  alignItems: "center",
-  gap: 1.25,
-  cursor: "pointer",
-}}
+                    width: "100%",
+                    minWidth: 0,
+                    display: "grid",
+                    gridTemplateColumns: "120px minmax(0, 1fr) auto",
+                    alignItems: "center",
+                    gap: 1.25,
+                    cursor: "pointer",
+                  }}
                 >
                   <Typography
                     variant="caption"
@@ -117,14 +117,14 @@ export function ParameterBarGroup({
                   </Typography>
 
                   <Box
-  sx={{
-    display: "flex",
-    flexDirection: "column",
-    gap: 0.5,
-    minWidth: 0,
-    width: "100%",
-  }}
->
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0.5,
+                      minWidth: 0,
+                      width: "100%",
+                    }}
+                  >
                     <Box
                       sx={{
                         position: "relative",
@@ -176,18 +176,18 @@ export function ParameterBarGroup({
                     </Box>
                   </Box>
 
-<Box
-  sx={{
-    minWidth: 58,
-    maxWidth: 72,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 0.25,
-    color: "text.secondary",
-    flexShrink: 0,
-  }}
->
+                  <Box
+                    sx={{
+                      minWidth: 58,
+                      maxWidth: 72,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "flex-end",
+                      gap: 0.25,
+                      color: "text.secondary",
+                      flexShrink: 0,
+                    }}
+                  >
                     <Typography variant="caption">{fmtPlain(value, decimals)}</Typography>
                     {direction}
                   </Box>

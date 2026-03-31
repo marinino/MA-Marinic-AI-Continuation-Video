@@ -52,6 +52,7 @@ import {
   AxisId,
   BuiltInCategoryId,
   CatView,
+  CleanWeights,
   CustomScoreSlider,
   FormulaWeights,
   OrderedSliderItem,
@@ -127,6 +128,7 @@ export type ClipDialogProps = {
 
   restrictCategories: boolean;
   setCategoryScore: (categoryId: BuiltInCategoryId, value: number) => void;
+  setCustomCategoryScore: (weights: CleanWeights, value: number) => void;
 };
 
 /* ========= helpers (wie im mega-file) ========= */
@@ -640,13 +642,15 @@ export function ClipDialog(p: ClipDialogProps) {
                             >
                               <Box>
                                 {renderOrderedSliderItem(
-  item,
-  computed,
-  clipLogic,
-  openWeights,
-  openCustomEdit,
-  p.setCategoryScore
-)}
+                                  item,
+                                  computed,
+                                  clipLogic,
+                                  openWeights,
+                                  openCustomEdit,
+                                  true,
+                                  p.setCategoryScore,
+                                  p.setCustomCategoryScore
+                                )}
                               </Box>
 
                               <Stack spacing={0.5}>

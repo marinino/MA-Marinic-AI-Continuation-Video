@@ -111,8 +111,6 @@ export function NodeDetailsDialogView({
                     : "No prompt set yet."}
                 </Typography>
 
-
-
                 {logic.parameterItems.length > 0 && Boolean(props.compareBaseNodeLabel) && (
                   <CompareParameterBarGroup items={logic.parameterItems} />
                 )}
@@ -182,9 +180,6 @@ export function NodeDetailsDialogView({
                       </Stack>
                     </>
                   )}
-
-
-      
               </>
             ) : props.type === "import" ? (
               <Typography variant="body2" color="text.secondary">
@@ -204,16 +199,12 @@ export function NodeDetailsDialogView({
                 Unkown node type
               </Typography>
             )}
-
-            
           </Stack>
         </DialogContent>
 
         <DialogActions sx={{ justifyContent: "space-between" }}>
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button onClick={props.onClose}>
-              Close
-            </Button>
+            <Button onClick={props.onClose}>Close</Button>
           </Box>
         </DialogActions>
       </Dialog>

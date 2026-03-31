@@ -9,9 +9,19 @@ import {
   MixCandidate,
   SafeBounds,
   SpeedMode,
+  CleanWeights,
+  BuiltInCategoryId,
 } from "../types/ui";
-import { DEFAULT_FORMULA_WEIGHTS, SAFE_PRESETS_QUALITY, SAFE_PRESETS_QUICK } from "../graph_helpers/presets";
-import { adjustSimpleForCategoryTarget, getScoreRanges } from "./useV2VParams";
+import {
+  DEFAULT_FORMULA_WEIGHTS,
+  SAFE_PRESETS_QUALITY,
+  SAFE_PRESETS_QUICK,
+} from "../graph_helpers/presets";
+import {
+  adjustSimpleForCategoryTarget,
+  adjustSimpleForScoreTarget,
+  getScoreRanges,
+} from "./useV2VParams";
 
 export const SAFE_PRESETS: Record<SpeedMode, SafePreset[]> = {
   quality: SAFE_PRESETS_QUALITY,
@@ -197,28 +207,34 @@ export function useV2VSliders() {
 
   const scoreRanges = useMemo(() => getScoreRanges(simpleSpeedMode), [simpleSpeedMode]);
 
-  const setCategoryScore = (
-  categoryId:
-    | "creativity"
-    | "promptFaithfulness"
-    | "motion"
-    | "transitionSmoothness"
-    | "videoFaithfulness",
-  targetScore: number
-) => {
-  setSimple((prev) =>
-    adjustSimpleForCategoryTarget({
-      simple: prev,
-      categoryId,
-      targetScore,
-      ranges: scoreRanges,
-      formulaWeights: DEFAULT_FORMULA_WEIGHTS,
-      clampSimpleWithMode: (s) => clampSimple(simpleSpeedMode, s),
-      applySafeConstraintsWithKey: (s, activeKey) =>
-        applySafeConstraints(clampSimple(simpleSpeedMode, s), activeKey),
-    })
-  );
-};
+  const setCategoryScore = (categoryId: BuiltInCategoryId, targetScore: number) => {
+    setSimple((prev) =>
+      adjustSimpleForCategoryTarget({
+        simple: prev,
+        categoryId,
+        targetScore,
+        ranges: scoreRanges,
+        formulaWeights: DEFAULT_FORMULA_WEIGHTS,
+        clampSimpleWithMode: (s) => clampSimple(simpleSpeedMode, s),
+        applySafeConstraintsWithKey: (s, activeKey) =>
+          applySafeConstraints(clampSimple(simpleSpeedMode, s), activeKey),
+      })
+    );
+  };
+
+  const setCustomCategoryScore = (weights: CleanWeights, targetScore: number) => {
+    setSimple((prev) =>
+      adjustSimpleForScoreTarget({
+        simple: prev,
+        targetScore,
+        weights,
+        ranges: scoreRanges,
+        clampSimpleWithMode: (s) => clampSimple(simpleSpeedMode, s),
+        applySafeConstraintsWithKey: (s, activeKey) =>
+          applySafeConstraints(clampSimple(simpleSpeedMode, s), activeKey),
+      })
+    );
+  };
 
   function quantizeBounds(mode: SpeedMode, b: SafeBounds): SafeBounds {
     // helper: auf das Slider-Grid runden + clampen
@@ -295,6 +311,7 @@ export function useV2VSliders() {
     getBounds,
     roundTo,
     simulateSliderChange,
-    setCategoryScore
+    setCategoryScore,
+    setCustomCategoryScore,
   };
 }

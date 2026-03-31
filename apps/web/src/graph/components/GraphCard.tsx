@@ -321,27 +321,27 @@ export function GraphCard(props: NodeCardPreviewProps) {
           : null),
       }}
       onClick={(e) => {
-  e.preventDefault();
-  e.stopPropagation();
+        e.preventDefault();
+        e.stopPropagation();
 
-  props.onSelectNode?.(props.nodeId);
+        props.onSelectNode?.(props.nodeId);
 
-  if (props.type === "clip") {
-    props.onVideoOpened?.(props.nodeId);
-    props.onOpen();
-    return;
-  }
+        if (props.type === "clip") {
+          props.onVideoOpened?.(props.nodeId);
+          props.onOpen();
+          return;
+        }
 
-  if (props.type === "edit" || props.type === "import") {
-    props.onOpen();
-    return;
-  }
+        if (props.type === "edit" || props.type === "import") {
+          props.onOpen();
+          return;
+        }
 
-  if (props.type === "params" && props.isComparePicking) {
-    props.onOpen()
-    return;
-  }
-}}
+        if (props.type === "params" && props.isComparePicking) {
+          props.onOpen();
+          return;
+        }
+      }}
       onMouseDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -448,7 +448,7 @@ export function GraphCard(props: NodeCardPreviewProps) {
 
         {props.children}
 
-        {(summaryChips.length > 0 || hasNote) && (
+        {(summaryChips.length > 0 || hasNote || !props.showOnlyChangedParameters) && (
           <>
             {summaryChips.length > 0 && props.graphCardDisplayMode === "chips" && (
               <Box

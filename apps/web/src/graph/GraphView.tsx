@@ -129,19 +129,19 @@ export function GraphView(props: {
   graphCardDisplayMode: GraphCardDisplayMode;
   restrictCategories: boolean;
   showOnlyChangedParameters: boolean;
-onSidebarDataChange?: (data: {
-  selectedNodeLabel: string | null;
-  computed: any | null;
-  orderedSliderItems: OrderedSliderItem[];
-  clipLogic: any;
-  parameterItems: any[];
-  parameterHistory: any;
-  compareBaseNodeLabel: string | null;
-  note: string;
-  notesEnabled: boolean;
-  onChangeNote: (value: string) => void;
-  onSaveNote: () => void;
-}) => void;
+  onSidebarDataChange?: (data: {
+    selectedNodeLabel: string | null;
+    computed: any | null;
+    orderedSliderItems: OrderedSliderItem[];
+    clipLogic: any;
+    parameterItems: any[];
+    parameterHistory: any;
+    compareBaseNodeLabel: string | null;
+    note: string;
+    notesEnabled: boolean;
+    onChangeNote: (value: string) => void;
+    onSaveNote: () => void;
+  }) => void;
 }) {
   // ---------- reactflow instance ----------
   const rf = useReactFlow();
@@ -316,7 +316,6 @@ onSidebarDataChange?: (data: {
   const [importVideoFile, setImportVideoFile] = useState<File | null>(null);
   const [importVideoUploading, setImportVideoUploading] = useState(false);
   const [importVideoStatus, setImportVideoStatus] = useState("");
-
 
   const finishComparePick = useCallback(
     (targetNodeId: string) => {
@@ -646,8 +645,6 @@ onSidebarDataChange?: (data: {
     manualEditDraft,
   });
 
-
-
   // helper (z.B. in GraphView oder in einer kleinen utils-Datei)
   function jobStateStyle(state: "idle" | "running" | "error") {
     const paletteKey = state === "idle" ? "success" : state === "running" ? "warning" : "error";
@@ -847,16 +844,16 @@ onSidebarDataChange?: (data: {
   }, [deleteTargetId, deleteTargetIds, g, props.onChange, vp.saveViewport]);
 
   const selectNode = useCallback(
-  (nodeId: string) => {
-    g.setClickedNodeId(nodeId);
+    (nodeId: string) => {
+      g.setClickedNodeId(nodeId);
 
-    props.onChange((prev) => ({
-      ...prev,
-      uiState: { ...(prev.uiState ?? {}), selectedNodeId: nodeId },
-    }));
-  },
-  [g, props.onChange]
-);
+      props.onChange((prev) => ({
+        ...prev,
+        uiState: { ...(prev.uiState ?? {}), selectedNodeId: nodeId },
+      }));
+    },
+    [g, props.onChange]
+  );
 
   const nodesForUI = useMemo(() => {
     const nodes = g.nodesWithRootFlag as Node[];
@@ -868,34 +865,34 @@ onSidebarDataChange?: (data: {
     const precomputedNodes = nodes.map((n: RFNode) => {
       const baseData = (n.data as any) ?? {};
 
-const injectedCommon = {
-  ...baseData,
-  videoOpened: Boolean(baseData?.videoOpened),
-  highlightUnseenEnabled: props.highlightUnseenEnabled,
-  notesEnabled: props.notesEnabled,
-  showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
-  graphCardContentMode: props.graphCardContentMode,
-  graphCardDisplayMode: props.graphCardDisplayMode,
-  showOnlyChangedParameters: props.showOnlyChangedParameters,
-  onSaveNote: saveNodeNote,
-  markVideoOpened,
-  onDelete: handleDeleteNode,
-  onHide: handleHideNode,
-  categoryLabels,
-  categoryVisibility,
-  onSetCategoryVisible: setCategoryVisible,
-  onShowAllCategories: showAllCategories,
-  onOpenDetails: handleOpenDetails,
-  onStartCompare: handleStartCompare,
-  isComparePicking,
-  compareSourceNodeId,
-  onSelectNode: selectNode,
+      const injectedCommon = {
+        ...baseData,
+        videoOpened: Boolean(baseData?.videoOpened),
+        highlightUnseenEnabled: props.highlightUnseenEnabled,
+        notesEnabled: props.notesEnabled,
+        showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
+        graphCardContentMode: props.graphCardContentMode,
+        graphCardDisplayMode: props.graphCardDisplayMode,
+        showOnlyChangedParameters: props.showOnlyChangedParameters,
+        onSaveNote: saveNodeNote,
+        markVideoOpened,
+        onDelete: handleDeleteNode,
+        onHide: handleHideNode,
+        categoryLabels,
+        categoryVisibility,
+        onSetCategoryVisible: setCategoryVisible,
+        onShowAllCategories: showAllCategories,
+        onOpenDetails: handleOpenDetails,
+        onStartCompare: handleStartCompare,
+        isComparePicking,
+        compareSourceNodeId,
+        onSelectNode: selectNode,
 
-  onAdd: (nodeId: string) => {
-    selectNode(nodeId);
-    setActionDialogOpen(true);
-  },
-};
+        onAdd: (nodeId: string) => {
+          selectNode(nodeId);
+          setActionDialogOpen(true);
+        },
+      };
 
       // ---------- clip ----------
       if (n.type === "clip") {
@@ -1135,17 +1132,17 @@ const injectedCommon = {
     selectNode,
   ]);
 
-const detailsNode = useMemo(() => {
-  if (!detailsNodeId) return null;
-  return nodesForUI.find((n) => n.id === detailsNodeId) ?? null;
-}, [detailsNodeId, nodesForUI]);
+  const detailsNode = useMemo(() => {
+    if (!detailsNodeId) return null;
+    return nodesForUI.find((n) => n.id === detailsNodeId) ?? null;
+  }, [detailsNodeId, nodesForUI]);
 
-const detailsNodeData = detailsNode?.data as any | undefined;
+  const detailsNodeData = detailsNode?.data as any | undefined;
 
-const sidebarNode = useMemo(() => {
-  if (!g.clickedNodeId) return null;
-  return nodesForUI.find((n) => n.id === g.clickedNodeId) ?? null;
-}, [g.clickedNodeId, nodesForUI]);
+  const sidebarNode = useMemo(() => {
+    if (!g.clickedNodeId) return null;
+    return nodesForUI.find((n) => n.id === g.clickedNodeId) ?? null;
+  }, [g.clickedNodeId, nodesForUI]);
 
   const compareBaseNode = useMemo(() => {
     if (!compareTargetNodeId) return null;
@@ -1155,31 +1152,30 @@ const sidebarNode = useMemo(() => {
   const sidebarNodeData = sidebarNode?.data as any | undefined;
 
   useEffect(() => {
-  setSidebarLocalNote(sidebarNodeData?.note ?? "");
-}, [sidebarNode?.id, sidebarNodeData?.note]);
+    setSidebarLocalNote(sidebarNodeData?.note ?? "");
+  }, [sidebarNode?.id, sidebarNodeData?.note]);
 
-const handleSaveSidebarNote = useCallback(() => {
-  if (!sidebarNode?.id) return;
-  saveNodeNote(sidebarNode.id, sidebarLocalNote);
-}, [sidebarNode?.id, saveNodeNote, sidebarLocalNote]);
+  const handleSaveSidebarNote = useCallback(() => {
+    if (!sidebarNode?.id) return;
+    saveNodeNote(sidebarNode.id, sidebarLocalNote);
+  }, [sidebarNode?.id, saveNodeNote, sidebarLocalNote]);
 
-const sidebarComputed = useMemo(() => {
-  if (!sidebarNodeData?.categoryScores || sidebarNode?.type !== "params") return null;
+  const sidebarComputed = useMemo(() => {
+    if (!sidebarNodeData?.categoryScores || sidebarNode?.type !== "params") return null;
 
-  const scores = sidebarNodeData.categoryScores as Record<string, number>;
+    const scores = sidebarNodeData.categoryScores as Record<string, number>;
 
-  return {
-    scores,
-    allScores: scores,
-  };
-}, [sidebarNode, sidebarNodeData]);
+    return {
+      scores,
+      allScores: scores,
+    };
+  }, [sidebarNode, sidebarNodeData]);
 
-const clipLogic = useClipDialogLogic(formulaWeights, customSliders);
-
+  const clipLogic = useClipDialogLogic(formulaWeights, customSliders);
 
   const compareBaseNodeData = compareBaseNode?.data as any | undefined;
 
-    const effectiveDelta = useMemo(() => {
+  const effectiveDelta = useMemo(() => {
     if (!sidebarNodeData) return null;
 
     if (
@@ -1213,115 +1209,116 @@ const clipLogic = useClipDialogLogic(formulaWeights, customSliders);
   }, [sidebarNode, sidebarNodeData, compareSourceNodeId, compareTargetNodeId, compareBaseNodeData]);
 
   const sharedNodeDetailsProps = useMemo(() => {
-  if (!sidebarNode || sidebarNode.type !== "params") return null;
+    if (!sidebarNode || sidebarNode.type !== "params") return null;
 
-  return {
-    open: false,
-    onClose: () => {},
-    nodeId: sidebarNode.id,
-    type: "params" as const,
-    d: (effectiveDelta as any) ?? {},
-    videoUrl: (sidebarNodeData?.videoUrl as string | null | undefined) ?? null,
-    videoFile: sidebarNodeData?.videoFile,
-    videoStatus: sidebarNodeData?.videoStatus,
-    metaSummary: sidebarNodeData?.metaSummary,
-    prompt: sidebarNodeData?.prompt,
-    prevParamsId: sidebarNodeData?.prevParamsId,
-    highNoiseCfg: sidebarNodeData?.highNoiseCfg,
-    lowNoiseCfg: sidebarNodeData?.lowNoiseCfg,
-    highNoiseModelStrength: sidebarNodeData?.highNoiseModelStrength,
-    lowNoiseModelStrength: sidebarNodeData?.lowNoiseModelStrength,
-    highNoiseShift: sidebarNodeData?.highNoiseShift,
-    lowNoiseShift: sidebarNodeData?.lowNoiseShift,
-    highNoiseSteps: sidebarNodeData?.highNoiseSteps,
-    lowNoiseSteps: sidebarNodeData?.lowNoiseSteps,
-    highNoiseStartStep: sidebarNodeData?.highNoiseStartStep,
-    lowNoiseStartStep: sidebarNodeData?.lowNoiseStartStep,
-    highNoiseEndStep: sidebarNodeData?.highNoiseEndStep,
-    lowNoiseEndStep: sidebarNodeData?.lowNoiseEndStep,
-    displayTotalSteps: sidebarNodeData?.displayTotalSteps,
-    displayLowStepPct: sidebarNodeData?.displayLowStepPct,
-    categoryScores: sidebarNodeData?.categoryScores,
-    categoryScoreDeltas: effectiveCategoryScoreDeltas as any,
-    categoryLabels: sidebarNodeData?.categoryLabels,
-    paramDeltas: sidebarNodeData?.paramDeltas,
-    promptChanged: sidebarNodeData?.promptChanged,
-    branchSuggestion: sidebarNodeData?.branchSuggestion,
-    note: sidebarNodeData?.note,
-    onSaveNote: saveNodeNote,
-    notesEnabled: props.notesEnabled,
-    showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
+    return {
+      open: false,
+      onClose: () => {},
+      nodeId: sidebarNode.id,
+      type: "params" as const,
+      d: (effectiveDelta as any) ?? {},
+      videoUrl: (sidebarNodeData?.videoUrl as string | null | undefined) ?? null,
+      videoFile: sidebarNodeData?.videoFile,
+      videoStatus: sidebarNodeData?.videoStatus,
+      metaSummary: sidebarNodeData?.metaSummary,
+      prompt: sidebarNodeData?.prompt,
+      prevParamsId: sidebarNodeData?.prevParamsId,
+      highNoiseCfg: sidebarNodeData?.highNoiseCfg,
+      lowNoiseCfg: sidebarNodeData?.lowNoiseCfg,
+      highNoiseModelStrength: sidebarNodeData?.highNoiseModelStrength,
+      lowNoiseModelStrength: sidebarNodeData?.lowNoiseModelStrength,
+      highNoiseShift: sidebarNodeData?.highNoiseShift,
+      lowNoiseShift: sidebarNodeData?.lowNoiseShift,
+      highNoiseSteps: sidebarNodeData?.highNoiseSteps,
+      lowNoiseSteps: sidebarNodeData?.lowNoiseSteps,
+      highNoiseStartStep: sidebarNodeData?.highNoiseStartStep,
+      lowNoiseStartStep: sidebarNodeData?.lowNoiseStartStep,
+      highNoiseEndStep: sidebarNodeData?.highNoiseEndStep,
+      lowNoiseEndStep: sidebarNodeData?.lowNoiseEndStep,
+      displayTotalSteps: sidebarNodeData?.displayTotalSteps,
+      displayLowStepPct: sidebarNodeData?.displayLowStepPct,
+      categoryScores: sidebarNodeData?.categoryScores,
+      categoryScoreDeltas: effectiveCategoryScoreDeltas as any,
+      categoryLabels: sidebarNodeData?.categoryLabels,
+      paramDeltas: sidebarNodeData?.paramDeltas,
+      promptChanged: sidebarNodeData?.promptChanged,
+      branchSuggestion: sidebarNodeData?.branchSuggestion,
+      note: sidebarNodeData?.note,
+      onSaveNote: saveNodeNote,
+      notesEnabled: props.notesEnabled,
+      showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
+      categoryVisibility,
+      onSetCategoryVisible: setCategoryVisible,
+      onShowAllCategories: showAllCategories,
+      parameterHistory: sidebarNodeData?.parameterHistory,
+      compareBaseNodeLabel:
+        compareSourceNodeId === sidebarNode.id
+          ? ((compareBaseNodeData?.label as string | undefined) ?? compareTargetNodeId) || null
+          : null,
+    };
+  }, [
+    sidebarNode,
+    sidebarNodeData,
+    effectiveDelta,
+    effectiveCategoryScoreDeltas,
+    saveNodeNote,
+    props.notesEnabled,
+    props.showWeightSuggestionsEnabled,
     categoryVisibility,
-    onSetCategoryVisible: setCategoryVisible,
-    onShowAllCategories: showAllCategories,
-    parameterHistory: sidebarNodeData?.parameterHistory,
-    compareBaseNodeLabel:
-      compareSourceNodeId === sidebarNode.id
-        ? ((compareBaseNodeData?.label as string | undefined) ?? compareTargetNodeId) || null
+    setCategoryVisible,
+    showAllCategories,
+    compareSourceNodeId,
+    compareTargetNodeId,
+    compareBaseNodeData,
+  ]);
+
+  const sidebarDetailsLogic = useNodeDetailsDialog(
+    sharedNodeDetailsProps ??
+      ({
+        open: false,
+        onClose: () => {},
+        nodeId: "",
+        type: "params",
+        d: {},
+        categoryVisibility,
+        onSetCategoryVisible: setCategoryVisible,
+        onShowAllCategories: showAllCategories,
+        notesEnabled: props.notesEnabled,
+        showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
+      } as any)
+  );
+
+  useEffect(() => {
+    const isParamsNode = sidebarNode?.type === "params";
+
+    props.onSidebarDataChange?.({
+      selectedNodeLabel: (sidebarNodeData?.label as string | undefined) ?? null,
+      computed: isParamsNode ? sidebarComputed : null,
+      orderedSliderItems,
+      clipLogic,
+      parameterItems: isParamsNode ? sidebarDetailsLogic.parameterItems : [],
+      parameterHistory: isParamsNode ? (sidebarNodeData?.parameterHistory ?? {}) : {},
+      compareBaseNodeLabel: isParamsNode
+        ? (sharedNodeDetailsProps?.compareBaseNodeLabel ?? null)
         : null,
-  };
-}, [
-  sidebarNode,
-  sidebarNodeData,
-  effectiveDelta,
-  effectiveCategoryScoreDeltas,
-  saveNodeNote,
-  props.notesEnabled,
-  props.showWeightSuggestionsEnabled,
-  categoryVisibility,
-  setCategoryVisible,
-  showAllCategories,
-  compareSourceNodeId,
-  compareTargetNodeId,
-  compareBaseNodeData,
-]);
-
-const sidebarDetailsLogic = useNodeDetailsDialog(
-  sharedNodeDetailsProps ?? {
-    open: false,
-    onClose: () => {},
-    nodeId: "",
-    type: "params",
-    d: {},
-    categoryVisibility,
-    onSetCategoryVisible: setCategoryVisible,
-    onShowAllCategories: showAllCategories,
-    notesEnabled: props.notesEnabled,
-    showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
-  } as any
-);
-
-useEffect(() => {
-  const isParamsNode = sidebarNode?.type === "params";
-
-  props.onSidebarDataChange?.({
-    selectedNodeLabel: (sidebarNodeData?.label as string | undefined) ?? null,
-    computed: isParamsNode ? sidebarComputed : null,
+      note: sidebarLocalNote,
+      notesEnabled: props.notesEnabled,
+      onChangeNote: setSidebarLocalNote,
+      onSaveNote: handleSaveSidebarNote,
+    });
+  }, [
+    props.onSidebarDataChange,
+    sidebarNode,
+    sidebarNodeData,
+    sidebarComputed,
     orderedSliderItems,
     clipLogic,
-    parameterItems: isParamsNode ? sidebarDetailsLogic.parameterItems : [],
-    parameterHistory: isParamsNode ? (sidebarNodeData?.parameterHistory ?? {}) : {},
-    compareBaseNodeLabel: isParamsNode
-      ? sharedNodeDetailsProps?.compareBaseNodeLabel ?? null
-      : null,
-    note: sidebarLocalNote,
-    notesEnabled: props.notesEnabled,
-    onChangeNote: setSidebarLocalNote,
-    onSaveNote: handleSaveSidebarNote,
-  });
-}, [
-  props.onSidebarDataChange,
-  sidebarNode,
-  sidebarNodeData,
-  sidebarComputed,
-  orderedSliderItems,
-  clipLogic,
-  sidebarDetailsLogic.parameterItems,
-  sidebarLocalNote,
-  handleSaveSidebarNote,
-  props.notesEnabled,
-  sharedNodeDetailsProps,
-]);
+    sidebarDetailsLogic.parameterItems,
+    sidebarLocalNote,
+    handleSaveSidebarNote,
+    props.notesEnabled,
+    sharedNodeDetailsProps,
+  ]);
 
   // ---------- Root create ----------
   function createRoot() {
@@ -1857,21 +1854,21 @@ useEffect(() => {
   }
 
   // ---------- node click ----------
-const onNodeClick: NodeMouseHandler = (evt, node) => {
-  const target = evt.target as HTMLElement | null;
-  if (target?.closest("button, a, [role='button'], .MuiDialog-root")) return;
+  const onNodeClick: NodeMouseHandler = (evt, node) => {
+    const target = evt.target as HTMLElement | null;
+    if (target?.closest("button, a, [role='button'], .MuiDialog-root")) return;
 
-  if (isComparePicking && compareSourceNodeId) {
-    finishComparePick(node.id);
-    return;
-  }
+    if (isComparePicking && compareSourceNodeId) {
+      finishComparePick(node.id);
+      return;
+    }
 
-  selectNode(node.id);
+    selectNode(node.id);
 
-  if (node.type === "clip" || node.type === "edit" || node.type === "import") {
-    setActionDialogOpen(true);
-  }
-};
+    if (node.type === "clip" || node.type === "edit" || node.type === "import") {
+      setActionDialogOpen(true);
+    }
+  };
 
   return (
     <div style={{ height: "100%", position: "relative" }}>
@@ -1896,7 +1893,6 @@ const onNodeClick: NodeMouseHandler = (evt, node) => {
           title="Jobs"
         />
       </Paper>
-
 
       {/* Root */}
       {/* Top-left status / root action */}
@@ -2040,6 +2036,7 @@ const onNodeClick: NodeMouseHandler = (evt, node) => {
         onResetFormulaWeights={resetFormulaWeights}
         restrictCategories={props.restrictCategories}
         setCategoryScore={v2v.setCategoryScore}
+        setCustomCategoryScore={v2v.setCustomCategoryScore}
       />
 
       <NamingConventionDialog

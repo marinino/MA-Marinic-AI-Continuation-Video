@@ -1,4 +1,4 @@
-import { OrderedSliderItem, BuiltInCategoryId } from "../types/ui";
+import { OrderedSliderItem, BuiltInCategoryId, CleanWeights } from "../types/ui";
 import { CategorySlider } from "./CategorySlider";
 
 export function renderOrderedSliderItem(
@@ -7,7 +7,9 @@ export function renderOrderedSliderItem(
   clipLogic: any,
   openWeights: (cat: any) => void,
   openCustomEdit: (id: string) => void,
-  setCategoryScore: (categoryId: BuiltInCategoryId, value: number) => void
+  clickable: boolean,
+  setCategoryScore?: (categoryId: BuiltInCategoryId, value: number) => void,
+  setCustomCategoryScore?: (weights: CleanWeights, value: number) => void
 ) {
   if (item.kind === "base") {
     switch (item.id) {
@@ -18,7 +20,9 @@ export function renderOrderedSliderItem(
             value={computed.scores.creativity}
             sx={clipLogic.catInfluenceSx("creativity", clipLogic.activeEffects)}
             onLabelClick={() => openWeights("creativity")}
-            onChange={(v) => setCategoryScore("creativity", v)}
+            onChange={setCategoryScore ? (v) => setCategoryScore("creativity", v) : undefined}
+            readonly={!setCategoryScore}
+            clickable={clickable}
           />
         );
 
@@ -29,7 +33,11 @@ export function renderOrderedSliderItem(
             value={computed.scores.promptFaithfulness}
             sx={clipLogic.catInfluenceSx("promptFaithfulness", clipLogic.activeEffects)}
             onLabelClick={() => openWeights("promptFaithfulness")}
-            onChange={(v) => setCategoryScore("promptFaithfulness", v)}
+            onChange={
+              setCategoryScore ? (v) => setCategoryScore("promptFaithfulness", v) : undefined
+            }
+            readonly={!setCategoryScore}
+            clickable={clickable}
           />
         );
 
@@ -40,7 +48,9 @@ export function renderOrderedSliderItem(
             value={computed.scores.motion}
             sx={clipLogic.catInfluenceSx("motion", clipLogic.activeEffects)}
             onLabelClick={() => openWeights("motion")}
-            onChange={(v) => setCategoryScore("motion", v)}
+            onChange={setCategoryScore ? (v) => setCategoryScore("motion", v) : undefined}
+            readonly={!setCategoryScore}
+            clickable={clickable}
           />
         );
 
@@ -51,7 +61,11 @@ export function renderOrderedSliderItem(
             value={computed.scores.transitionSmoothness}
             sx={clipLogic.catInfluenceSx("transitionSmoothness", clipLogic.activeEffects)}
             onLabelClick={() => openWeights("transitionSmoothness")}
-            onChange={(v) => setCategoryScore("transitionSmoothness", v)}
+            onChange={
+              setCategoryScore ? (v) => setCategoryScore("transitionSmoothness", v) : undefined
+            }
+            readonly={!setCategoryScore}
+            clickable={clickable}
           />
         );
 
@@ -62,7 +76,11 @@ export function renderOrderedSliderItem(
             value={computed.scores.videoFaithfulness}
             sx={clipLogic.catInfluenceSx("videoFaithfulness", clipLogic.activeEffects)}
             onLabelClick={() => openWeights("videoFaithfulness")}
-            onChange={(v) => setCategoryScore("videoFaithfulness", v)}
+            onChange={
+              setCategoryScore ? (v) => setCategoryScore("videoFaithfulness", v) : undefined
+            }
+            readonly={!setCategoryScore}
+            clickable={clickable}
           />
         );
     }
@@ -74,7 +92,11 @@ export function renderOrderedSliderItem(
       value={computed.allScores[item.slider.id] ?? 0}
       onLabelClick={() => openCustomEdit(item.slider.id)}
       sx={clipLogic.catInfluenceSx(item.slider.id, clipLogic.activeEffects)}
-      readonly
+      onChange={
+        setCustomCategoryScore ? (v) => setCustomCategoryScore(item.slider.w, v) : undefined
+      }
+      readonly={!setCustomCategoryScore}
+      clickable={clickable}
     />
   );
 }
