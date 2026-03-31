@@ -205,30 +205,14 @@ export function NodeDetailsDialogView({
               </Typography>
             )}
 
-            {props.notesEnabled && (
-              <>
-                <Divider />
-                <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                  <strong>Notes</strong>
-                </Typography>
-
-                <TextField
-                  multiline
-                  minRows={3}
-                  fullWidth
-                  value={logic.localNote}
-                  onChange={(e) => logic.setLocalNote(e.target.value)}
-                  placeholder="Add notes for this node..."
-                />
-              </>
-            )}
+            
           </Stack>
         </DialogContent>
 
         <DialogActions sx={{ justifyContent: "space-between" }}>
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button onClick={logic.handleSaveAndClose}>
-              {props.notesEnabled ? "Save Notes and close" : "Close"}
+            <Button onClick={props.onClose}>
+              Close
             </Button>
           </Box>
         </DialogActions>

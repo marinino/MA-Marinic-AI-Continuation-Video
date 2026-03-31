@@ -417,3 +417,10 @@ export type HistoryPoint = {
 export type ParameterHistoryMap = Record<string, HistoryPoint[]>;
 
 export type GraphCardDisplayMode = "chips" | "bars";
+
+export type BuiltInCategoryId =
+  | "creativity"
+  | "promptFaithfulness"
+  | "motion"
+  | "transitionSmoothness"
+  | "videoFaithfulness";

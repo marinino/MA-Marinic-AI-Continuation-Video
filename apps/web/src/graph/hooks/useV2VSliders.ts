@@ -10,7 +10,8 @@ import {
   SafeBounds,
   SpeedMode,
 } from "../types/ui";
-import { SAFE_PRESETS_QUALITY, SAFE_PRESETS_QUICK } from "../graph_helpers/presets";
+import { DEFAULT_FORMULA_WEIGHTS, SAFE_PRESETS_QUALITY, SAFE_PRESETS_QUICK } from "../graph_helpers/presets";
+import { adjustSimpleForCategoryTarget, getScoreRanges } from "./useV2VParams";
 
 export const SAFE_PRESETS: Record<SpeedMode, SafePreset[]> = {
   quality: SAFE_PRESETS_QUALITY,
@@ -194,6 +195,31 @@ export function useV2VSliders() {
 
   const sliderCfg = useMemo(() => cfgShift[simpleSpeedMode], [simpleSpeedMode]);
 
+  const scoreRanges = useMemo(() => getScoreRanges(simpleSpeedMode), [simpleSpeedMode]);
+
+  const setCategoryScore = (
+  categoryId:
+    | "creativity"
+    | "promptFaithfulness"
+    | "motion"
+    | "transitionSmoothness"
+    | "videoFaithfulness",
+  targetScore: number
+) => {
+  setSimple((prev) =>
+    adjustSimpleForCategoryTarget({
+      simple: prev,
+      categoryId,
+      targetScore,
+      ranges: scoreRanges,
+      formulaWeights: DEFAULT_FORMULA_WEIGHTS,
+      clampSimpleWithMode: (s) => clampSimple(simpleSpeedMode, s),
+      applySafeConstraintsWithKey: (s, activeKey) =>
+        applySafeConstraints(clampSimple(simpleSpeedMode, s), activeKey),
+    })
+  );
+};
+
   function quantizeBounds(mode: SpeedMode, b: SafeBounds): SafeBounds {
     // helper: auf das Slider-Grid runden + clampen
     const q = (k: SafeKey, x: number) => clampToCfg(mode, k as any, x);
@@ -269,5 +295,6 @@ export function useV2VSliders() {
     getBounds,
     roundTo,
     simulateSliderChange,
+    setCategoryScore
   };
 }

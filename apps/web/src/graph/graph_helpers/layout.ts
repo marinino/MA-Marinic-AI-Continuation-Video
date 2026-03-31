@@ -18,7 +18,7 @@ export function isColliding(a: XY, b: XY, w = 220, h = 120, pad = 30) {
 export function getDefaultNodeSize(type?: string) {
   switch (type) {
     case "params":
-      return { w: 420, h: 170 };
+      return { w: 420, h: 500 };
     case "edit":
       return { w: 280, h: 170 };
     case "import":
@@ -30,11 +30,22 @@ export function getDefaultNodeSize(type?: string) {
 }
 
 function getMeasuredSize(node: BoxNode) {
-  if (typeof node.width === "number" && typeof node.height === "number") {
-    return { w: node.width, h: node.height };
+  const fallback = getDefaultNodeSize(node.type);
+
+  const measuredW = typeof node.width === "number" ? node.width : fallback.w;
+  const measuredH = typeof node.height === "number" ? node.height : fallback.h;
+
+  if (node.type === "params") {
+    return {
+      w: measuredW,
+      h: Math.max(measuredH, 350),
+    };
   }
 
-  return getDefaultNodeSize(node.type);
+  return {
+    w: measuredW,
+    h: measuredH,
+  };
 }
 
 function isCollidingBoxes(a: BoxNode, b: BoxNode, pad = 30) {

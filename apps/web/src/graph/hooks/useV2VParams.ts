@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import {
+  BuiltInCategoryId,
   CategoryScores,
   CustomScoreSlider,
   FormulaWeights,
@@ -13,7 +14,160 @@ import { SAFE_PRESETS } from "./useV2VSliders";
 import { applyWeights } from "../graph_helpers/sliderLogic";
 import { DEFAULT_FORMULA_WEIGHTS } from "../graph_helpers/presets";
 
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+function clamp(v: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+export function simpleToNormalizedValues(
+  s: SimpleReal,
+  ranges: ScoreRanges
+) {
+  const steps = clamp(
+    (s.totalSteps - ranges.steps.min) / Math.max(1e-6, ranges.steps.max - ranges.steps.min),
+    0,
+    1
+  );
+
+  const ratio = clamp(
+    (s.stepRatioPct - ranges.ratio.min) / Math.max(1e-6, ranges.ratio.max - ranges.ratio.min),
+    0,
+    1
+  );
+
+  const shift = clamp(
+    (s.highShift - ranges.shift.min) / Math.max(1e-6, ranges.shift.max - ranges.shift.min),
+    0,
+    1
+  );
+
+  const cfg = clamp(
+    (s.highCfg - ranges.cfg.min) / Math.max(1e-6, ranges.cfg.max - ranges.cfg.min),
+    0,
+    1
+  );
+
+  const strength = clamp(
+    (s.highStrength - ranges.strength.min) / Math.max(1e-6, ranges.strength.max - ranges.strength.min),
+    0,
+    1
+  );
+
+  return { steps, ratio, shift, cfg, strength };
+}
+
+export function adjustSimpleForCategoryTarget(args: {
+  simple: SimpleReal;
+  categoryId: BuiltInCategoryId;
+  targetScore: number; // 0..100
+  ranges: ScoreRanges;
+  formulaWeights: FormulaWeights;
+  clampSimpleWithMode: (s: SimpleReal) => SimpleReal;
+  applySafeConstraintsWithKey: (
+    s: SimpleReal,
+    activeKey: "totalSteps" | "stepRatioPct" | "highShift" | "highCfg" | "highStrength"
+  ) => SimpleReal;
+}): SimpleReal {
+  const {
+    simple,
+    categoryId,
+    targetScore,
+    ranges,
+    formulaWeights,
+    clampSimpleWithMode,
+    applySafeConstraintsWithKey,
+  } = args;
+
+  const weights = formulaWeights[categoryId];
+  if (!weights) return simple;
+
+  let next = clampSimpleWithMode({ ...simple });
+  const target = clamp(targetScore, 0, 100);
+
+  const featureMap = [
+    { weightKey: "steps" as const, simpleKey: "totalSteps" as const, safeKey: "totalSteps" as const },
+    { weightKey: "ratio" as const, simpleKey: "stepRatioPct" as const, safeKey: "stepRatioPct" as const },
+    { weightKey: "shift" as const, simpleKey: "highShift" as const, safeKey: "highShift" as const },
+    { weightKey: "cfg" as const, simpleKey: "highCfg" as const, safeKey: "highCfg" as const },
+    {
+      weightKey: "strength" as const,
+      simpleKey: "highStrength" as const,
+      safeKey: "highStrength" as const,
+    },
+  ];
+
+  const maxIterations = 20;
+
+  for (let i = 0; i < maxIterations; i++) {
+    const scores = computeCategoryScoresFromSimple(
+      {
+        totalSteps: next.totalSteps,
+        stepRatio: next.stepRatioPct,
+        highShift: next.highShift,
+        highCfg: next.highCfg,
+        highStrength: next.highStrength,
+      },
+      ranges,
+      formulaWeights
+    );
+
+    const current = scores[categoryId];
+    const error = target - current;
+
+    if (Math.abs(error) < 1) break;
+
+    const values01 = simpleToNormalizedValues(next, ranges);
+
+    for (const entry of featureMap) {
+      const w = weights[entry.weightKey] ?? 0;
+      if (!w) continue;
+
+      const current01 = values01[entry.weightKey];
+
+      // Richtung: wenn Gewicht positiv ist, erhöht mehr Feature auch den Score.
+      // Wenn Gewicht negativ ist, dann umgekehrt.
+      const signedDirection = Math.sign(error) * Math.sign(w);
+
+      // kleiner stabiler Schritt
+      const step01 = Math.min(0.08, (Math.abs(error) / 100) * Math.abs(w) * 0.35);
+
+      const next01 = clamp(current01 + signedDirection * step01, 0, 1);
+      const denorm = denormalizeSimpleValue(entry.weightKey, next01, ranges);
+
+      (next as any)[entry.simpleKey] = denorm;
+    }
+
+    next = clampSimpleWithMode(next);
+
+    // Deine Safe-Constraints weiter respektieren
+    for (const entry of featureMap) {
+      next = applySafeConstraintsWithKey(next, entry.safeKey);
+      next = clampSimpleWithMode(next);
+    }
+  }
+
+  return clampSimpleWithMode(next);
+}
+
+export function denormalizeSimpleValue(
+  key: "steps" | "ratio" | "shift" | "cfg" | "strength",
+  value01: number,
+  ranges: ScoreRanges
+) {
+  const t = clamp(value01, 0, 1);
+
+  switch (key) {
+    case "steps":
+      return ranges.steps.min + t * (ranges.steps.max - ranges.steps.min);
+    case "ratio":
+      return ranges.ratio.min + t * (ranges.ratio.max - ranges.ratio.min);
+    case "shift":
+      return ranges.shift.min + t * (ranges.shift.max - ranges.shift.min);
+    case "cfg":
+      return ranges.cfg.min + t * (ranges.cfg.max - ranges.cfg.min);
+    case "strength":
+      return ranges.strength.min + t * (ranges.strength.max - ranges.strength.min);
+  }
+}
 
 export function getStepRanges(mode: SpeedMode) {
   const presets = SAFE_PRESETS[mode];
@@ -160,44 +314,16 @@ export function computeCategoryScoresFromSimple(
   },
   fw: FormulaWeights = DEFAULT_FORMULA_WEIGHTS
 ): CategoryScores {
-  const steps01 = clamp(
-    (s.totalSteps - ranges.steps.min) / Math.max(1e-6, ranges.steps.max - ranges.steps.min),
-    0,
-    1
-  );
-
-  const ratio01 = clamp(
-    (s.stepRatio - ranges.ratio.min) / Math.max(1e-6, ranges.ratio.max - ranges.ratio.min),
-    0,
-    1
-  );
-
-  const shift01 = clamp(
-    (s.highShift - ranges.shift.min) / Math.max(1e-6, ranges.shift.max - ranges.shift.min),
-    0,
-    1
-  );
-
-  const cfg01 = clamp(
-    (s.highCfg - ranges.cfg.min) / Math.max(1e-6, ranges.cfg.max - ranges.cfg.min),
-    0,
-    1
-  );
-
-  const strength01 = clamp(
-    (s.highStrength - ranges.strength.min) /
-      Math.max(1e-6, ranges.strength.max - ranges.strength.min),
-    0,
-    1
-  );
-
-  const values = {
-    steps: steps01,
-    ratio: ratio01,
-    shift: shift01,
-    cfg: cfg01,
-    strength: strength01,
-  };
+  const values = simpleToNormalizedValues(
+    {
+      totalSteps: s.totalSteps,
+      stepRatioPct: s.stepRatio,
+      highShift: s.highShift,
+      highCfg: s.highCfg,
+      highStrength: s.highStrength,
+    },
+    ranges
+  );;
 
   return {
     creativity: Math.round(applyWeights(fw.creativity, values) * 100),
@@ -246,44 +372,7 @@ export function computeAllScores(
   formulaWeights: FormulaWeights,
   custom: CustomScoreSlider[]
 ): Record<string, number> {
-  const steps01 = clamp(
-    (s.totalSteps - ranges.steps.min) / Math.max(1e-6, ranges.steps.max - ranges.steps.min),
-    0,
-    1
-  );
-
-  const ratio01 = clamp(
-    (s.stepRatioPct - ranges.ratio.min) / Math.max(1e-6, ranges.ratio.max - ranges.ratio.min),
-    0,
-    1
-  );
-
-  const shift01 = clamp(
-    (s.highShift - ranges.shift.min) / Math.max(1e-6, ranges.shift.max - ranges.shift.min),
-    0,
-    1
-  );
-
-  const cfg01 = clamp(
-    (s.highCfg - ranges.cfg.min) / Math.max(1e-6, ranges.cfg.max - ranges.cfg.min),
-    0,
-    1
-  );
-
-  const strength01 = clamp(
-    (s.highStrength - ranges.strength.min) /
-      Math.max(1e-6, ranges.strength.max - ranges.strength.min),
-    0,
-    1
-  );
-
-  const values = {
-    steps: steps01,
-    ratio: ratio01,
-    shift: shift01,
-    cfg: cfg01,
-    strength: strength01,
-  };
+  const values = simpleToNormalizedValues(s, ranges);
 
   const builtIn = computeCategoryScoresFromSimple(
     {

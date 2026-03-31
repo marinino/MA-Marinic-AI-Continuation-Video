@@ -39,7 +39,7 @@ import { PentagonAxesDialog } from "./PentagonAxesDialog";
 import { TriangleMap } from "../components/TriangleMap";
 import { TriangleAxesDialog } from "./TriangleAxesDialog";
 import { PressableSlider } from "../components/PressableSlider";
-import { ReadonlySlider } from "../components/ReadOnlySlider";
+import { CategorySlider } from "../components/CategorySlider";
 import { SafeRangeBar } from "../components/SafeRangeBar";
 import { axisLabel, axisValue, useClipDialogLogic } from "../graph_helpers/clipDialogLogic";
 
@@ -50,6 +50,7 @@ import { triangleLogic } from "../graph_helpers/triangleLogic";
 import {
   AdvancedParamsState,
   AxisId,
+  BuiltInCategoryId,
   CatView,
   CustomScoreSlider,
   FormulaWeights,
@@ -125,6 +126,7 @@ export type ClipDialogProps = {
   onResetFormulaWeights: () => void;
 
   restrictCategories: boolean;
+  setCategoryScore: (categoryId: BuiltInCategoryId, value: number) => void;
 };
 
 /* ========= helpers (wie im mega-file) ========= */
@@ -638,12 +640,13 @@ export function ClipDialog(p: ClipDialogProps) {
                             >
                               <Box>
                                 {renderOrderedSliderItem(
-                                  item,
-                                  computed,
-                                  clipLogic,
-                                  openWeights,
-                                  openCustomEdit
-                                )}
+  item,
+  computed,
+  clipLogic,
+  openWeights,
+  openCustomEdit,
+  p.setCategoryScore
+)}
                               </Box>
 
                               <Stack spacing={0.5}>

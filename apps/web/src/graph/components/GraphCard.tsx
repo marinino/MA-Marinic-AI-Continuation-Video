@@ -337,7 +337,8 @@ export function GraphCard(props: NodeCardPreviewProps) {
     return;
   }
 
-  if (props.type === "params") {
+  if (props.type === "params" && props.isComparePicking) {
+    props.onOpen()
     return;
   }
 }}

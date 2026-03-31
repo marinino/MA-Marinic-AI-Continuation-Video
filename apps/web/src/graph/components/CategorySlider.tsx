@@ -1,12 +1,15 @@
 import { Box, Stack, Tooltip, ButtonBase, Typography, Slider } from "@mui/material";
 
-export function ReadonlySlider(props: {
+export function CategorySlider(props: {
   label: string;
   value: number;
   sx?: any;
   onLabelClick?: () => void;
+  onChange?: (value: number) => void;
+  readonly?: boolean;
 }) {
   const clickable = !!props.onLabelClick;
+  const readonly = props.readonly ?? false;
 
   return (
     <Box sx={props.sx}>
@@ -19,7 +22,6 @@ export function ReadonlySlider(props: {
                 sx={{
                   borderRadius: 1,
                   px: 0.25,
-                  // macht es wie ein Link/Text
                   "& .label": {
                     fontSize: (theme) => theme.typography.body2.fontSize,
                     fontWeight: (theme) => theme.typography.body2.fontWeight,
@@ -28,7 +30,6 @@ export function ReadonlySlider(props: {
                     textDecoration: "underline",
                     textUnderlineOffset: "3px",
                   },
-                  // schöner Fokus-Ring
                   "&:focus-visible": {
                     outline: "2px solid",
                     outlineColor: "primary.main",
@@ -42,12 +43,6 @@ export function ReadonlySlider(props: {
           ) : (
             <Typography variant="body2">{props.label}</Typography>
           )}
-
-          {clickable && (
-            <Typography variant="caption" color="text.secondary" sx={{ userSelect: "none" }}>
-              (configure)
-            </Typography>
-          )}
         </Stack>
 
         <Typography variant="body2" color="text.secondary">
@@ -55,7 +50,17 @@ export function ReadonlySlider(props: {
         </Typography>
       </Stack>
 
-      <Slider value={props.value} min={0} max={100} step={1} sx={{ pointerEvents: "none" }} />
+      <Slider
+        value={props.value}
+        min={0}
+        max={100}
+        step={1}
+        onChangeCommitted={(_, v) => {
+          if (readonly) return;
+          props.onChange?.(Array.isArray(v) ? v[0] : v);
+        }}
+        sx={readonly ? { pointerEvents: "none" } : undefined}
+      />
     </Box>
   );
 }

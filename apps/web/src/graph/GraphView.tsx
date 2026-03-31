@@ -2039,6 +2039,7 @@ const onNodeClick: NodeMouseHandler = (evt, node) => {
         onPatchFormulaWeights={patchFormulaWeights}
         onResetFormulaWeights={resetFormulaWeights}
         restrictCategories={props.restrictCategories}
+        setCategoryScore={v2v.setCategoryScore}
       />
 
       <NamingConventionDialog

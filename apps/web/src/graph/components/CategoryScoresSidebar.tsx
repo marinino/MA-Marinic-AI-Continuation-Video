@@ -138,7 +138,14 @@ export function CategoryScoresSidebar({
     minWidth: 0,
   }}
 >
-                      {renderOrderedSliderItem(item, computed, clipLogic, () => {}, () => {})}
+                      {renderOrderedSliderItem(
+  item,
+  computed,
+  clipLogic,
+  () => {},
+  () => {},
+  () => {}
+)}
                     </Box>
                   ))}
                 </Box>
@@ -173,7 +180,7 @@ export function CategoryScoresSidebar({
                   placeholder="Add notes for this node..."
                 />
 
-                <Button variant="outlined" size="small" onClick={onSaveNote}>
+                <Button variant="outlined" size="small" onClick={onSaveNote} sx={{mt: 1}}>
   Save notes
 </Button>
               </>
