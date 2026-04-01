@@ -3,8 +3,12 @@ import { NodeCard } from "./Node";
 import { Stack, Typography, Chip, Box } from "@mui/material";
 import { parsedChangelogLines } from "../../utils/parseTimelineChangelog";
 import ContentCutIcon from "@mui/icons-material/ContentCut";
+import { useContext } from "react";
+import GraphUIContext from "../contexts/GraphUIContext";
 
 export function EditNode(props: NodeProps<any>) {
+  const ui = useContext(GraphUIContext);
+if (!ui) throw new Error("GraphUIContext missing");
   const summaryLines: string[] = props.data?.summaryLines ?? [];
 
   function checkInSummary(
@@ -37,14 +41,14 @@ export function EditNode(props: NodeProps<any>) {
         selected={props.selected}
         metaSummary={props.data?.metaSummary}
         note={props.data?.note}
-        onSaveNote={props.data?.onSaveNote}
-        onDelete={props.data?.onDelete}
+        onSaveNote={ui?.onSaveNote}
+        onDelete={ui?.onDelete}
         canDelete={!props.data?.isRoot}
-        onHide={props.data?.onHide}
+        onHide={ui?.onHide}
         canHide={!props.data?.isRoot}
-        highlightUnseenEnabled={props.data?.highlightUnseenEnabled}
-        notesEnabled={props.data?.notesEnabled}
-        onOpenDetails={props.data?.onOpenDetails}
+        highlightUnseenEnabled={ui?.highlightUnseenEnabled}
+        notesEnabled={ui?.notesEnabled}
+        onOpenDetails={ui?.onOpenDetails}
       >
         <Stack gap={1} mt={1}>
           {checkInSummary("clip_added", summaryLines) && <Chip label="Added clip" />}

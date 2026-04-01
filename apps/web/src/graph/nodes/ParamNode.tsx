@@ -1,9 +1,13 @@
+import { useContext } from "react";
 import { Handle, NodeProps, Position } from "reactflow";
-import { NodeCard } from "./Node";
 import TuneIcon from "@mui/icons-material/Tune";
-import { Typography } from "@mui/material";
+import { NodeCard } from "./Node";
+import GraphUIContext from "../contexts/GraphUIContext";
 
 export function ParamNode(props: NodeProps<any>) {
+  const ui = useContext(GraphUIContext);
+  if (!ui) throw new Error("GraphUIContext missing");
+
   return (
     <div style={{ position: "relative" }}>
       <Handle id="in" type="target" position={Position.Left} />
@@ -16,13 +20,11 @@ export function ParamNode(props: NodeProps<any>) {
         type="params"
         isRoot={false}
         selected={props.selected}
-        prompt={props.data.prompt}
+        prompt={props.data?.prompt}
         highNoiseCfg={props.data?.highNoiseCfg}
         lowNoiseCfg={props.data?.lowNoiseCfg}
         highNoiseModelStrength={props.data?.highNoiseModelStrength}
         lowNoiseModelStrength={props.data?.lowNoiseModelStrength}
-        highlightUnseenEnabled={props.data.highlightUnseenEnabled}
-        notesEnabled={props.data.notesEnabled}
         highNoiseShift={props.data?.highNoiseShift}
         lowNoiseShift={props.data?.lowNoiseShift}
         highNoiseSteps={props.data?.highNoiseSteps}
@@ -37,28 +39,30 @@ export function ParamNode(props: NodeProps<any>) {
         categoryScoreDeltas={props.data?.categoryScoreDeltas}
         promptChanged={props.data?.promptChanged}
         note={props.data?.note}
-        onSaveNote={props.data?.onSaveNote}
-        onDelete={(props.data as any)?.onDelete}
+        onSaveNote={ui.onSaveNote}
+        onDelete={ui.onDelete}
         canDelete={!props.data?.isRoot}
-        onHide={(props.data as any)?.onHide}
+        onHide={ui.onHide}
         canHide={!props.data?.isRoot}
         branchSuggestion={props.data?.branchSuggestion}
-        categoryLabels={props.data.categoryLabels}
-        categoryVisibility={props.data.categoryVisibility}
-        onSetCategoryVisible={props.data.onSetCategoryVisible}
-        onShowAllCategories={props.data.onShowAllCategories}
-        showWeightSuggestionsEnabled={props.data.showWeightSuggestionsEnabled}
-        graphCardContentMode={props.data.graphCardContentMode}
-        graphCardDisplayMode={props.data.graphCardDisplayMode}
-        displayTotalSteps={props.data.displayTotalSteps}
-        displayLowStepPct={props.data.displayLowStepPct}
-        parameterHistory={props.data.parameterHistory}
-        onOpenDetails={props.data.onOpenDetails}
-        onStartCompare={props.data.onStartCompare}
-        isComparePicking={props.data.isComparePicking}
-        compareSourceNodeId={props.data.compareSourceNodeId}
-        showOnlyChangedParameters={props.data.showOnlyChangedParameters}
-        onSelectNode={props.data.onSelectNode}
+        categoryLabels={props.data?.categoryLabels}
+        categoryVisibility={ui.categoryVisibility}
+        onSetCategoryVisible={ui.onSetCategoryVisible}
+        onShowAllCategories={ui.onShowAllCategories}
+        showWeightSuggestionsEnabled={ui.showWeightSuggestionsEnabled}
+        graphCardContentMode={ui.graphCardContentMode}
+        graphCardDisplayMode={ui.graphCardDisplayMode}
+        displayTotalSteps={props.data?.displayTotalSteps}
+        displayLowStepPct={props.data?.displayLowStepPct}
+        parameterHistory={props.data?.parameterHistory}
+        onOpenDetails={ui.onOpenDetails}
+        onStartCompare={ui.onStartCompare}
+        isComparePicking={ui.isComparePicking}
+        compareSourceNodeId={ui.compareSourceNodeId}
+        showOnlyChangedParameters={ui.showOnlyChangedParameters}
+        onSelectNode={ui.onSelectNode}
+        highlightUnseenEnabled={ui.highlightUnseenEnabled}
+        notesEnabled={ui.notesEnabled}
       />
     </div>
   );

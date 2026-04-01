@@ -111,6 +111,8 @@ import { ImportVideoDialog } from "./dialogs/ImportVideoDialog";
 import { CategoryScoresSidebar } from "./components/CategoryScoresSidebar";
 import { useClipDialogLogic } from "./graph_helpers/clipDialogLogic";
 import { useNodeDetailsDialog } from "./hooks/useNodeDetailsDialogLogic";
+import GraphUIContext from "./contexts/GraphUIContext";
+
 
 // edgeTypes
 const edgeTypes = { labeled: LabeledEdge };
@@ -268,7 +270,7 @@ export function GraphView(props: {
   const [v2vLength, setV2VLength] = useState(71);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [nodeToDeleteId, setNodeToDeleteId] = useState<string | null>(null);
+
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([]);
@@ -629,15 +631,13 @@ export function GraphView(props: {
     return (node.data?.videoFile?.filename as string | undefined) ?? null;
   }, [g.clickedNodeId, g.rfNodes]);
 
-  const selectedNodeHasHiddenChildren = useMemo(() => {
-    if (!g.clickedNodeId) return false;
-    return getHiddenDescendantIds(g.clickedNodeId, g.rfNodes, g.rfEdges).length > 0;
-  }, [g.clickedNodeId, g.rfNodes, g.rfEdges]);
+const hiddenDescendantIds = useMemo(() => {
+  if (!g.clickedNodeId) return [];
+  return getHiddenDescendantIds(g.clickedNodeId, g.rfNodes, g.rfEdges);
+}, [g.clickedNodeId, g.rfNodes, g.rfEdges]);
 
-  const hiddenChildCount = useMemo(() => {
-    if (!g.clickedNodeId) return 0;
-    return getHiddenDescendantIds(g.clickedNodeId, g.rfNodes, g.rfEdges).length;
-  }, [g.clickedNodeId, g.rfNodes, g.rfEdges]);
+const selectedNodeHasHiddenChildren = hiddenDescendantIds.length > 0;
+const hiddenChildCount = hiddenDescendantIds.length;
 
   const davinci = useDavinciTimeline({
     project: props.project,
@@ -645,15 +645,10 @@ export function GraphView(props: {
     manualEditDraft,
   });
 
-  // helper (z.B. in GraphView oder in einer kleinen utils-Datei)
-  function jobStateStyle(state: "idle" | "running" | "error") {
-    const paletteKey = state === "idle" ? "success" : state === "running" ? "warning" : "error";
+  
 
-    return {
-      borderColor: `${paletteKey}.main`,
-      bgColor: `${paletteKey}.50`, // sehr dezent
-    } as const;
-  }
+  // helper (z.B. in GraphView oder in einer kleinen utils-Datei)
+
 
   const exitCompareMode = useCallback(() => {
     setIsComparePicking(false);
@@ -868,30 +863,24 @@ export function GraphView(props: {
       const injectedCommon = {
         ...baseData,
         videoOpened: Boolean(baseData?.videoOpened),
-        highlightUnseenEnabled: props.highlightUnseenEnabled,
-        notesEnabled: props.notesEnabled,
-        showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
-        graphCardContentMode: props.graphCardContentMode,
-        graphCardDisplayMode: props.graphCardDisplayMode,
-        showOnlyChangedParameters: props.showOnlyChangedParameters,
-        onSaveNote: saveNodeNote,
-        markVideoOpened,
-        onDelete: handleDeleteNode,
-        onHide: handleHideNode,
-        categoryLabels,
-        categoryVisibility,
-        onSetCategoryVisible: setCategoryVisible,
-        onShowAllCategories: showAllCategories,
-        onOpenDetails: handleOpenDetails,
-        onStartCompare: handleStartCompare,
-        isComparePicking,
-        compareSourceNodeId,
-        onSelectNode: selectNode,
 
-        onAdd: (nodeId: string) => {
-          selectNode(nodeId);
-          setActionDialogOpen(true);
-        },
+
+
+
+
+
+
+
+
+        categoryLabels,
+
+
+
+
+
+
+
+
       };
 
       // ---------- clip ----------
@@ -930,69 +919,7 @@ export function GraphView(props: {
           {} as Record<string, number>
         );
 
-        const metaSummary = (
-          <Stack spacing={0.75}>
-            <Typography variant="body2" color="text.secondary">
-              Tool: {baseData?.tool ?? "resolve"}
-            </Typography>
 
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Chip size="small" label={exportInfo?.status ?? "waiting"} />
-              {importedAt && (
-                <Typography variant="caption" color="text.secondary">
-                  {new Date(importedAt).toLocaleString()}
-                </Typography>
-              )}
-            </Stack>
-
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Chip
-                size="small"
-                color={changelog.length ? "success" : "default"}
-                label={changelog.length ? `changes: ${changelog.length}` : "no timeline diff"}
-              />
-              {Object.keys(counts).length > 0 && (
-                <Typography variant="caption" color="text.secondary">
-                  {Object.entries(counts)
-                    .map(([k, v]) => `${k}:${v}`)
-                    .join(" · ")}
-                </Typography>
-              )}
-            </Stack>
-
-            {changelog.length > 0 && (
-              <Box sx={{ mt: 0.5 }}>
-                <Stack spacing={1}>
-                  {summaryLines.map((line, i) => (
-                    <Typography key={i} variant="body2">
-                      {line}
-                    </Typography>
-                  ))}
-
-                  {detailLines.length > 0 && (
-                    <>
-                      <Typography variant="subtitle2" sx={{ mt: 1 }}>
-                        Details
-                      </Typography>
-
-                      <Stack spacing={0.5}>
-                        {detailLines.map((line, i) => (
-                          <Typography
-                            key={i}
-                            variant="caption"
-                            sx={{ opacity: 0.85, overflowWrap: "anywhere" }}
-                          >
-                            {line}
-                          </Typography>
-                        ))}
-                      </Stack>
-                    </>
-                  )}
-                </Stack>
-              </Box>
-            )}
-          </Stack>
-        );
 
         return {
           ...n,
@@ -1006,7 +933,15 @@ export function GraphView(props: {
             summaryLines,
             detailLines,
             prevEffectKeys,
-            metaSummary,
+            metaSummaryData: {
+  tool: baseData?.tool ?? "resolve",
+  status: exportInfo?.status ?? "waiting",
+  importedAt,
+  changelogLength: changelog.length,
+  counts,
+  summaryLines,
+  detailLines,
+}
           },
         };
       }
@@ -1078,58 +1013,18 @@ export function GraphView(props: {
           paramDeltas: deltas,
           categoryScoreDeltas,
           promptChanged,
-          branchSuggestion: null,
         },
       };
     });
 
-    const precomputedById = new Map(precomputedNodes.map((n) => [n.id, n as RFNode]));
-
-    return precomputedNodes.map((n) => {
-      if (n.type !== "params") return n;
-
-      const branchSteps = collectParamBranchSteps(n.id, precomputedById, edges);
-
-      const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
-        minSteps: 5,
-        minCategoryDeltaAbs: 1,
-        minParamDeltaAbs: 0.01,
-        minStreak: 5,
-        recencyWindow: 15,
-      });
-
-      const parameterHistory = buildParameterHistoryFromBranchSteps(branchSteps, precomputedById);
-
-      return {
-        ...n,
-        data: {
-          ...(n.data as any),
-          branchSuggestion,
-          parameterHistory,
-        },
-      };
-    });
+    return precomputedNodes;
   }, [
     g.nodesWithRootFlag,
     g.rfEdges,
-    g.setClickedNodeId,
-    props.onChange,
-    markVideoOpened,
-    saveNodeNote,
-    handleDeleteNode,
-    handleHideNode,
-    props.highlightUnseenEnabled,
-    props.notesEnabled,
-    props.showWeightSuggestionsEnabled,
-    props.graphCardDisplayMode,
-    props.showOnlyChangedParameters,
+
+   
     categoryLabels,
-    categoryVisibility,
-    props.graphCardContentMode,
-    handleOpenDetails,
-    setCategoryVisible,
-    showAllCategories,
-    selectNode,
+  
   ]);
 
   const detailsNode = useMemo(() => {
@@ -1223,6 +1118,8 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
   return detailsNodeData.categoryScoreDeltas ?? null;
 }, [detailsNode, detailsNodeData, compareSourceNodeId, compareTargetNodeId, compareBaseNodeData]);
 
+
+
   const effectiveCategoryScoreDeltas = useMemo(() => {
     if (!sidebarNodeData) return null;
 
@@ -1241,6 +1138,48 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
     return sidebarNodeData.categoryScoreDeltas ?? null;
   }, [sidebarNode, sidebarNodeData, compareSourceNodeId, compareTargetNodeId, compareBaseNodeData]);
 
+    const sidebarParamAnalysis = useMemo(() => {
+  if (!sidebarNode || sidebarNode.type !== "params") return null;
+
+  const nodes = nodesForUI as RFNode[];
+  const edges = g.rfEdges as Edge[];
+  const nodesById = new Map(nodes.map((n) => [n.id, n]));
+
+  const branchSteps = collectParamBranchSteps(sidebarNode.id, nodesById, edges);
+
+  return {
+    branchSuggestion: detectParamWeightSuggestion(branchSteps, {
+      minSteps: 5,
+      minCategoryDeltaAbs: 1,
+      minParamDeltaAbs: 0.01,
+      minStreak: 5,
+      recencyWindow: 15,
+    }),
+    parameterHistory: buildParameterHistoryFromBranchSteps(branchSteps, nodesById),
+  };
+}, [sidebarNode?.id, nodesForUI, g.rfEdges]);
+
+const detailsParamAnalysis = useMemo(() => {
+  if (!detailsNode || detailsNode.type !== "params") return null;
+
+  const nodes = nodesForUI as RFNode[];
+  const edges = g.rfEdges as Edge[];
+  const nodesById = new Map(nodes.map((n) => [n.id, n]));
+
+  const branchSteps = collectParamBranchSteps(detailsNode.id, nodesById, edges);
+
+  return {
+    branchSuggestion: detectParamWeightSuggestion(branchSteps, {
+      minSteps: 5,
+      minCategoryDeltaAbs: 1,
+      minParamDeltaAbs: 0.01,
+      minStreak: 5,
+      recencyWindow: 15,
+    }),
+    parameterHistory: buildParameterHistoryFromBranchSteps(branchSteps, nodesById),
+  };
+}, [detailsNode?.id, nodesForUI, g.rfEdges]);
+
   const sharedNodeDetailsProps = useMemo(() => {
     if (!sidebarNode || sidebarNode.type !== "params") return null;
 
@@ -1253,7 +1192,7 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
       videoUrl: (sidebarNodeData?.videoUrl as string | null | undefined) ?? null,
       videoFile: sidebarNodeData?.videoFile,
       videoStatus: sidebarNodeData?.videoStatus,
-      metaSummary: sidebarNodeData?.metaSummary,
+      metaSummary: sidebarNodeData?.metaSummaryData,
       prompt: sidebarNodeData?.prompt,
       prevParamsId: sidebarNodeData?.prevParamsId,
       highNoiseCfg: sidebarNodeData?.highNoiseCfg,
@@ -1275,7 +1214,7 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
       categoryLabels: sidebarNodeData?.categoryLabels,
       paramDeltas: sidebarNodeData?.paramDeltas,
       promptChanged: sidebarNodeData?.promptChanged,
-      branchSuggestion: sidebarNodeData?.branchSuggestion,
+      branchSuggestion: sidebarParamAnalysis?.branchSuggestion,
       note: sidebarNodeData?.note,
       onSaveNote: saveNodeNote,
       notesEnabled: props.notesEnabled,
@@ -1283,27 +1222,28 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
       categoryVisibility,
       onSetCategoryVisible: setCategoryVisible,
       onShowAllCategories: showAllCategories,
-      parameterHistory: sidebarNodeData?.parameterHistory,
+      parameterHistory: sidebarParamAnalysis?.parameterHistory,
       compareBaseNodeLabel:
         compareSourceNodeId === sidebarNode.id
           ? ((compareBaseNodeData?.label as string | undefined) ?? compareTargetNodeId) || null
           : null,
     };
-  }, [
-    sidebarNode,
-    sidebarNodeData,
-    effectiveDelta,
-    effectiveCategoryScoreDeltas,
-    saveNodeNote,
-    props.notesEnabled,
-    props.showWeightSuggestionsEnabled,
-    categoryVisibility,
-    setCategoryVisible,
-    showAllCategories,
-    compareSourceNodeId,
-    compareTargetNodeId,
-    compareBaseNodeData,
-  ]);
+ }, [
+  sidebarNode,
+  sidebarNodeData,
+  effectiveDelta,
+  effectiveCategoryScoreDeltas,
+  saveNodeNote,
+  props.notesEnabled,
+  props.showWeightSuggestionsEnabled,
+  categoryVisibility,
+  setCategoryVisible,
+  showAllCategories,
+  compareSourceNodeId,
+  compareTargetNodeId,
+  compareBaseNodeData,
+  sidebarParamAnalysis,
+]);
 
   const sidebarDetailsLogic = useNodeDetailsDialog(
     sharedNodeDetailsProps ??
@@ -1321,37 +1261,40 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
       } as any)
   );
 
-  useEffect(() => {
-    const isParamsNode = sidebarNode?.type === "params";
+  
 
-    props.onSidebarDataChange?.({
-      selectedNodeLabel: (sidebarNodeData?.label as string | undefined) ?? null,
-      computed: isParamsNode ? sidebarComputed : null,
-      orderedSliderItems,
-      clipLogic,
-      parameterItems: isParamsNode ? sidebarDetailsLogic.parameterItems : [],
-      parameterHistory: isParamsNode ? (sidebarNodeData?.parameterHistory ?? {}) : {},
-      compareBaseNodeLabel: isParamsNode
-        ? (sharedNodeDetailsProps?.compareBaseNodeLabel ?? null)
-        : null,
-      note: sidebarLocalNote,
-      notesEnabled: props.notesEnabled,
-      onChangeNote: setSidebarLocalNote,
-      onSaveNote: handleSaveSidebarNote,
-    });
-  }, [
-    props.onSidebarDataChange,
-    sidebarNode,
-    sidebarNodeData,
-    sidebarComputed,
+useEffect(() => {
+  const isParamsNode = sidebarNode?.type === "params";
+
+  props.onSidebarDataChange?.({
+    selectedNodeLabel: (sidebarNodeData?.label as string | undefined) ?? null,
+    computed: isParamsNode ? sidebarComputed : null,
     orderedSliderItems,
     clipLogic,
-    sidebarDetailsLogic.parameterItems,
-    sidebarLocalNote,
-    handleSaveSidebarNote,
-    props.notesEnabled,
-    sharedNodeDetailsProps,
-  ]);
+    parameterItems: isParamsNode ? sidebarDetailsLogic.parameterItems : [],
+    parameterHistory: isParamsNode ? (sidebarParamAnalysis?.parameterHistory ?? {}) : {},
+    compareBaseNodeLabel: isParamsNode
+      ? (sharedNodeDetailsProps?.compareBaseNodeLabel ?? null)
+      : null,
+    note: sidebarLocalNote,
+    notesEnabled: props.notesEnabled,
+    onChangeNote: setSidebarLocalNote,
+    onSaveNote: handleSaveSidebarNote,
+  });
+}, [
+  props.onSidebarDataChange,
+  sidebarNode,
+  sidebarNodeData,
+  sidebarComputed,
+  orderedSliderItems,
+  clipLogic,
+  sidebarDetailsLogic.parameterItems,
+  sidebarParamAnalysis,
+  sharedNodeDetailsProps,
+  sidebarLocalNote,
+  handleSaveSidebarNote,
+  props.notesEnabled,
+]);
 
   // ---------- Root create ----------
   function createRoot() {
@@ -1688,7 +1631,6 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
                 ...params,
                 categoryScores: allScores,
                 categoryLabels,
-                categoryVisibility,
               } as any,
               draggable: true,
             };
@@ -1732,6 +1674,8 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
       },
     });
   }
+
+
 
   async function handleCreateImportedBranch() {
     if (!importVideoFile) return;
@@ -1903,6 +1847,53 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
     }
   };
 
+  const graphUI = useMemo(() => ({
+  onAdd: (nodeId: string) => {
+    selectNode(nodeId);
+    setActionDialogOpen(true);
+  },
+  onVideoOpened: markVideoOpened,
+  onSaveNote: saveNodeNote,
+  onDelete: handleDeleteNode,
+  onHide: handleHideNode,
+  onOpenDetails: handleOpenDetails,
+  onStartCompare: handleStartCompare,
+  onSelectNode: selectNode,
+
+  notesEnabled: props.notesEnabled,
+  highlightUnseenEnabled: props.highlightUnseenEnabled,
+  showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
+  graphCardContentMode: props.graphCardContentMode,
+  graphCardDisplayMode: props.graphCardDisplayMode,
+  showOnlyChangedParameters: props.showOnlyChangedParameters,
+
+  categoryVisibility,
+  onSetCategoryVisible: setCategoryVisible,
+  onShowAllCategories: showAllCategories,
+
+  isComparePicking,
+  compareSourceNodeId,
+}), [
+  selectNode,
+  markVideoOpened,
+  saveNodeNote,
+  handleDeleteNode,
+  handleHideNode,
+  handleOpenDetails,
+  handleStartCompare,
+  props.notesEnabled,
+  props.highlightUnseenEnabled,
+  props.showWeightSuggestionsEnabled,
+  props.graphCardContentMode,
+  props.graphCardDisplayMode,
+  props.showOnlyChangedParameters,
+  categoryVisibility,
+  setCategoryVisible,
+  showAllCategories,
+  isComparePicking,
+  compareSourceNodeId,
+]);
+
   return (
     <div style={{ height: "100%", position: "relative" }}>
       {/* Jobs */}
@@ -1961,6 +1952,7 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
           </Paper>
         )
       )}
+      <GraphUIContext.Provider value={graphUI}>
       <ReactFlow
         onInit={(instance) => setRfInstance(instance)}
         nodes={nodesForUI}
@@ -1986,6 +1978,7 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
         <Background />
         <Controls />
       </ReactFlow>
+      </GraphUIContext.Provider>
 
       {/* dialogs */}
       <ActionDialog
@@ -2181,7 +2174,7 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
         videoUrl={(detailsNodeData?.videoUrl as string | null | undefined) ?? null}
         videoFile={detailsNodeData?.videoFile}
         videoStatus={detailsNodeData?.videoStatus}
-        metaSummary={detailsNodeData?.metaSummary}
+        metaSummary={detailsNodeData?.metaSummaryData}
         prompt={detailsNodeData?.prompt}
         prevParamsId={detailsNodeData?.prevParamsId}
         highNoiseCfg={detailsNodeData?.highNoiseCfg}
@@ -2203,7 +2196,6 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
         categoryLabels={detailsNodeData?.categoryLabels}
         paramDeltas={detailsNodeData?.paramDeltas}
         promptChanged={detailsNodeData?.promptChanged}
-        branchSuggestion={detailsNodeData?.branchSuggestion}
         note={detailsNodeData?.note}
         onSaveNote={saveNodeNote}
         notesEnabled={props.notesEnabled}
@@ -2211,7 +2203,8 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
         categoryVisibility={categoryVisibility}
         onSetCategoryVisible={setCategoryVisible}
         onShowAllCategories={showAllCategories}
-        parameterHistory={detailsNodeData?.parameterHistory}
+        branchSuggestion={detailsParamAnalysis?.branchSuggestion}
+parameterHistory={detailsParamAnalysis?.parameterHistory}
         compareBaseNodeLabel={
           compareSourceNodeId === detailsNode?.id
             ? ((compareBaseNodeData?.label as string | undefined) ?? compareTargetNodeId) || null

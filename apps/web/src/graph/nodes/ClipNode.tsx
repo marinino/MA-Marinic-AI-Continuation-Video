@@ -1,11 +1,13 @@
-import { StoredMediaFile } from "@ma/shared";
-import { Typography } from "@mui/material";
+import { useContext } from "react";
 import { NodeProps, Handle, Position } from "reactflow";
-import { comfyBuildVideoUrl } from "../../api";
-import { NodeCard } from "./Node";
 import MovieIcon from "@mui/icons-material/Movie";
+import { NodeCard } from "./Node";
+import GraphUIContext from "../contexts/GraphUIContext";
 
 export function ClipNode(props: NodeProps<any>) {
+  const ui = useContext(GraphUIContext);
+  if (!ui) throw new Error("GraphUIContext missing");
+
   return (
     <div style={{ position: "relative" }}>
       <Handle id="in" type="target" position={Position.Left} />
@@ -13,7 +15,7 @@ export function ClipNode(props: NodeProps<any>) {
 
       <NodeCard
         nodeId={props.id}
-        onAdd={props.data?.onAdd}
+        onAdd={ui.onAdd}
         icon={<MovieIcon fontSize="small" />}
         title="Clip"
         type="clip"
@@ -23,16 +25,16 @@ export function ClipNode(props: NodeProps<any>) {
         videoFile={props.data?.videoFile}
         videoStatus={props.data?.videoStatus}
         videoOpened={props.data?.videoOpened}
-        onVideoOpened={props.data?.markVideoOpened}
+        onVideoOpened={ui.onVideoOpened}
         note={props.data?.note}
-        onSaveNote={props.data?.onSaveNote}
-        onDelete={props.data?.onDelete}
+        onSaveNote={ui.onSaveNote}
+        onDelete={ui.onDelete}
         canDelete={!props.data?.isRoot}
-        onHide={props.data?.onHide}
+        onHide={ui.onHide}
         canHide={!props.data?.isRoot}
-        highlightUnseenEnabled={props.data?.highlightUnseenEnabled}
-        notesEnabled={props.data?.notesEnabled}
-        onOpenDetails={props.data?.onOpenDetails}
+        highlightUnseenEnabled={ui.highlightUnseenEnabled}
+        notesEnabled={ui.notesEnabled}
+        onOpenDetails={ui.onOpenDetails}
       />
     </div>
   );

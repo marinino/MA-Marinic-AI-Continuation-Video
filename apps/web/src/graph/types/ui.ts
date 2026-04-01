@@ -98,11 +98,7 @@ export type ParamDelats = Partial<
 
 export type BrachSuggestion = {
   targetCategory:
-    | "creativity"
-    | "promptFaithfulness"
-    | "motion"
-    | "transitionSmoothness"
-    | "videoFaithfulness";
+   string
   categoryDirection: "down" | "up";
   parameter:
     | "highNoiseCfg"
@@ -125,7 +121,7 @@ export type BrachSuggestion = {
   confidence: number;
   suggestedWeightDeltaPct: number;
   suggestedAction: "increase_param_weight" | "decrease_param_weight";
-  message: string;
+  message?: string;
 } | null;
 
 export type RadarAxis = {
@@ -240,7 +236,7 @@ export type ParamWeightSuggestion = {
   confidence: number;
   suggestedWeightDeltaPct: number;
   suggestedAction: "increase_param_weight" | "decrease_param_weight";
-  message?: string;
+  message: string;
 };
 
 export type ParamNodeData = {
@@ -424,3 +420,28 @@ export type BuiltInCategoryId =
   | "motion"
   | "transitionSmoothness"
   | "videoFaithfulness";
+
+  export type GraphUIContextValue = {
+  onAdd: (nodeId: string) => void;
+  onVideoOpened: (nodeId: string) => void;
+  onSaveNote: (nodeId: string, note: string) => void;
+  onDelete: (nodeId: string) => void;
+  onHide: (nodeId: string) => void;
+  onOpenDetails: (nodeId: string) => void;
+  onStartCompare: (nodeId: string) => void;
+  onSelectNode: (nodeId: string) => void;
+
+  notesEnabled: boolean;
+  highlightUnseenEnabled: boolean;
+  showWeightSuggestionsEnabled: boolean;
+  graphCardContentMode: any;
+  graphCardDisplayMode: any;
+  showOnlyChangedParameters: boolean;
+
+  categoryVisibility: Record<string, boolean>;
+  onSetCategoryVisible: (id: string, visible: boolean) => void;
+  onShowAllCategories: () => void;
+
+  isComparePicking: boolean;
+  compareSourceNodeId: string | null;
+};

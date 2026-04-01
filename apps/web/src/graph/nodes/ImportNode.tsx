@@ -1,8 +1,12 @@
 import { Handle, NodeProps, Position } from "reactflow";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { NodeCard } from "./Node";
+import { useContext } from "react";
+import GraphUIContext from "../contexts/GraphUIContext";
 
 export function ImportNode(props: NodeProps<any>) {
+  const ui = useContext(GraphUIContext);
+if (!ui) throw new Error("GraphUIContext missing");
   return (
     <div style={{ position: "relative" }}>
       <Handle id="in" type="target" position={Position.Left} />
@@ -16,15 +20,15 @@ export function ImportNode(props: NodeProps<any>) {
         isRoot={false}
         selected={props.selected}
         note={props.data?.note}
-        onSaveNote={props.data?.onSaveNote}
-        onDelete={props.data?.onDelete}
+        onSaveNote={ui?.onSaveNote}
+        onDelete={ui?.onDelete}
         canDelete={!props.data?.isRoot}
         onHide={props.data?.onHide}
         canHide={!props.data?.isRoot}
-        highlightUnseenEnabled={props.data?.highlightUnseenEnabled}
-        notesEnabled={props.data?.notesEnabled}
-        showWeightSuggestionsEnabled={props.data?.showWeightSuggestionsEnabled}
-        graphCardContentMode={props.data?.graphCardContentMode}
+        highlightUnseenEnabled={ui?.highlightUnseenEnabled}
+        notesEnabled={ui?.notesEnabled}
+        showWeightSuggestionsEnabled={ui?.showWeightSuggestionsEnabled}
+        graphCardContentMode={ui?.graphCardContentMode}
         onOpenDetails={props.data?.onOpenDetails}
       />
     </div>

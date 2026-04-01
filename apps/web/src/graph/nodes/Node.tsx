@@ -18,6 +18,8 @@ import {
 } from "../types/ui";
 import { deltaChipSx } from "../hooks/useV2VParams";
 import { ImportNode } from "./ImportNode";
+import { useContext } from "react";
+import GraphUIContext from "../contexts/GraphUIContext";
 
 function getNodeColors(kind: NodeType, isRoot: boolean) {
   if (isRoot) return { border: "#ff9800", bg: "#FFF8E1" }; // Root Clip
@@ -50,7 +52,7 @@ export function NodeCard(props: {
   metaSummary?: React.ReactNode;
   highlightUnseenEnabled?: boolean;
   notesEnabled: boolean;
-  showOnlyChangedParameters: boolean;
+  showOnlyChangedParameters?: boolean;
 
   highNoiseCfg?: number;
   lowNoiseCfg?: number;
@@ -99,6 +101,7 @@ export function NodeCard(props: {
   onSelectNode?: (nodeId: string) => void;
 }) {
   const theme = useTheme();
+
 
   const base = getNodeColors(props.type, props.isRoot);
 
@@ -159,7 +162,7 @@ export function NodeCard(props: {
         onStartCompare={props.onStartCompare}
         isComparePicking={props.isComparePicking}
         compareSourceNodeId={props.compareSourceNodeId}
-        showOnlyChangedParameters={props.showOnlyChangedParameters}
+        showOnlyChangedParameters={props.showOnlyChangedParameters ?? true}
         onSelectNode={props.onSelectNode}
       >
         {props.children}
