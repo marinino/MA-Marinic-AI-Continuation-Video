@@ -14,42 +14,33 @@ import {
   Box,
   Divider,
   Paper,
-  Slider,
   ButtonGroup,
   Grid,
-  Tooltip,
-  ButtonBase,
-  ToggleButton,
-  ToggleButtonGroup,
 } from "@mui/material";
 
 // ⬇️ falls dein PentagonMap woanders liegt: Pfad anpassen
 import { PentagonMap } from "../components/PentagonMap";
-import { SAFE_PRESETS, useV2VSliders } from "../hooks/useV2VSliders";
-import {
-  computeAllScores,
-  computeCategoryScoresFromSimple,
-  deriveV2VParamsFromSimple,
-  getScoreRanges,
-} from "../hooks/useV2VParams";
+
+import { computeCategoryScoresFromSimple, getScoreRanges } from "../hooks/useV2VParams";
 import { WeightsDialog } from "./WeightsDialog";
 
 import { NewCustomSliderDialog } from "./NewSliderDialog";
 import { PentagonAxesDialog } from "./PentagonAxesDialog";
 import { TriangleMap } from "../components/TriangleMap";
 import { TriangleAxesDialog } from "./TriangleAxesDialog";
-import { PressableSlider } from "../components/PressableSlider";
-import { CategorySlider } from "../components/CategorySlider";
-import { SafeRangeBar } from "../components/SafeRangeBar";
-import { axisLabel, axisValue, useClipDialogLogic } from "../graph_helpers/clipDialogLogic";
 
-import { pentagonLogic } from "../graph_helpers/pentagonLogic";
+import {
+  buildAxisLabelGetter,
+  computeCustomScores,
+  useClipDialogLogic,
+} from "../graph_helpers/clipDialogLogic";
+
+import { usePentagonLogic } from "../hooks/usePentagonLogic";
 import { useSliderLogic } from "../graph_helpers/sliderLogic";
-import { triangleLogic } from "../graph_helpers/triangleLogic";
+import { useTriangleLogic } from "../hooks/useTriangleLogic";
 
 import {
   AdvancedParamsState,
-  AxisId,
   BuiltInCategoryId,
   CatView,
   CleanWeights,
@@ -63,8 +54,10 @@ import {
   SpeedMode,
   V2VTab,
 } from "../types/ui";
-import { renderOrderedSliderItem } from "../components/RenderedOrderedSliders";
+
 import { DEFAULT_CUSTOM_W } from "../graph_helpers/presets";
+import { OrderedSliderRow } from "../components/OrderedSliderRow";
+import { SimpleSliderField } from "../components/SimpleSliderField";
 
 export type ClipDialogProps = {
   open: boolean;
@@ -150,6 +143,17 @@ export function ClipDialog(p: ClipDialogProps) {
   const [weightsOpen, setWeightsOpen] = React.useState(false);
   const [weightsCat, setWeightsCat] = React.useState<any>(null);
 
+  const [pentagonAxesOpen, setPentagonAxesOpen] = React.useState(false);
+  const [triangleAxesOpen, setTriangleAxesOpen] = React.useState(false);
+
+  const pentagonEnabled = catView === "pentagon" || pentagonAxesOpen;
+  const triangleEnabled = catView === "triangle" || triangleAxesOpen;
+
+  const getAxisLabel = React.useMemo(
+    () => buildAxisLabelGetter(p.customSliders),
+    [p.customSliders]
+  );
+
   const openWeights = React.useCallback((cat: any) => {
     setWeightsCat(cat);
     setWeightsOpen(true);
@@ -168,110 +172,116 @@ export function ClipDialog(p: ClipDialogProps) {
     setActiveEffects: clipLogic.setActiveEffects,
   });
 
-  const activeValue = clipLogic.activeSimple ? (p.simple[clipLogic.activeSimple] as number) : null;
+
+
+  const handleGlobalDragEnd = React.useCallback(() => {
+    sliderLogic.endDrag();
+  }, [sliderLogic]);
 
   React.useEffect(() => {
     if (!clipLogic.activeSimple) return;
-    clipLogic.setActiveEffects(sliderLogic.computeEffectsFor(clipLogic.activeSimple, p));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clipLogic.activeSimple, activeValue, p.simpleSpeedMode]);
 
-  React.useEffect(() => {
-    if (!clipLogic.activeSimple) return;
-
-    const onEnd = () => {
-      sliderLogic.endDrag();
-    };
-
-    // Pointer (modern)
-    window.addEventListener("pointerup", onEnd);
-    window.addEventListener("pointercancel", onEnd);
-
-    // Fallbacks (wichtig für “manchmal”-Bugs)
-    window.addEventListener("mouseup", onEnd);
-    window.addEventListener("touchend", onEnd, { passive: true });
-    window.addEventListener("touchcancel", onEnd, { passive: true });
+    window.addEventListener("pointerup", handleGlobalDragEnd);
+    window.addEventListener("pointercancel", handleGlobalDragEnd);
+    window.addEventListener("mouseup", handleGlobalDragEnd);
+    window.addEventListener("touchend", handleGlobalDragEnd, { passive: true });
+    window.addEventListener("touchcancel", handleGlobalDragEnd, { passive: true });
 
     return () => {
-      window.removeEventListener("pointerup", onEnd);
-      window.removeEventListener("pointercancel", onEnd);
-
-      window.removeEventListener("mouseup", onEnd);
-      window.removeEventListener("touchend", onEnd);
-      window.removeEventListener("touchcancel", onEnd);
+      window.removeEventListener("pointerup", handleGlobalDragEnd);
+      window.removeEventListener("pointercancel", handleGlobalDragEnd);
+      window.removeEventListener("mouseup", handleGlobalDragEnd);
+      window.removeEventListener("touchend", handleGlobalDragEnd);
+      window.removeEventListener("touchcancel", handleGlobalDragEnd);
     };
-  }, [clipLogic.activeSimple]);
+  }, [clipLogic.activeSimple, handleGlobalDragEnd]);
+
+
 
   // --- compute real values + derived params exactly like mega-file ---
-  const computed = React.useMemo(() => {
-    const s = p.simple;
-
-    const totalStepsInt = Math.round(s.totalSteps);
-    const stepRatioPctInt = Math.round(s.stepRatioPct);
+  const simpleStats = React.useMemo(() => {
+    const totalStepsInt = Math.round(p.simple.totalSteps);
+    const stepRatioPctInt = Math.round(p.simple.stepRatioPct);
 
     const lowStepsInt = Math.round((totalStepsInt * stepRatioPctInt) / 100);
     const highStepsInt = totalStepsInt - lowStepsInt;
     const effectiveLowStepPct = Math.round((lowStepsInt / totalStepsInt) * 100);
 
-    const derived = deriveV2VParamsFromSimple({
-      totalSteps: highStepsInt,
-      stepRatio01: lowStepsInt / totalStepsInt,
-      highShift: s.highShift,
-      highCfg: s.highCfg,
-      highStrength: s.highStrength,
-    });
-
-    const scoreRanges = getScoreRanges(p.simpleSpeedMode);
-
-    const scores = computeCategoryScoresFromSimple(
-      {
-        totalSteps: totalStepsInt,
-        stepRatio: effectiveLowStepPct,
-        highShift: s.highShift,
-        highCfg: s.highCfg,
-        highStrength: s.highStrength,
-      },
-      scoreRanges,
-      p.formulaWeights
-    );
-
-    const allScores = computeAllScores(
-      {
-        totalSteps: totalStepsInt,
-        stepRatioPct: effectiveLowStepPct,
-        highShift: s.highShift,
-        highCfg: s.highCfg,
-        highStrength: s.highStrength,
-      },
-      scoreRanges,
-      p.formulaWeights,
-      p.customSliders
-    );
-
-    console.log(derived);
-
     return {
-      derived,
-      scores,
-      allScores,
       totalStepsInt,
+      stepRatioPctInt,
       lowStepsInt,
       highStepsInt,
       effectiveLowStepPct,
     };
-  }, [p.simple, p.simpleSpeedMode, p.formulaWeights, p.customSliders]);
+  }, [p.simple.totalSteps, p.simple.stepRatioPct]);
+
+  const scoreRanges = React.useMemo(() => {
+    return getScoreRanges(p.simpleSpeedMode);
+  }, [p.simpleSpeedMode]);
+
+  const scores = React.useMemo(() => {
+    return computeCategoryScoresFromSimple(
+      {
+        totalSteps: simpleStats.totalStepsInt,
+        stepRatio: simpleStats.effectiveLowStepPct,
+        highShift: p.simple.highShift,
+        highCfg: p.simple.highCfg,
+        highStrength: p.simple.highStrength,
+      },
+      scoreRanges,
+      p.formulaWeights
+    );
+  }, [
+    simpleStats.totalStepsInt,
+    simpleStats.effectiveLowStepPct,
+    p.simple.highShift,
+    p.simple.highCfg,
+    p.simple.highStrength,
+    scoreRanges,
+    p.formulaWeights,
+  ]);
+
+  const customScores = React.useMemo(() => {
+    return computeCustomScores(
+      {
+        totalSteps: simpleStats.totalStepsInt,
+        stepRatioPct: simpleStats.effectiveLowStepPct,
+        highShift: p.simple.highShift,
+        highCfg: p.simple.highCfg,
+        highStrength: p.simple.highStrength,
+      },
+      scoreRanges,
+      p.customSliders
+    );
+  }, [
+    simpleStats.totalStepsInt,
+    simpleStats.effectiveLowStepPct,
+    p.simple.highShift,
+    p.simple.highCfg,
+    p.simple.highStrength,
+    scoreRanges,
+    p.customSliders,
+  ]);
+
+  const allScores = React.useMemo(() => {
+    return {
+      ...scores,
+      ...customScores,
+    };
+  }, [scores, customScores]);
 
   const activeSafeKey = React.useMemo(
     () => (clipLogic.activeSimple ? sliderLogic.toSafeKey(clipLogic.activeSimple) : null),
     [clipLogic.activeSimple]
   );
 
+  const activeSafeValue = activeSafeKey ? (p.simple[activeSafeKey] as number) : null;
+
   const safeBounds = React.useMemo(() => {
-    if (!activeSafeKey) return null;
-    const v = p.simple[activeSafeKey] as number;
-    // <-- kommt vom Hook als prop (siehe unten)
-    return p.getBounds(activeSafeKey, v);
-  }, [activeSafeKey, p.simple]);
+    if (!activeSafeKey || activeSafeValue == null) return null;
+    return p.getBounds(activeSafeKey, activeSafeValue);
+  }, [activeSafeKey, activeSafeValue, p.getBounds]);
 
   const cfg = p.sliderCfg;
 
@@ -305,19 +315,21 @@ export function ClipDialog(p: ClipDialogProps) {
   }, []);
 
   const createCustomSlider = React.useCallback(() => {
-    if (!draftName.trim()) return;
-    p.onCreateCustomSlider(draftName.trim(), draftW);
+    const name = draftName.trim();
+    if (!name) return;
+    p.onCreateCustomSlider(name, draftW);
     setDraftName("");
     setDraftW(DEFAULT_CUSTOM_W);
     setNewOpen(false);
-  }, [p, draftName, draftW]);
+  }, [draftName, draftW, p.onCreateCustomSlider]);
 
   const saveCustomEdit = React.useCallback(() => {
-    if (!editId || !editName.trim()) return;
-    p.onUpdateCustomSlider(editId, editName.trim(), editW);
+    const name = editName.trim();
+    if (!editId || !name) return;
+    p.onUpdateCustomSlider(editId, name, editW);
     setEditOpen(false);
     setEditId(null);
-  }, [p, editId, editName, editW]);
+  }, [editId, editName, editW, p.onUpdateCustomSlider]);
 
   const deleteCustom = React.useCallback(
     (id: string) => {
@@ -325,32 +337,26 @@ export function ClipDialog(p: ClipDialogProps) {
       setEditOpen(false);
       setEditId(null);
     },
-    [p]
+    [p.onDeleteCustomSlider]
   );
 
   const {
     DEFAULT_TRIANGLE_AXIS_IDS,
-
     triangleAxes,
-    triangleAxesOpen,
     setTriangleAxes,
-    setTriangleAxesOpen,
-
     triangleAxisObjects,
     availableAxisIds: triangleAvailableAxisIds,
     getDisabledAxisReasons: getTriangleDisabledAxisReasons,
-  } = triangleLogic(computed.allScores, p.customSliders, p.formulaWeights);
+  } = useTriangleLogic(allScores, p.customSliders, p.formulaWeights, triangleEnabled);
 
   const {
     DEFAULT_PENTAGON_AXIS_IDS,
     availableAxisIds,
     pentagonAxisObjects,
     pentagonAxes,
-    pentagonAxesOpen,
     setPentagonAxes,
-    setPentagonAxesOpen,
     getDisabledAxisReasons,
-  } = pentagonLogic(computed.allScores, p.customSliders);
+  } = usePentagonLogic(allScores, p.customSliders, pentagonEnabled);
 
   return (
     <>
@@ -452,150 +458,115 @@ export function ClipDialog(p: ClipDialogProps) {
                 {/* LEFT */}
                 <Stack spacing={2}>
                   <Stack spacing={2.5}>
-                    <Stack spacing={0.5}>
-                      <Typography gutterBottom>
-                        Steps total: <b>{computed.totalStepsInt}</b>
-                      </Typography>
-                      <PressableSlider
-                        sliderKey="totalSteps"
-                        onBegin={handleBeginDrag}
-                        onEnd={handleEndDrag}
-                        value={computed.totalStepsInt}
-                        min={cfg.totalSteps.min}
-                        max={cfg.totalSteps.max}
-                        step={cfg.totalSteps.step}
-                        marks={
-                          activeSafeKey && activeSafeKey !== "totalSteps"
-                            ? sliderLogic.marksFor(safeBounds?.totalSteps, 2)
-                            : undefined
-                        }
-                        onChange={p.onChangeTotalSteps}
-                      />
-                      {safeBounds?.totalSteps && activeSafeKey !== "totalSteps" && (
-                        <SafeRangeBar
-                          min={safeBounds.totalSteps.min}
-                          max={safeBounds.totalSteps.max}
-                          sliderMin={cfg.totalSteps.min}
-                          sliderMax={cfg.totalSteps.max}
-                        />
-                      )}
-                    </Stack>
+                    <SimpleSliderField
+                      label="Steps total"
+                      displayValue={simpleStats.totalStepsInt}
+                      sliderKey="totalSteps"
+                      value={simpleStats.totalStepsInt}
+                      min={cfg.totalSteps.min}
+                      max={cfg.totalSteps.max}
+                      step={cfg.totalSteps.step}
+                      marks={
+                        activeSafeKey && activeSafeKey !== "totalSteps"
+                          ? sliderLogic.marksFor(safeBounds?.totalSteps, 2)
+                          : undefined
+                      }
+                      activeSafeKey={activeSafeKey}
+                      safeRange={safeBounds?.totalSteps}
+                      sliderMin={cfg.totalSteps.min}
+                      sliderMax={cfg.totalSteps.max}
+                      onBegin={handleBeginDrag}
+                      onEnd={handleEndDrag}
+                      onChange={p.onChangeTotalSteps}
+                    />
 
-                    <Stack spacing={0.5}>
-                      <Typography gutterBottom>
-                        Ratio: <b>{computed.effectiveLowStepPct}%</b>
-                      </Typography>
-                      <PressableSlider
-                        sliderKey="stepRatioPct"
-                        onBegin={handleBeginDrag}
-                        onEnd={handleEndDrag}
-                        value={computed.effectiveLowStepPct}
-                        min={cfg.stepRatioPct.min}
-                        max={cfg.stepRatioPct.max}
-                        step={cfg.stepRatioPct.step}
-                        marks={
-                          activeSafeKey && activeSafeKey !== "stepRatioPct"
-                            ? sliderLogic.marksFor(safeBounds?.stepRatioPct, 2)
-                            : undefined
-                        }
-                        onChange={p.onChangeStepRatio}
-                      />
-                      {safeBounds?.stepRatioPct && activeSafeKey !== "stepRatioPct" && (
-                        <SafeRangeBar
-                          min={safeBounds.stepRatioPct.min}
-                          max={safeBounds.stepRatioPct.max}
-                          sliderMin={cfg.stepRatioPct.min}
-                          sliderMax={cfg.stepRatioPct.max}
-                        />
-                      )}
-                    </Stack>
+                    <SimpleSliderField
+                      label="Ratio"
+                      displayValue={`${simpleStats.effectiveLowStepPct}%`}
+                      sliderKey="stepRatioPct"
+                      value={simpleStats.effectiveLowStepPct}
+                      min={cfg.stepRatioPct.min}
+                      max={cfg.stepRatioPct.max}
+                      step={cfg.stepRatioPct.step}
+                      marks={
+                        activeSafeKey && activeSafeKey !== "stepRatioPct"
+                          ? sliderLogic.marksFor(safeBounds?.stepRatioPct, 2)
+                          : undefined
+                      }
+                      activeSafeKey={activeSafeKey}
+                      safeRange={safeBounds?.stepRatioPct}
+                      sliderMin={cfg.stepRatioPct.min}
+                      sliderMax={cfg.stepRatioPct.max}
+                      onBegin={handleBeginDrag}
+                      onEnd={handleEndDrag}
+                      onChange={p.onChangeStepRatio}
+                    />
 
-                    <Stack spacing={0.5}>
-                      <Typography gutterBottom>
-                        High shift: <b>{p.simple.highShift.toFixed(2)}</b>
-                      </Typography>
-                      <PressableSlider
-                        sliderKey="highShift"
-                        onBegin={handleBeginDrag}
-                        onEnd={handleEndDrag}
-                        value={p.simple.highShift}
-                        min={cfg.highShift.min}
-                        max={cfg.highShift.max}
-                        step={cfg.highShift.step}
-                        marks={
-                          activeSafeKey && activeSafeKey !== "highShift"
-                            ? sliderLogic.marksFor(safeBounds?.highShift, 2)
-                            : undefined
-                        }
-                        onChange={p.onChangeHighShift}
-                      />
-                      {safeBounds?.highShift && activeSafeKey !== "highShift" && (
-                        <SafeRangeBar
-                          min={safeBounds.highShift.min}
-                          max={safeBounds.highShift.max}
-                          sliderMin={cfg.highShift.min}
-                          sliderMax={cfg.highShift.max}
-                        />
-                      )}
-                    </Stack>
+                    <SimpleSliderField
+                      label="High shift"
+                      displayValue={p.simple.highShift.toFixed(2)}
+                      sliderKey="highShift"
+                      value={p.simple.highShift}
+                      min={cfg.highShift.min}
+                      max={cfg.highShift.max}
+                      step={cfg.highShift.step}
+                      marks={
+                        activeSafeKey && activeSafeKey !== "highShift"
+                          ? sliderLogic.marksFor(safeBounds?.highShift, 2)
+                          : undefined
+                      }
+                      activeSafeKey={activeSafeKey}
+                      safeRange={safeBounds?.highShift}
+                      sliderMin={cfg.highShift.min}
+                      sliderMax={cfg.highShift.max}
+                      onBegin={handleBeginDrag}
+                      onEnd={handleEndDrag}
+                      onChange={p.onChangeHighShift}
+                    />
 
-                    <Stack spacing={0.5}>
-                      <Typography gutterBottom>
-                        High CFG: <b>{p.simple.highCfg.toFixed(2)}</b>
-                      </Typography>
-                      <PressableSlider
-                        sliderKey="highCfg"
-                        onBegin={handleBeginDrag}
-                        onEnd={handleEndDrag}
-                        value={p.simple.highCfg}
-                        min={cfg.highCfg.min}
-                        max={cfg.highCfg.max}
-                        step={cfg.highCfg.step}
-                        marks={
-                          activeSafeKey && activeSafeKey !== "highCfg"
-                            ? sliderLogic.marksFor(safeBounds?.highCfg, 2)
-                            : undefined
-                        }
-                        onChange={p.onChangeHighCfg}
-                      />
-                      {safeBounds?.highCfg && activeSafeKey !== "highCfg" && (
-                        <SafeRangeBar
-                          min={safeBounds.highCfg.min}
-                          max={safeBounds.highCfg.max}
-                          sliderMin={cfg.highCfg.min}
-                          sliderMax={cfg.highCfg.max}
-                        />
-                      )}
-                    </Stack>
+                    <SimpleSliderField
+                      label="High CFG"
+                      displayValue={p.simple.highCfg.toFixed(2)}
+                      sliderKey="highCfg"
+                      value={p.simple.highCfg}
+                      min={cfg.highCfg.min}
+                      max={cfg.highCfg.max}
+                      step={cfg.highCfg.step}
+                      marks={
+                        activeSafeKey && activeSafeKey !== "highCfg"
+                          ? sliderLogic.marksFor(safeBounds?.highCfg, 2)
+                          : undefined
+                      }
+                      activeSafeKey={activeSafeKey}
+                      safeRange={safeBounds?.highCfg}
+                      sliderMin={cfg.highCfg.min}
+                      sliderMax={cfg.highCfg.max}
+                      onBegin={handleBeginDrag}
+                      onEnd={handleEndDrag}
+                      onChange={p.onChangeHighCfg}
+                    />
 
-                    <Stack spacing={0.5}>
-                      <Typography gutterBottom>
-                        High strength: <b>{p.simple.highStrength.toFixed(2)}</b>
-                      </Typography>
-                      <PressableSlider
-                        sliderKey="highStrength"
-                        onBegin={handleBeginDrag}
-                        onEnd={handleEndDrag}
-                        value={p.simple.highStrength}
-                        min={cfg.highStrength.min}
-                        max={cfg.highStrength.max}
-                        step={cfg.highStrength.step}
-                        marks={
-                          activeSafeKey && activeSafeKey !== "highStrength"
-                            ? sliderLogic.marksFor(safeBounds?.highStrength, 2)
-                            : undefined
-                        }
-                        onChange={p.onChangeHighStrength}
-                      />
-                      {safeBounds?.highStrength && activeSafeKey !== "highStrength" && (
-                        <SafeRangeBar
-                          min={safeBounds.highStrength.min}
-                          max={safeBounds.highStrength.max}
-                          sliderMin={cfg.highStrength.min}
-                          sliderMax={cfg.highStrength.max}
-                        />
-                      )}
-                    </Stack>
+                    <SimpleSliderField
+                      label="High strength"
+                      displayValue={p.simple.highStrength.toFixed(2)}
+                      sliderKey="highStrength"
+                      value={p.simple.highStrength}
+                      min={cfg.highStrength.min}
+                      max={cfg.highStrength.max}
+                      step={cfg.highStrength.step}
+                      marks={
+                        activeSafeKey && activeSafeKey !== "highStrength"
+                          ? sliderLogic.marksFor(safeBounds?.highStrength, 2)
+                          : undefined
+                      }
+                      activeSafeKey={activeSafeKey}
+                      safeRange={safeBounds?.highStrength}
+                      sliderMin={cfg.highStrength.min}
+                      sliderMax={cfg.highStrength.max}
+                      onBegin={handleBeginDrag}
+                      onEnd={handleEndDrag}
+                      onChange={p.onChangeHighStrength}
+                    />
                   </Stack>
 
                   <Paper
@@ -631,47 +602,23 @@ export function ClipDialog(p: ClipDialogProps) {
                       {catView === "sliders" ? (
                         <Stack spacing={2}>
                           {p.orderedSliderItems.map((item, index) => (
-                            <Box
+                            <OrderedSliderRow
                               key={item.id}
-                              sx={{
-                                display: "grid",
-                                gridTemplateColumns: "1fr auto",
-                                gap: 1,
-                                alignItems: "center",
-                              }}
-                            >
-                              <Box>
-                                {renderOrderedSliderItem(
-                                  item,
-                                  computed,
-                                  clipLogic,
-                                  openWeights,
-                                  openCustomEdit,
-                                  true,
-                                  p.setCategoryScore,
-                                  p.setCustomCategoryScore
-                                )}
-                              </Box>
-
-                              <Stack spacing={0.5}>
-                                <Button
-                                  size="small"
-                                  variant="text"
-                                  disabled={index === 0}
-                                  onClick={() => p.moveSlider(item.id, "up")}
-                                >
-                                  ↑
-                                </Button>
-                                <Button
-                                  size="small"
-                                  variant="text"
-                                  disabled={index === p.orderedSliderItems.length - 1}
-                                  onClick={() => p.moveSlider(item.id, "down")}
-                                >
-                                  ↓
-                                </Button>
-                              </Stack>
-                            </Box>
+                              item={item}
+                              index={index}
+                              isFirst={index === 0}
+                              isLast={index === p.orderedSliderItems.length - 1}
+                              scores={scores}
+                              allScores={allScores}
+                              activeEffects={clipLogic.activeEffects}
+                              catInfluenceSx={clipLogic.catInfluenceSx}
+                              openWeights={openWeights}
+                              openCustomEdit={openCustomEdit}
+                              clickable
+                              moveSlider={p.moveSlider}
+                              setCategoryScore={p.setCategoryScore}
+                              setCustomCategoryScore={p.setCustomCategoryScore}
+                            />
                           ))}
 
                           <Divider />
@@ -888,68 +835,78 @@ export function ClipDialog(p: ClipDialogProps) {
         </DialogActions>
       </Dialog>
 
-      <WeightsDialog
-        open={weightsOpen}
-        cat={weightsCat}
-        weights={p.formulaWeights}
-        onClose={closeWeights}
-        onPatch={p.onPatchFormulaWeights}
-        onReset={p.onResetFormulaWeights}
-      />
+      {weightsOpen && (
+        <WeightsDialog
+          open={weightsOpen}
+          cat={weightsCat}
+          weights={p.formulaWeights}
+          onClose={closeWeights}
+          onPatch={p.onPatchFormulaWeights}
+          onReset={p.onResetFormulaWeights}
+        />
+      )}
 
       {/* CREATE */}
-      <NewCustomSliderDialog
-        open={newOpen}
-        title="New slider"
-        primaryLabel="Create"
-        name={draftName}
-        w={draftW}
-        onName={setDraftName}
-        onW={(patch) => setDraftW((prev) => ({ ...prev, ...patch }))}
-        onClose={() => setNewOpen(false)}
-        onPrimary={createCustomSlider}
-        primaryDisabled={!draftName.trim()}
-      />
+      {newOpen && (
+        <NewCustomSliderDialog
+          open={newOpen}
+          title="New slider"
+          primaryLabel="Create"
+          name={draftName}
+          w={draftW}
+          onName={setDraftName}
+          onW={(patch) => setDraftW((prev) => ({ ...prev, ...patch }))}
+          onClose={() => setNewOpen(false)}
+          onPrimary={createCustomSlider}
+          primaryDisabled={!draftName.trim()}
+        />
+      )}
 
       {/* EDIT */}
-      <NewCustomSliderDialog
-        open={editOpen}
-        title="Edit slider"
-        primaryLabel="Save"
-        secondaryLabel="Delete"
-        onSecondary={() => editId && deleteCustom(editId)}
-        name={editName}
-        w={editW}
-        onName={setEditName}
-        onW={(patch) => setEditW((prev) => ({ ...prev, ...patch }))}
-        onClose={closeCustomEdit}
-        onPrimary={saveCustomEdit}
-        primaryDisabled={!editName.trim()}
-      />
+      {editOpen && (
+        <NewCustomSliderDialog
+          open={editOpen}
+          title="Edit slider"
+          primaryLabel="Save"
+          secondaryLabel="Delete"
+          onSecondary={() => editId && deleteCustom(editId)}
+          name={editName}
+          w={editW}
+          onName={setEditName}
+          onW={(patch) => setEditW((prev) => ({ ...prev, ...patch }))}
+          onClose={closeCustomEdit}
+          onPrimary={saveCustomEdit}
+          primaryDisabled={!editName.trim()}
+        />
+      )}
 
-      <PentagonAxesDialog
-        open={pentagonAxesOpen}
-        onClose={() => setPentagonAxesOpen(false)}
-        axes={pentagonAxes}
-        onAxesChange={setPentagonAxes}
-        availableAxisIds={availableAxisIds.map(String)}
-        axisLabel={(id) => axisLabel(id, p.customSliders)}
-        defaultAxes={DEFAULT_PENTAGON_AXIS_IDS.map(String)}
-        getDisabledAxisReasons={getDisabledAxisReasons}
-        restrictCategories={p.restrictCategories}
-      />
+      {pentagonAxesOpen && (
+        <PentagonAxesDialog
+          open={pentagonAxesOpen}
+          onClose={() => setPentagonAxesOpen(false)}
+          axes={pentagonAxes}
+          onAxesChange={setPentagonAxes}
+          availableAxisIds={availableAxisIds.map(String)}
+          axisLabel={getAxisLabel}
+          defaultAxes={DEFAULT_PENTAGON_AXIS_IDS.map(String)}
+          getDisabledAxisReasons={getDisabledAxisReasons}
+          restrictCategories={p.restrictCategories}
+        />
+      )}
 
-      <TriangleAxesDialog
-        open={triangleAxesOpen}
-        onClose={() => setTriangleAxesOpen(false)}
-        axes={triangleAxes}
-        onAxesChange={setTriangleAxes}
-        availableAxisIds={triangleAvailableAxisIds}
-        axisLabel={(id) => axisLabel(id, p.customSliders)}
-        defaultAxes={DEFAULT_TRIANGLE_AXIS_IDS}
-        getDisabledAxisReasons={getTriangleDisabledAxisReasons}
-        restrictCategories={p.restrictCategories}
-      />
+      {triangleAxesOpen && (
+        <TriangleAxesDialog
+          open={triangleAxesOpen}
+          onClose={() => setTriangleAxesOpen(false)}
+          axes={triangleAxes}
+          onAxesChange={setTriangleAxes}
+          availableAxisIds={triangleAvailableAxisIds}
+          axisLabel={getAxisLabel}
+          defaultAxes={DEFAULT_TRIANGLE_AXIS_IDS}
+          getDisabledAxisReasons={getTriangleDisabledAxisReasons}
+          restrictCategories={p.restrictCategories}
+        />
+      )}
     </>
   );
 }

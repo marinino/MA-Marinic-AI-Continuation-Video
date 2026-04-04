@@ -65,3 +65,4 @@ export interface NodeDetailsDialogProps {
 
   compareBaseNodeLabel?: string | null;
 }
+

@@ -3,7 +3,7 @@ import { Box } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { RadarAxis } from "../types/ui";
 
-export function TriangleMap(props: {
+export const TriangleMap = React.memo(function TriangleMap(props: {
   axes: RadarAxis[]; // sollte 3 sein
   size?: number;
   showRadarPolygon?: boolean;
@@ -154,4 +154,4 @@ export function TriangleMap(props: {
       </Box>
     </Box>
   );
-}
+});

@@ -102,7 +102,6 @@ export function NodeCard(props: {
 }) {
   const theme = useTheme();
 
-
   const base = getNodeColors(props.type, props.isRoot);
 
   const bg = theme.palette.mode === "dark" ? theme.palette.background.paper : base.bg;

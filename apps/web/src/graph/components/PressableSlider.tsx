@@ -1,7 +1,8 @@
 import { Box, Slider } from "@mui/material";
 import { Mark, SimpleSliderKey } from "../types/ui";
+import React from "react";
 
-export function PressableSlider(props: {
+export const PressableSlider = React.memo(function PressableSlider(props: {
   sliderKey: SimpleSliderKey;
   onBegin: (k: SimpleSliderKey) => void;
   onEnd: () => void;
@@ -47,4 +48,4 @@ export function PressableSlider(props: {
       />
     </Box>
   );
-}
+});

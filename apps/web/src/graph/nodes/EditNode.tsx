@@ -8,7 +8,7 @@ import GraphUIContext from "../contexts/GraphUIContext";
 
 export function EditNode(props: NodeProps<any>) {
   const ui = useContext(GraphUIContext);
-if (!ui) throw new Error("GraphUIContext missing");
+  if (!ui) throw new Error("GraphUIContext missing");
   const summaryLines: string[] = props.data?.summaryLines ?? [];
 
   function checkInSummary(

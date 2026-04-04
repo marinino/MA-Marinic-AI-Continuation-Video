@@ -1,6 +1,7 @@
 import { Box } from "@mui/material";
+import React from "react";
 
-export function SafeRangeBar(props: {
+export const SafeRangeBar = React.memo(function SafeRangeBar(props: {
   min: number;
   max: number;
   sliderMin: number;
@@ -31,4 +32,4 @@ export function SafeRangeBar(props: {
       />
     </Box>
   );
-}
+});

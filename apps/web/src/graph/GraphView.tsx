@@ -113,7 +113,6 @@ import { useClipDialogLogic } from "./graph_helpers/clipDialogLogic";
 import { useNodeDetailsDialog } from "./hooks/useNodeDetailsDialogLogic";
 import GraphUIContext from "./contexts/GraphUIContext";
 
-
 // edgeTypes
 const edgeTypes = { labeled: LabeledEdge };
 
@@ -270,7 +269,6 @@ export function GraphView(props: {
   const [v2vLength, setV2VLength] = useState(71);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([]);
@@ -631,13 +629,13 @@ export function GraphView(props: {
     return (node.data?.videoFile?.filename as string | undefined) ?? null;
   }, [g.clickedNodeId, g.rfNodes]);
 
-const hiddenDescendantIds = useMemo(() => {
-  if (!g.clickedNodeId) return [];
-  return getHiddenDescendantIds(g.clickedNodeId, g.rfNodes, g.rfEdges);
-}, [g.clickedNodeId, g.rfNodes, g.rfEdges]);
+  const hiddenDescendantIds = useMemo(() => {
+    if (!g.clickedNodeId) return [];
+    return getHiddenDescendantIds(g.clickedNodeId, g.rfNodes, g.rfEdges);
+  }, [g.clickedNodeId, g.rfNodes, g.rfEdges]);
 
-const selectedNodeHasHiddenChildren = hiddenDescendantIds.length > 0;
-const hiddenChildCount = hiddenDescendantIds.length;
+  const selectedNodeHasHiddenChildren = hiddenDescendantIds.length > 0;
+  const hiddenChildCount = hiddenDescendantIds.length;
 
   const davinci = useDavinciTimeline({
     project: props.project,
@@ -645,10 +643,7 @@ const hiddenChildCount = hiddenDescendantIds.length;
     manualEditDraft,
   });
 
-  
-
   // helper (z.B. in GraphView oder in einer kleinen utils-Datei)
-
 
   const exitCompareMode = useCallback(() => {
     setIsComparePicking(false);
@@ -864,23 +859,7 @@ const hiddenChildCount = hiddenDescendantIds.length;
         ...baseData,
         videoOpened: Boolean(baseData?.videoOpened),
 
-
-
-
-
-
-
-
-
         categoryLabels,
-
-
-
-
-
-
-
-
       };
 
       // ---------- clip ----------
@@ -919,8 +898,6 @@ const hiddenChildCount = hiddenDescendantIds.length;
           {} as Record<string, number>
         );
 
-
-
         return {
           ...n,
           hidden: Boolean(baseData?.isHidden),
@@ -934,14 +911,14 @@ const hiddenChildCount = hiddenDescendantIds.length;
             detailLines,
             prevEffectKeys,
             metaSummaryData: {
-  tool: baseData?.tool ?? "resolve",
-  status: exportInfo?.status ?? "waiting",
-  importedAt,
-  changelogLength: changelog.length,
-  counts,
-  summaryLines,
-  detailLines,
-}
+              tool: baseData?.tool ?? "resolve",
+              status: exportInfo?.status ?? "waiting",
+              importedAt,
+              changelogLength: changelog.length,
+              counts,
+              summaryLines,
+              detailLines,
+            },
           },
         };
       }
@@ -1018,14 +995,7 @@ const hiddenChildCount = hiddenDescendantIds.length;
     });
 
     return precomputedNodes;
-  }, [
-    g.nodesWithRootFlag,
-    g.rfEdges,
-
-   
-    categoryLabels,
-  
-  ]);
+  }, [g.nodesWithRootFlag, g.rfEdges, categoryLabels]);
 
   const detailsNode = useMemo(() => {
     if (!detailsNodeId) return null;
@@ -1086,39 +1056,37 @@ const hiddenChildCount = hiddenDescendantIds.length;
   }, [sidebarNode, sidebarNodeData, compareSourceNodeId, compareTargetNodeId, compareBaseNodeData]);
 
   const detailsEffectiveDelta = useMemo(() => {
-  if (!detailsNodeData) return null;
+    if (!detailsNodeData) return null;
 
-  if (
-    compareSourceNodeId &&
-    compareTargetNodeId &&
-    detailsNode?.id === compareSourceNodeId &&
-    compareBaseNodeData
-  ) {
-    return buildCompareDelta(detailsNodeData, compareBaseNodeData);
-  }
+    if (
+      compareSourceNodeId &&
+      compareTargetNodeId &&
+      detailsNode?.id === compareSourceNodeId &&
+      compareBaseNodeData
+    ) {
+      return buildCompareDelta(detailsNodeData, compareBaseNodeData);
+    }
 
-  return detailsNodeData.paramDeltas ?? detailsNodeData.d ?? null;
-}, [detailsNode, detailsNodeData, compareSourceNodeId, compareTargetNodeId, compareBaseNodeData]);
+    return detailsNodeData.paramDeltas ?? detailsNodeData.d ?? null;
+  }, [detailsNode, detailsNodeData, compareSourceNodeId, compareTargetNodeId, compareBaseNodeData]);
 
-const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
-  if (!detailsNodeData) return null;
+  const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
+    if (!detailsNodeData) return null;
 
-  if (
-    compareSourceNodeId &&
-    compareTargetNodeId &&
-    detailsNode?.id === compareSourceNodeId &&
-    compareBaseNodeData
-  ) {
-    return buildCompareCategoryDeltas(
-      detailsNodeData.categoryScores,
-      compareBaseNodeData.categoryScores
-    );
-  }
+    if (
+      compareSourceNodeId &&
+      compareTargetNodeId &&
+      detailsNode?.id === compareSourceNodeId &&
+      compareBaseNodeData
+    ) {
+      return buildCompareCategoryDeltas(
+        detailsNodeData.categoryScores,
+        compareBaseNodeData.categoryScores
+      );
+    }
 
-  return detailsNodeData.categoryScoreDeltas ?? null;
-}, [detailsNode, detailsNodeData, compareSourceNodeId, compareTargetNodeId, compareBaseNodeData]);
-
-
+    return detailsNodeData.categoryScoreDeltas ?? null;
+  }, [detailsNode, detailsNodeData, compareSourceNodeId, compareTargetNodeId, compareBaseNodeData]);
 
   const effectiveCategoryScoreDeltas = useMemo(() => {
     if (!sidebarNodeData) return null;
@@ -1138,47 +1106,47 @@ const detailsEffectiveCategoryScoreDeltas = useMemo(() => {
     return sidebarNodeData.categoryScoreDeltas ?? null;
   }, [sidebarNode, sidebarNodeData, compareSourceNodeId, compareTargetNodeId, compareBaseNodeData]);
 
-    const sidebarParamAnalysis = useMemo(() => {
-  if (!sidebarNode || sidebarNode.type !== "params") return null;
+  const sidebarParamAnalysis = useMemo(() => {
+    if (!sidebarNode || sidebarNode.type !== "params") return null;
 
-  const nodes = nodesForUI as RFNode[];
-  const edges = g.rfEdges as Edge[];
-  const nodesById = new Map(nodes.map((n) => [n.id, n]));
+    const nodes = nodesForUI as RFNode[];
+    const edges = g.rfEdges as Edge[];
+    const nodesById = new Map(nodes.map((n) => [n.id, n]));
 
-  const branchSteps = collectParamBranchSteps(sidebarNode.id, nodesById, edges);
+    const branchSteps = collectParamBranchSteps(sidebarNode.id, nodesById, edges);
 
-  return {
-    branchSuggestion: detectParamWeightSuggestion(branchSteps, {
-      minSteps: 5,
-      minCategoryDeltaAbs: 1,
-      minParamDeltaAbs: 0.01,
-      minStreak: 5,
-      recencyWindow: 15,
-    }),
-    parameterHistory: buildParameterHistoryFromBranchSteps(branchSteps, nodesById),
-  };
-}, [sidebarNode?.id, nodesForUI, g.rfEdges]);
+    return {
+      branchSuggestion: detectParamWeightSuggestion(branchSteps, {
+        minSteps: 5,
+        minCategoryDeltaAbs: 1,
+        minParamDeltaAbs: 0.01,
+        minStreak: 5,
+        recencyWindow: 15,
+      }),
+      parameterHistory: buildParameterHistoryFromBranchSteps(branchSteps, nodesById),
+    };
+  }, [sidebarNode?.id, nodesForUI, g.rfEdges]);
 
-const detailsParamAnalysis = useMemo(() => {
-  if (!detailsNode || detailsNode.type !== "params") return null;
+  const detailsParamAnalysis = useMemo(() => {
+    if (!detailsNode || detailsNode.type !== "params") return null;
 
-  const nodes = nodesForUI as RFNode[];
-  const edges = g.rfEdges as Edge[];
-  const nodesById = new Map(nodes.map((n) => [n.id, n]));
+    const nodes = nodesForUI as RFNode[];
+    const edges = g.rfEdges as Edge[];
+    const nodesById = new Map(nodes.map((n) => [n.id, n]));
 
-  const branchSteps = collectParamBranchSteps(detailsNode.id, nodesById, edges);
+    const branchSteps = collectParamBranchSteps(detailsNode.id, nodesById, edges);
 
-  return {
-    branchSuggestion: detectParamWeightSuggestion(branchSteps, {
-      minSteps: 5,
-      minCategoryDeltaAbs: 1,
-      minParamDeltaAbs: 0.01,
-      minStreak: 5,
-      recencyWindow: 15,
-    }),
-    parameterHistory: buildParameterHistoryFromBranchSteps(branchSteps, nodesById),
-  };
-}, [detailsNode?.id, nodesForUI, g.rfEdges]);
+    return {
+      branchSuggestion: detectParamWeightSuggestion(branchSteps, {
+        minSteps: 5,
+        minCategoryDeltaAbs: 1,
+        minParamDeltaAbs: 0.01,
+        minStreak: 5,
+        recencyWindow: 15,
+      }),
+      parameterHistory: buildParameterHistoryFromBranchSteps(branchSteps, nodesById),
+    };
+  }, [detailsNode?.id, nodesForUI, g.rfEdges]);
 
   const sharedNodeDetailsProps = useMemo(() => {
     if (!sidebarNode || sidebarNode.type !== "params") return null;
@@ -1228,22 +1196,22 @@ const detailsParamAnalysis = useMemo(() => {
           ? ((compareBaseNodeData?.label as string | undefined) ?? compareTargetNodeId) || null
           : null,
     };
- }, [
-  sidebarNode,
-  sidebarNodeData,
-  effectiveDelta,
-  effectiveCategoryScoreDeltas,
-  saveNodeNote,
-  props.notesEnabled,
-  props.showWeightSuggestionsEnabled,
-  categoryVisibility,
-  setCategoryVisible,
-  showAllCategories,
-  compareSourceNodeId,
-  compareTargetNodeId,
-  compareBaseNodeData,
-  sidebarParamAnalysis,
-]);
+  }, [
+    sidebarNode,
+    sidebarNodeData,
+    effectiveDelta,
+    effectiveCategoryScoreDeltas,
+    saveNodeNote,
+    props.notesEnabled,
+    props.showWeightSuggestionsEnabled,
+    categoryVisibility,
+    setCategoryVisible,
+    showAllCategories,
+    compareSourceNodeId,
+    compareTargetNodeId,
+    compareBaseNodeData,
+    sidebarParamAnalysis,
+  ]);
 
   const sidebarDetailsLogic = useNodeDetailsDialog(
     sharedNodeDetailsProps ??
@@ -1261,40 +1229,38 @@ const detailsParamAnalysis = useMemo(() => {
       } as any)
   );
 
-  
+  useEffect(() => {
+    const isParamsNode = sidebarNode?.type === "params";
 
-useEffect(() => {
-  const isParamsNode = sidebarNode?.type === "params";
-
-  props.onSidebarDataChange?.({
-    selectedNodeLabel: (sidebarNodeData?.label as string | undefined) ?? null,
-    computed: isParamsNode ? sidebarComputed : null,
+    props.onSidebarDataChange?.({
+      selectedNodeLabel: (sidebarNodeData?.label as string | undefined) ?? null,
+      computed: isParamsNode ? sidebarComputed : null,
+      orderedSliderItems,
+      clipLogic,
+      parameterItems: isParamsNode ? sidebarDetailsLogic.parameterItems : [],
+      parameterHistory: isParamsNode ? (sidebarParamAnalysis?.parameterHistory ?? {}) : {},
+      compareBaseNodeLabel: isParamsNode
+        ? (sharedNodeDetailsProps?.compareBaseNodeLabel ?? null)
+        : null,
+      note: sidebarLocalNote,
+      notesEnabled: props.notesEnabled,
+      onChangeNote: setSidebarLocalNote,
+      onSaveNote: handleSaveSidebarNote,
+    });
+  }, [
+    props.onSidebarDataChange,
+    sidebarNode,
+    sidebarNodeData,
+    sidebarComputed,
     orderedSliderItems,
     clipLogic,
-    parameterItems: isParamsNode ? sidebarDetailsLogic.parameterItems : [],
-    parameterHistory: isParamsNode ? (sidebarParamAnalysis?.parameterHistory ?? {}) : {},
-    compareBaseNodeLabel: isParamsNode
-      ? (sharedNodeDetailsProps?.compareBaseNodeLabel ?? null)
-      : null,
-    note: sidebarLocalNote,
-    notesEnabled: props.notesEnabled,
-    onChangeNote: setSidebarLocalNote,
-    onSaveNote: handleSaveSidebarNote,
-  });
-}, [
-  props.onSidebarDataChange,
-  sidebarNode,
-  sidebarNodeData,
-  sidebarComputed,
-  orderedSliderItems,
-  clipLogic,
-  sidebarDetailsLogic.parameterItems,
-  sidebarParamAnalysis,
-  sharedNodeDetailsProps,
-  sidebarLocalNote,
-  handleSaveSidebarNote,
-  props.notesEnabled,
-]);
+    sidebarDetailsLogic.parameterItems,
+    sidebarParamAnalysis,
+    sharedNodeDetailsProps,
+    sidebarLocalNote,
+    handleSaveSidebarNote,
+    props.notesEnabled,
+  ]);
 
   // ---------- Root create ----------
   function createRoot() {
@@ -1675,8 +1641,6 @@ useEffect(() => {
     });
   }
 
-
-
   async function handleCreateImportedBranch() {
     if (!importVideoFile) return;
 
@@ -1847,52 +1811,55 @@ useEffect(() => {
     }
   };
 
-  const graphUI = useMemo(() => ({
-  onAdd: (nodeId: string) => {
-    selectNode(nodeId);
-    setActionDialogOpen(true);
-  },
-  onVideoOpened: markVideoOpened,
-  onSaveNote: saveNodeNote,
-  onDelete: handleDeleteNode,
-  onHide: handleHideNode,
-  onOpenDetails: handleOpenDetails,
-  onStartCompare: handleStartCompare,
-  onSelectNode: selectNode,
+  const graphUI = useMemo(
+    () => ({
+      onAdd: (nodeId: string) => {
+        selectNode(nodeId);
+        setActionDialogOpen(true);
+      },
+      onVideoOpened: markVideoOpened,
+      onSaveNote: saveNodeNote,
+      onDelete: handleDeleteNode,
+      onHide: handleHideNode,
+      onOpenDetails: handleOpenDetails,
+      onStartCompare: handleStartCompare,
+      onSelectNode: selectNode,
 
-  notesEnabled: props.notesEnabled,
-  highlightUnseenEnabled: props.highlightUnseenEnabled,
-  showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
-  graphCardContentMode: props.graphCardContentMode,
-  graphCardDisplayMode: props.graphCardDisplayMode,
-  showOnlyChangedParameters: props.showOnlyChangedParameters,
+      notesEnabled: props.notesEnabled,
+      highlightUnseenEnabled: props.highlightUnseenEnabled,
+      showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
+      graphCardContentMode: props.graphCardContentMode,
+      graphCardDisplayMode: props.graphCardDisplayMode,
+      showOnlyChangedParameters: props.showOnlyChangedParameters,
 
-  categoryVisibility,
-  onSetCategoryVisible: setCategoryVisible,
-  onShowAllCategories: showAllCategories,
+      categoryVisibility,
+      onSetCategoryVisible: setCategoryVisible,
+      onShowAllCategories: showAllCategories,
 
-  isComparePicking,
-  compareSourceNodeId,
-}), [
-  selectNode,
-  markVideoOpened,
-  saveNodeNote,
-  handleDeleteNode,
-  handleHideNode,
-  handleOpenDetails,
-  handleStartCompare,
-  props.notesEnabled,
-  props.highlightUnseenEnabled,
-  props.showWeightSuggestionsEnabled,
-  props.graphCardContentMode,
-  props.graphCardDisplayMode,
-  props.showOnlyChangedParameters,
-  categoryVisibility,
-  setCategoryVisible,
-  showAllCategories,
-  isComparePicking,
-  compareSourceNodeId,
-]);
+      isComparePicking,
+      compareSourceNodeId,
+    }),
+    [
+      selectNode,
+      markVideoOpened,
+      saveNodeNote,
+      handleDeleteNode,
+      handleHideNode,
+      handleOpenDetails,
+      handleStartCompare,
+      props.notesEnabled,
+      props.highlightUnseenEnabled,
+      props.showWeightSuggestionsEnabled,
+      props.graphCardContentMode,
+      props.graphCardDisplayMode,
+      props.showOnlyChangedParameters,
+      categoryVisibility,
+      setCategoryVisible,
+      showAllCategories,
+      isComparePicking,
+      compareSourceNodeId,
+    ]
+  );
 
   return (
     <div style={{ height: "100%", position: "relative" }}>
@@ -1953,31 +1920,31 @@ useEffect(() => {
         )
       )}
       <GraphUIContext.Provider value={graphUI}>
-      <ReactFlow
-        onInit={(instance) => setRfInstance(instance)}
-        nodes={nodesForUI}
-        edges={g.rfEdges}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        nodesDraggable
-        nodesConnectable={false}
-        elementsSelectable
-        deleteKeyCode={null}
-        panOnDrag={[1, 2]}
-        zoomOnScroll
-        onNodesChange={g.onNodesChange}
-        onEdgesChange={g.onEdgesChange}
-        onNodeClick={onNodeClick}
-        onNodeDragStop={() => {
-          g.commit();
-          requestAnimationFrame(vp.saveViewport);
-        }}
-        onMove={vp.scheduleSaveViewport}
-        onMoveEnd={vp.saveViewport}
-      >
-        <Background />
-        <Controls />
-      </ReactFlow>
+        <ReactFlow
+          onInit={(instance) => setRfInstance(instance)}
+          nodes={nodesForUI}
+          edges={g.rfEdges}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          nodesDraggable
+          nodesConnectable={false}
+          elementsSelectable
+          deleteKeyCode={null}
+          panOnDrag={[1, 2]}
+          zoomOnScroll
+          onNodesChange={g.onNodesChange}
+          onEdgesChange={g.onEdgesChange}
+          onNodeClick={onNodeClick}
+          onNodeDragStop={() => {
+            g.commit();
+            requestAnimationFrame(vp.saveViewport);
+          }}
+          onMove={vp.scheduleSaveViewport}
+          onMoveEnd={vp.saveViewport}
+        >
+          <Background />
+          <Controls />
+        </ReactFlow>
       </GraphUIContext.Provider>
 
       {/* dialogs */}
@@ -2204,7 +2171,7 @@ useEffect(() => {
         onSetCategoryVisible={setCategoryVisible}
         onShowAllCategories={showAllCategories}
         branchSuggestion={detailsParamAnalysis?.branchSuggestion}
-parameterHistory={detailsParamAnalysis?.parameterHistory}
+        parameterHistory={detailsParamAnalysis?.parameterHistory}
         compareBaseNodeLabel={
           compareSourceNodeId === detailsNode?.id
             ? ((compareBaseNodeData?.label as string | undefined) ?? compareTargetNodeId) || null

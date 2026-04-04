@@ -1,6 +1,7 @@
 import { Box, Stack, Tooltip, ButtonBase, Typography, Slider } from "@mui/material";
+import React from "react";
 
-export function CategorySlider(props: {
+export const CategorySlider = React.memo(function CategorySlider(props: {
   label: string;
   value: number;
   sx?: any;
@@ -64,4 +65,4 @@ export function CategorySlider(props: {
       />
     </Box>
   );
-}
+});

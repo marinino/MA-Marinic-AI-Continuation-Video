@@ -12,7 +12,7 @@ export type RootMode = "generate" | "upload";
 export type V2VTab = "simple" | "advanced";
 
 /** Category view mode (read-only UI) */
-export type CatView = "sliders" | "pentagon";
+export type CatView = "sliders" | "pentagon" | "triangle";
 
 /** Manual edit flow draft (before the edit node exists) */
 export type ManualEditDraft = {
@@ -97,8 +97,7 @@ export type ParamDelats = Partial<
 > | null;
 
 export type BrachSuggestion = {
-  targetCategory:
-   string
+  targetCategory: string;
   categoryDirection: "down" | "up";
   parameter:
     | "highNoiseCfg"
@@ -421,7 +420,7 @@ export type BuiltInCategoryId =
   | "transitionSmoothness"
   | "videoFaithfulness";
 
-  export type GraphUIContextValue = {
+export type GraphUIContextValue = {
   onAdd: (nodeId: string) => void;
   onVideoOpened: (nodeId: string) => void;
   onSaveNote: (nodeId: string, note: string) => void;
@@ -445,3 +444,5 @@ export type BuiltInCategoryId =
   isComparePicking: boolean;
   compareSourceNodeId: string | null;
 };
+
+

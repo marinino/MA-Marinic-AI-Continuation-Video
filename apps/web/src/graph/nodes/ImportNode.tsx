@@ -6,7 +6,7 @@ import GraphUIContext from "../contexts/GraphUIContext";
 
 export function ImportNode(props: NodeProps<any>) {
   const ui = useContext(GraphUIContext);
-if (!ui) throw new Error("GraphUIContext missing");
+  if (!ui) throw new Error("GraphUIContext missing");
   return (
     <div style={{ position: "relative" }}>
       <Handle id="in" type="target" position={Position.Left} />

@@ -1,8 +1,6 @@
 import { createContext, useContext } from "react";
 import { GraphUIContextValue } from "../types/ui";
 
-
-
 const GraphUIContext = createContext<GraphUIContextValue | null>(null);
 
 export function useGraphUI() {
