@@ -22,19 +22,14 @@ export function usePentagonLogic(
   customSliders: CustomScoreSlider[],
   enabled: boolean
 ) {
-
-  const getAxisLabel = React.useMemo(
-  () => buildAxisLabelGetter(customSliders),
-  [customSliders]
-);
+  const getAxisLabel = React.useMemo(() => buildAxisLabelGetter(customSliders), [customSliders]);
 
   const availableAxisIds: AxisId[] = React.useMemo(() => {
     const customs: AxisId[] = customSliders.map((c) => c.id);
     return [...DEFAULT_PENTAGON_AXIS_IDS, ...customs];
   }, [customSliders]);
 
-  const [pentagonAxes, setPentagonAxesState] =
-    React.useState<AxisId[]>(DEFAULT_PENTAGON_AXIS_IDS);
+  const [pentagonAxes, setPentagonAxesState] = React.useState<AxisId[]>(DEFAULT_PENTAGON_AXIS_IDS);
 
   React.useEffect(() => {
     const loaded = normalizePentagonAxes(
@@ -63,8 +58,7 @@ export function usePentagonLogic(
   const pentagonAxisObjects = React.useMemo(() => {
     if (!enabled) return [];
 
-    const ids =
-      (pentagonAxes?.length === 5 ? pentagonAxes : DEFAULT_PENTAGON_AXIS_IDS).slice(0, 5);
+    const ids = (pentagonAxes?.length === 5 ? pentagonAxes : DEFAULT_PENTAGON_AXIS_IDS).slice(0, 5);
 
     return ids.map((id) => ({
       id: String(id),

@@ -172,8 +172,6 @@ export function ClipDialog(p: ClipDialogProps) {
     setActiveEffects: clipLogic.setActiveEffects,
   });
 
-
-
   const handleGlobalDragEnd = React.useCallback(() => {
     sliderLogic.endDrag();
   }, [sliderLogic]);
@@ -195,8 +193,6 @@ export function ClipDialog(p: ClipDialogProps) {
       window.removeEventListener("touchcancel", handleGlobalDragEnd);
     };
   }, [clipLogic.activeSimple, handleGlobalDragEnd]);
-
-
 
   // --- compute real values + derived params exactly like mega-file ---
   const simpleStats = React.useMemo(() => {

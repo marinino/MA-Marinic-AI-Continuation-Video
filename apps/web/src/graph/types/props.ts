@@ -5,6 +5,7 @@ import type {
   CategoryLabelMap,
   CategoryScoreMap,
   Delta,
+  EditMetaSummary,
   ParamDelats,
   ParameterHistoryMap,
 } from "../types/ui";
@@ -24,7 +25,7 @@ export interface NodeDetailsDialogProps {
   } | null;
   videoStatus?: string;
 
-  metaSummary?: React.ReactNode;
+  metaSummary?: EditMetaSummary;
 
   prompt?: string;
   prevParamsId?: string | null;
@@ -65,4 +66,3 @@ export interface NodeDetailsDialogProps {
 
   compareBaseNodeLabel?: string | null;
 }
-

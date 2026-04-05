@@ -16,6 +16,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { renderOrderedSliderItem } from "./RenderedOrderedSliders";
 import { ParameterBarGroup } from "./ParameterBarGroup";
 import { CompareParameterBarGroup } from "./CompareParameterBarGroup";
+import { BrachSuggestion } from "../types/ui";
 
 type SidebarTab = "categories" | "parameters";
 
@@ -33,6 +34,8 @@ export function CategoryScoresSidebar({
   note,
   onChangeNote,
   onSaveNote,
+  branchSuggestion,
+  showWeightSuggestionsEnabled,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -47,6 +50,8 @@ export function CategoryScoresSidebar({
   note?: string;
   onChangeNote?: (value: string) => void;
   onSaveNote?: () => void;
+  branchSuggestion?: BrachSuggestion | null;
+  showWeightSuggestionsEnabled: boolean;
 }) {
   const [tab, setTab] = useState<SidebarTab>("categories");
 
@@ -162,6 +167,20 @@ export function CategoryScoresSidebar({
                 history={parameterHistory}
                 isFromChip={false}
               />
+            )}
+
+            {showWeightSuggestionsEnabled && branchSuggestion && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <Box sx={{ mb: 1.5 }}>
+                  <Typography variant="caption" color="warning.main" sx={{ fontWeight: 600 }}>
+                    Hint: Adjust weights
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {branchSuggestion.message}
+                  </Typography>
+                </Box>
+              </>
             )}
 
             {notesEnabled && (

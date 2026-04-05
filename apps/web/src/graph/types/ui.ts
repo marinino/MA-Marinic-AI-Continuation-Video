@@ -445,4 +445,12 @@ export type GraphUIContextValue = {
   compareSourceNodeId: string | null;
 };
 
-
+export type EditMetaSummary = {
+  tool?: string;
+  status?: string;
+  importedAt?: string;
+  changelogLength?: number;
+  counts?: Record<string, number>;
+  summaryLines?: string[];
+  detailLines?: string[];
+};

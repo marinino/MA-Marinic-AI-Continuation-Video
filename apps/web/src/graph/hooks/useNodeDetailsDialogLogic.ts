@@ -133,67 +133,6 @@ export function useNodeDetailsDialog(props: NodeDetailsDialogProps) {
     props.onClose();
   };
 
-  useEffect(() => {
-    console.log("NODE DETAILS PARAM INPUT", {
-      compareBaseNodeLabel: props.compareBaseNodeLabel,
-      isComparing,
-
-      highNoiseCfg: props.highNoiseCfg,
-      highNoiseShift: props.highNoiseShift,
-      highNoiseModelStrength: props.highNoiseModelStrength,
-
-      highNoiseStartStep: props.highNoiseStartStep,
-      highNoiseEndStep: props.highNoiseEndStep,
-      lowNoiseStartStep: props.lowNoiseStartStep,
-      lowNoiseEndStep: props.lowNoiseEndStep,
-
-      displayTotalSteps: props.displayTotalSteps,
-      displayLowStepPct: props.displayLowStepPct,
-
-      d: props.d,
-      compareDeltas,
-
-      highStepsValue,
-      lowStepsValue,
-      totalStepsValue,
-      lowStepPctValue,
-
-      highStepsDelta,
-      lowStepsDelta,
-      totalStepsDelta,
-      lowStepPctDelta,
-
-      prevTotalStepsValue,
-      prevLowStepsValue,
-      prevLowStepPctValue,
-    });
-  }, [
-    props.compareBaseNodeLabel,
-    props.highNoiseCfg,
-    props.highNoiseShift,
-    props.highNoiseModelStrength,
-    props.highNoiseStartStep,
-    props.highNoiseEndStep,
-    props.lowNoiseStartStep,
-    props.lowNoiseEndStep,
-    props.displayTotalSteps,
-    props.displayLowStepPct,
-    props.d,
-    compareDeltas,
-    isComparing,
-    highStepsValue,
-    lowStepsValue,
-    totalStepsValue,
-    lowStepPctValue,
-    highStepsDelta,
-    lowStepsDelta,
-    totalStepsDelta,
-    lowStepPctDelta,
-    prevTotalStepsValue,
-    prevLowStepsValue,
-    prevLowStepPctValue,
-  ]);
-
   const parameterItems = useMemo(
     () =>
       buildParameterItems({

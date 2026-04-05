@@ -29,6 +29,7 @@ import { InformationDialog } from "./graph/dialogs/InformationDialog";
 import { loadSettings, saveSettings } from "./utils/localStorage";
 import { LoadProjectDialog } from "./graph/dialogs/LoadProjectsDialog";
 import { CategoryScoresSidebar } from "./graph/components/CategoryScoresSidebar";
+import { BrachSuggestion } from "./graph/types/ui";
 
 type ColorMode = "light" | "dark";
 
@@ -89,6 +90,7 @@ export default function App({
     notesEnabled: boolean;
     onChangeNote?: (value: string) => void;
     onSaveNote?: () => void;
+    branchSuggestion: BrachSuggestion | null;
   }>({
     selectedNodeLabel: null,
     computed: null,
@@ -101,6 +103,7 @@ export default function App({
     notesEnabled: false,
     onChangeNote: undefined,
     onSaveNote: undefined,
+    branchSuggestion: null,
   });
 
   const dirtyRef = useRef(false);
@@ -359,6 +362,8 @@ export default function App({
               note={sidebarData.note}
               onChangeNote={sidebarData.onChangeNote}
               onSaveNote={sidebarData.onSaveNote}
+              branchSuggestion={sidebarData.branchSuggestion}
+              showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
             />
           </Box>
 

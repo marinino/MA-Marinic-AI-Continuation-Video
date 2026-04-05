@@ -189,6 +189,16 @@ export function detectParamWeightSuggestion(
         confidence: round2(confidence),
         suggestedWeightDeltaPct,
         suggestedAction,
+        message: buildSuggestionMessage({
+          category,
+          parameter: param,
+          parameterDirection,
+          hitCount,
+          streakLength,
+          avgCategoryDelta: round2(avgCategoryDelta),
+          avgParamDelta: round2(avgParamDelta),
+          suggestedWeightDeltaPct,
+        }),
       };
 
       if (

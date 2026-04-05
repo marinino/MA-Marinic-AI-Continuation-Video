@@ -147,33 +147,35 @@ export function ParameterBarGroup({
                       />
                     </Box>
 
-                    <Box
-                      sx={{
-                        position: "relative",
-                        height: 12,
-                        width: "100%",
-                        borderRadius: 999,
-                        overflow: "hidden",
-                        bgcolor: alpha(color, 0.075),
-                        opacity: showPrevBar ? 1 : 0,
-                        transition: "opacity 150ms ease",
-                        pointerEvents: "none",
-                      }}
-                    >
-                      {prevPct != null && (
-                        <Box
-                          sx={{
-                            height: "100%",
-                            width: `${prevPct}%`,
-                            minWidth: prevPct > 0 ? 6 : 0,
-                            borderRadius: 999,
-                            bgcolor: color,
-                            opacity: 0.5,
-                            transition: "width 180ms ease",
-                          }}
-                        />
-                      )}
-                    </Box>
+                    {isFromChip && (
+                      <Box
+                        sx={{
+                          position: "relative",
+                          height: 12,
+                          width: "100%",
+                          borderRadius: 999,
+                          overflow: "hidden",
+                          bgcolor: alpha(color, 0.075),
+                          opacity: showPrevBar ? 1 : 0,
+                          transition: "opacity 150ms ease",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        {prevPct != null && (
+                          <Box
+                            sx={{
+                              height: "100%",
+                              width: `${prevPct}%`,
+                              minWidth: prevPct > 0 ? 6 : 0,
+                              borderRadius: 999,
+                              bgcolor: color,
+                              opacity: 0.5,
+                              transition: "width 180ms ease",
+                            }}
+                          />
+                        )}
+                      </Box>
+                    )}
                   </Box>
 
                   <Box

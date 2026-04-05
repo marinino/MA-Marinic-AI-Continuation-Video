@@ -77,7 +77,74 @@ export function NodeDetailsDialogView({
 
             {props.type === "edit" ? (
               props.metaSummary ? (
-                <Box sx={{ mt: 1 }}>{props.metaSummary}</Box>
+                <Box sx={{ mt: 1 }}>
+                  <Stack spacing={0.75}>
+                    <Typography variant="body2" color="text.secondary">
+                      Tool: {props.metaSummary.tool ?? "resolve"}
+                    </Typography>
+
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Chip size="small" label={props.metaSummary.status ?? "waiting"} />
+                      {props.metaSummary.importedAt && (
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(props.metaSummary.importedAt).toLocaleString()}
+                        </Typography>
+                      )}
+                    </Stack>
+
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Chip
+                        size="small"
+                        color={props.metaSummary.changelogLength ? "success" : "default"}
+                        label={
+                          props.metaSummary.changelogLength
+                            ? `changes: ${props.metaSummary.changelogLength}`
+                            : "no timeline diff"
+                        }
+                      />
+                      {props.metaSummary.counts &&
+                        Object.keys(props.metaSummary.counts).length > 0 && (
+                          <Typography variant="caption" color="text.secondary">
+                            {Object.entries(props.metaSummary.counts)
+                              .map(([k, v]) => `${k}:${v}`)
+                              .join(" · ")}
+                          </Typography>
+                        )}
+                    </Stack>
+
+                    {(props.metaSummary.summaryLines?.length ?? 0) > 0 && (
+                      <Box sx={{ mt: 0.5 }}>
+                        <Stack spacing={1}>
+                          {props.metaSummary.summaryLines?.map((line: string, i: number) => (
+                            <Typography key={i} variant="body2">
+                              {line}
+                            </Typography>
+                          ))}
+
+                          {(props.metaSummary.detailLines?.length ?? 0) > 0 && (
+                            <>
+                              <Typography variant="subtitle2" sx={{ mt: 1 }}>
+                                Details
+                              </Typography>
+
+                              <Stack spacing={0.5}>
+                                {props.metaSummary.detailLines?.map((line: string, i: number) => (
+                                  <Typography
+                                    key={i}
+                                    variant="caption"
+                                    sx={{ opacity: 0.85, overflowWrap: "anywhere" }}
+                                  >
+                                    {line}
+                                  </Typography>
+                                ))}
+                              </Stack>
+                            </>
+                          )}
+                        </Stack>
+                      </Box>
+                    )}
+                  </Stack>
+                </Box>
               ) : (
                 <Typography variant="body2" color="text.secondary">
                   No changes imported yet.

@@ -109,11 +109,6 @@ export function NodeCard(props: {
 
   const shouldHighlightUnseen = props.type === "clip" && !props.videoOpened && !props.selected;
 
-  const d = props.paramDeltas;
-  const sd = props.categoryScoreDeltas;
-
-  const suggestion = props.branchSuggestion;
-
   return (
     <>
       <GraphCard

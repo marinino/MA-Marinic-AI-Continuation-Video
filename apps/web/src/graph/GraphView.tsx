@@ -97,6 +97,7 @@ import {
   saveSliderOrder,
 } from "../utils/localStorage";
 import {
+  BrachSuggestion,
   CustomScoreSlider,
   FormulaWeights,
   GraphCardContentMode,
@@ -142,6 +143,7 @@ export function GraphView(props: {
     notesEnabled: boolean;
     onChangeNote: (value: string) => void;
     onSaveNote: () => void;
+    branchSuggestion: BrachSuggestion | null;
   }) => void;
 }) {
   // ---------- reactflow instance ----------
@@ -849,16 +851,16 @@ export function GraphView(props: {
     const nodes = g.nodesWithRootFlag as Node[];
     const edges = g.rfEdges as Edge[];
 
-    const nodesById = new Map(nodes.map((n) => [n.id, n]));
+    const rawNodesById = new Map(nodes.map((n) => [n.id, n]));
     const incoming = buildIncomingMap(edges);
 
-    const precomputedNodes = nodes.map((n: RFNode) => {
+    // 1) Erst alle UI-Nodes mit Deltas vorberechnen
+    const basePrecomputedNodes = nodes.map((n: RFNode) => {
       const baseData = (n.data as any) ?? {};
 
       const injectedCommon = {
         ...baseData,
         videoOpened: Boolean(baseData?.videoOpened),
-
         categoryLabels,
       };
 
@@ -923,7 +925,7 @@ export function GraphView(props: {
         };
       }
 
-      // ---------- params ----------
+      // ---------- other ----------
       if (n.type !== "params") {
         return {
           ...n,
@@ -932,8 +934,9 @@ export function GraphView(props: {
         };
       }
 
-      const prevParamsId = findPrevParamsId(n.id, nodesById, incoming);
-      const prevParamsData = prevParamsId ? (nodesById.get(prevParamsId)?.data as any) : null;
+      // ---------- params ----------
+      const prevParamsId = findPrevParamsId(n.id, rawNodesById, incoming);
+      const prevParamsData = prevParamsId ? (rawNodesById.get(prevParamsId)?.data as any) : null;
 
       const curPrompt = injectedCommon.prompt ?? "";
       const prevPrompt = prevParamsData?.prompt ?? "";
@@ -994,7 +997,38 @@ export function GraphView(props: {
       };
     });
 
-    return precomputedNodes;
+    // 2) Jetzt mit den vorberechneten Nodes branchSuggestion + parameterHistory berechnen
+    const precomputedNodesById = new Map(basePrecomputedNodes.map((n) => [n.id, n]));
+
+    const finalNodes = basePrecomputedNodes.map((n) => {
+      if (n.type !== "params") return n;
+
+      const branchSteps = collectParamBranchSteps(n.id, precomputedNodesById, edges);
+
+      const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
+        minSteps: 5,
+        minCategoryDeltaAbs: 1,
+        minParamDeltaAbs: 0.01,
+        minStreak: 5,
+        recencyWindow: 15,
+      });
+
+      const parameterHistory = buildParameterHistoryFromBranchSteps(
+        branchSteps,
+        precomputedNodesById
+      );
+
+      return {
+        ...n,
+        data: {
+          ...(n.data as any),
+          branchSuggestion,
+          parameterHistory,
+        },
+      };
+    });
+
+    return finalNodes;
   }, [g.nodesWithRootFlag, g.rfEdges, categoryLabels]);
 
   const detailsNode = useMemo(() => {
@@ -1239,6 +1273,7 @@ export function GraphView(props: {
       clipLogic,
       parameterItems: isParamsNode ? sidebarDetailsLogic.parameterItems : [],
       parameterHistory: isParamsNode ? (sidebarParamAnalysis?.parameterHistory ?? {}) : {},
+      branchSuggestion: isParamsNode ? (sidebarParamAnalysis?.branchSuggestion ?? null) : null,
       compareBaseNodeLabel: isParamsNode
         ? (sharedNodeDetailsProps?.compareBaseNodeLabel ?? null)
         : null,
