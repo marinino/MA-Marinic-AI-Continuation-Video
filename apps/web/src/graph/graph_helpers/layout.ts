@@ -6,9 +6,8 @@ export function edgeLabel(e: RFEdge): string | undefined {
 }
 
 export function countBranches(edges: RFEdge[], clipId: string) {
-  return edges.filter(
-    (e) => e.source === clipId && (edgeLabel(e) === "input" || edgeLabel(e) === "edit_in")
-  ).length;
+  const branchLabels = new Set(["input", "edit_in", "import"]);
+  return edges.filter((e) => e.source === clipId && branchLabels.has(edgeLabel(e) ?? "")).length;
 }
 
 export function isColliding(a: XY, b: XY, w = 220, h = 120, pad = 30) {
@@ -20,10 +19,11 @@ export function getDefaultNodeSize(type?: string) {
     case "params":
       return { w: 420, h: 500 };
     case "edit":
-      return { w: 280, h: 170 };
+      return { w: 280, h: 300 };
     case "import":
       return { w: 280, h: 170 };
     case "clip":
+      return { w: 280, h: 170 };
     default:
       return { w: 220, h: 120 };
   }

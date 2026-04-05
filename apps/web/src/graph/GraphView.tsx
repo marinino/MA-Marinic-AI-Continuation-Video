@@ -1737,9 +1737,12 @@ export function GraphView(props: {
           const clipSize = getDefaultNodeSize("clip");
 
           const desiredImport = {
-            x: baseX + clipSize.w + NODE_GAP_X,
-            y: baseY + (branchIndex - 1) * BRANCH_SPACING,
-          };
+  x: baseX + clipSize.w + NODE_GAP_X,
+  y:
+    baseY +
+    (clipSize.h - (importSize?.h ?? 100)) / 2 +
+    (branchIndex - 1) * BRANCH_SPACING,
+};
 
           const importPos = findFreePosition(desiredImport, prevNodes, {
             stepY: 50,
