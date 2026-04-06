@@ -387,6 +387,8 @@ export default function App({
                 graphCardDisplayMode={graphCardDisplayMode}
                 showOnlyChangedParameters={showOnlyChangedParameters}
                 onSidebarDataChange={setSidebarData}
+
+
               />
             </ReactFlowProvider>
           </Box>

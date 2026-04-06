@@ -278,6 +278,7 @@ export function GraphView(props: {
   const [hideTargetId, setHideTargetId] = useState<string | null>(null);
   const [hideTargetIds, setHideTargetIds] = useState<string[]>([]);
   const [sidebarLocalNote, setSidebarLocalNote] = useState("");
+  const [detailsLocalNote, setDetailsLocalNote] = useState("");
 
   const paletteKey = genState === "idle" ? "success" : genState === "running" ? "warning" : "error";
 
@@ -1054,10 +1055,19 @@ export function GraphView(props: {
     setSidebarLocalNote(sidebarNodeData?.note ?? "");
   }, [sidebarNode?.id, sidebarNodeData?.note]);
 
+  useEffect(() => {
+  setDetailsLocalNote(detailsNodeData?.note ?? "");
+}, [detailsNode?.id, detailsNodeData?.note]);
+
   const handleSaveSidebarNote = useCallback(() => {
     if (!sidebarNode?.id) return;
     saveNodeNote(sidebarNode.id, sidebarLocalNote);
   }, [sidebarNode?.id, saveNodeNote, sidebarLocalNote]);
+
+  const handleSaveDetailsNote = useCallback(() => {
+  if (!detailsNode?.id) return;
+  saveNodeNote(detailsNode.id, detailsLocalNote);
+}, [detailsNode?.id, detailsLocalNote, saveNodeNote]);
 
   const sidebarComputed = useMemo(() => {
     if (!sidebarNodeData?.categoryScores || sidebarNode?.type !== "params") return null;
@@ -2202,8 +2212,9 @@ export function GraphView(props: {
         categoryLabels={detailsNodeData?.categoryLabels}
         paramDeltas={detailsNodeData?.paramDeltas}
         promptChanged={detailsNodeData?.promptChanged}
-        note={detailsNodeData?.note}
-        onSaveNote={saveNodeNote}
+        note={detailsLocalNote}
+onChangeNote={setDetailsLocalNote}
+onSaveNote={handleSaveDetailsNote}
         notesEnabled={props.notesEnabled}
         showWeightSuggestionsEnabled={props.showWeightSuggestionsEnabled}
         categoryVisibility={categoryVisibility}

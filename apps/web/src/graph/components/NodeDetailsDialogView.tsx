@@ -262,6 +262,28 @@ export function NodeDetailsDialogView({
               </Typography>
             )}
           </Stack>
+
+          {props.type !== "params" && props.notesEnabled && (
+                        <>
+                          <Divider sx={{ my: 2 }} />
+                          <Typography variant="caption" display="block" sx={{ mb: 1 }}>
+                            <strong>Notes</strong>
+                          </Typography>
+          
+                          <TextField
+                            multiline
+                            minRows={4}
+                            fullWidth
+                            value={props.note ?? ""}
+                            onChange={(e) => props.onChangeNote?.(e.target.value)}
+                            placeholder="Add notes for this node..."
+                          />
+          
+                          <Button variant="outlined" size="small" onClick={props.onSaveNote} sx={{ mt: 1 }}>
+                            Save notes
+                          </Button>
+                        </>
+                      )}
         </DialogContent>
 
         <DialogActions sx={{ justifyContent: "space-between" }}>

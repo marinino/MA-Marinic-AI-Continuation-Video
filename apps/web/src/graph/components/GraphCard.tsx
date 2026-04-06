@@ -481,7 +481,7 @@ export function GraphCard(props: NodeCardPreviewProps) {
               </Box>
             )}
 
-            {props.type === "params" &&
+            {props.type === "params" && d &&
               props.graphCardDisplayMode === "bars" &&
               parameterItems.length > 0 && (
                 <Box sx={{ mt: 1 }}>
