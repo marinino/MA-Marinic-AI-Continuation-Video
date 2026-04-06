@@ -26,6 +26,7 @@ export interface NodeDetailsDialogProps {
   videoStatus?: string;
 
   metaSummary?: EditMetaSummary;
+  importedFileName?: string | null;
 
   prompt?: string;
   prevParamsId?: string | null;

@@ -7,6 +7,7 @@ import GraphUIContext from "../contexts/GraphUIContext";
 export function ImportNode(props: NodeProps<any>) {
   const ui = useContext(GraphUIContext);
   if (!ui) throw new Error("GraphUIContext missing");
+
   return (
     <div style={{ position: "relative" }}>
       <Handle id="in" type="target" position={Position.Left} />
@@ -22,14 +23,14 @@ export function ImportNode(props: NodeProps<any>) {
         note={props.data?.note}
         onSaveNote={ui?.onSaveNote}
         onDelete={ui?.onDelete}
+        onHide={ui?.onHide}
         canDelete={!props.data?.isRoot}
-        onHide={props.data?.onHide}
         canHide={!props.data?.isRoot}
         highlightUnseenEnabled={ui?.highlightUnseenEnabled}
         notesEnabled={ui?.notesEnabled}
         showWeightSuggestionsEnabled={ui?.showWeightSuggestionsEnabled}
         graphCardContentMode={ui?.graphCardContentMode}
-        onOpenDetails={props.data?.onOpenDetails}
+        onOpenDetails={ui?.onOpenDetails}
       />
     </div>
   );

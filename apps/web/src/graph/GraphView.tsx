@@ -1835,6 +1835,7 @@ export function GraphView(props: {
   // ---------- node click ----------
   const onNodeClick: NodeMouseHandler = (evt, node) => {
     const target = evt.target as HTMLElement | null;
+    console.log("NODE CLICK", node.type, target, target?.closest("[role='button']"));
     if (target?.closest("button, a, [role='button'], .MuiDialog-root")) return;
 
     if (isComparePicking && compareSourceNodeId) {
@@ -2174,7 +2175,7 @@ export function GraphView(props: {
         open={detailsOpen && !!detailsNode}
         onClose={handleCloseDetails}
         nodeId={detailsNode?.id ?? ""}
-        type={(detailsNode?.type as "clip" | "params" | "edit") ?? "clip"}
+        type={(detailsNode?.type as "clip" | "params" | "edit" | "import") ?? "clip"}
         d={(detailsEffectiveDelta as any) ?? {}}
         videoUrl={(detailsNodeData?.videoUrl as string | null | undefined) ?? null}
         videoFile={detailsNodeData?.videoFile}
@@ -2210,6 +2211,7 @@ export function GraphView(props: {
         onShowAllCategories={showAllCategories}
         branchSuggestion={detailsParamAnalysis?.branchSuggestion}
         parameterHistory={detailsParamAnalysis?.parameterHistory}
+        importedFileName={detailsNodeData?.importedFileName ?? null}
         compareBaseNodeLabel={
           compareSourceNodeId === detailsNode?.id
             ? ((compareBaseNodeData?.label as string | undefined) ?? compareTargetNodeId) || null

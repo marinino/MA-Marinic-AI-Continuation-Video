@@ -45,7 +45,7 @@ export function NodeDetailsDialogView({
         onMouseDown={(e) => e.stopPropagation()}
       >
         <DialogTitle sx={{ m: 0, p: 2 }}>
-          Details
+          {props.compareBaseNodeLabel ? "Comparing nodes" : props.metaSummary ? "Chnages in editing" : props.videoUrl ? "Clip" : "Details" }
           <IconButton
             aria-label="close"
             onClick={(e) => {
@@ -124,7 +124,7 @@ export function NodeDetailsDialogView({
                           {(props.metaSummary.detailLines?.length ?? 0) > 0 && (
                             <>
                               <Typography variant="subtitle2" sx={{ mt: 1 }}>
-                                Details
+                                Chnages compared to parent node
                               </Typography>
 
                               <Stack spacing={0.5}>
@@ -152,13 +152,6 @@ export function NodeDetailsDialogView({
               )
             ) : props.type === "params" ? (
               <>
-                {props.compareBaseNodeLabel && (
-                  <Typography variant="caption" color="text.secondary">
-                    Comparing against: {props.compareBaseNodeLabel} (First node takes role as base
-                    node)
-                  </Typography>
-                )}
-
                 <Stack direction="row" spacing={0.5} alignItems="center">
                   <Typography variant="caption" display="block">
                     <strong>Parameters</strong>
@@ -171,13 +164,7 @@ export function NodeDetailsDialogView({
                   </Tooltip>
                 </Stack>
 
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  <strong>Prompt: </strong>
-                  {props.prompt?.trim()
-                    ? `${props.prompt.slice(0, 3000)}${props.prompt.length > 3000 ? "…" : ""}`
-                    : "No prompt set yet."}
-                </Typography>
-
+                
                 {logic.parameterItems.length > 0 && Boolean(props.compareBaseNodeLabel) && (
                   <CompareParameterBarGroup items={logic.parameterItems} />
                 )}
@@ -249,10 +236,18 @@ export function NodeDetailsDialogView({
                   )}
               </>
             ) : props.type === "import" ? (
-              <Typography variant="body2" color="text.secondary">
-                This is an import node, the user manually uploaded a video here.
-              </Typography>
-            ) : props.videoUrl ? (
+  <Stack spacing={1}>
+    <Typography variant="body2" color="text.secondary">
+      This is an import node. The user manually uploaded a video here.
+    </Typography>
+
+    {props.importedFileName && (
+      <Typography variant="body2">
+        <strong>Imported file:</strong> {props.importedFileName}
+      </Typography>
+    )}
+  </Stack>
+) : props.videoUrl ? (
               <>
                 <video src={props.videoUrl} controls style={{ width: "100%", borderRadius: 8 }} />
                 {props.videoFile?.filename && (
