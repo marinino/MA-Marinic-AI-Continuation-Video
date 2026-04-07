@@ -31,6 +31,7 @@ export function ImportNode(props: NodeProps<any>) {
         showWeightSuggestionsEnabled={ui?.showWeightSuggestionsEnabled}
         graphCardContentMode={ui?.graphCardContentMode}
         onOpenDetails={ui?.onOpenDetails}
+        onSelectNode={ui.onSelectNode}
       />
     </div>
   );

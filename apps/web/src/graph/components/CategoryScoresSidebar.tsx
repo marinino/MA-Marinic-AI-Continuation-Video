@@ -36,10 +36,12 @@ export function CategoryScoresSidebar({
   onSaveNote,
   branchSuggestion,
   showWeightSuggestionsEnabled,
+  selectedNodeType,
 }: {
   open: boolean;
   onToggle: () => void;
   selectedNodeLabel?: string | null;
+  selectedNodeType?: string | null;
   orderedSliderItems: any[];
   computed: any | null;
   clipLogic: any;
@@ -54,6 +56,8 @@ export function CategoryScoresSidebar({
   showWeightSuggestionsEnabled: boolean;
 }) {
   const [tab, setTab] = useState<SidebarTab>("categories");
+
+  console.log(selectedNodeType, "LABBBB");
 
   return (
     <Box
@@ -96,7 +100,7 @@ export function CategoryScoresSidebar({
           <Box sx={{ px: 2, pt: 2, pb: 1 }}>
             <Typography variant="subtitle2">Node inspection</Typography>
             <Typography variant="caption" color="text.secondary">
-              {selectedNodeLabel
+              {selectedNodeType === "params"
                 ? `Selected node: ${selectedNodeLabel}`
                 : "No parameter node selected"}
             </Typography>

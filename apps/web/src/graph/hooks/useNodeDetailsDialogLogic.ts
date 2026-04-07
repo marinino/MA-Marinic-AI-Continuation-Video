@@ -17,17 +17,14 @@ import type { SelectedCategory } from "../types/ui";
 import { NodeDetailsDialogProps } from "../types/props";
 
 export function useNodeDetailsDialog(props: NodeDetailsDialogProps) {
-  const [localNote, setLocalNote] = useState(props.note ?? "");
+  const localNote = props.note ?? "";
+  const setLocalNote = props.onChangeNote ?? (() => {});
   const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
   const [showSuggestionDetails, setShowSuggestionDetails] = useState(false);
   const [paramsInfoAnchorEl, setParamsInfoAnchorEl] = useState<HTMLElement | null>(null);
 
   const isComparing = Boolean(props.compareBaseNodeLabel);
   const compareDeltas = isComparing ? props.d : undefined;
-
-  useEffect(() => {
-    setLocalNote(props.note ?? "");
-  }, [props.note, props.open]);
 
   const mergedCategoryLabels = useMemo(
     () => ({
@@ -127,7 +124,7 @@ export function useNodeDetailsDialog(props: NodeDetailsDialogProps) {
     e.stopPropagation();
 
     if (props.notesEnabled) {
-      props.onSaveNote?.(props.nodeId, localNote);
+      props.onSaveNote?.();
     }
 
     props.onClose();

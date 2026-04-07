@@ -35,6 +35,7 @@ export function ClipNode(props: NodeProps<any>) {
         highlightUnseenEnabled={ui.highlightUnseenEnabled}
         notesEnabled={ui.notesEnabled}
         onOpenDetails={ui.onOpenDetails}
+        onSelectNode={ui.onSelectNode}
       />
     </div>
   );

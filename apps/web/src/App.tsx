@@ -80,6 +80,7 @@ export default function App({
 
   const [sidebarData, setSidebarData] = useState<{
     selectedNodeLabel: string | null;
+    selectedNodeType: string | null;
     computed: any | null;
     orderedSliderItems: any[];
     clipLogic: any;
@@ -93,6 +94,7 @@ export default function App({
     branchSuggestion: BrachSuggestion | null;
   }>({
     selectedNodeLabel: null,
+    selectedNodeType: null,
     computed: null,
     orderedSliderItems: [],
     clipLogic: null,
@@ -364,6 +366,7 @@ export default function App({
               onSaveNote={sidebarData.onSaveNote}
               branchSuggestion={sidebarData.branchSuggestion}
               showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
+              selectedNodeType={sidebarData.selectedNodeType}
             />
           </Box>
 
@@ -387,8 +390,6 @@ export default function App({
                 graphCardDisplayMode={graphCardDisplayMode}
                 showOnlyChangedParameters={showOnlyChangedParameters}
                 onSidebarDataChange={setSidebarData}
-
-
               />
             </ReactFlowProvider>
           </Box>

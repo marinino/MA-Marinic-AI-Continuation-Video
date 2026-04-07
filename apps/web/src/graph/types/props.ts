@@ -55,9 +55,9 @@ export interface NodeDetailsDialogProps {
   promptChanged?: boolean;
   branchSuggestion?: BrachSuggestion;
 
-note?: string;
-onChangeNote?: (value: string) => void;
-onSaveNote?: () => void;
+  note?: string;
+  onChangeNote?: (value: string) => void;
+  onSaveNote?: () => void;
 
   notesEnabled: boolean;
   showWeightSuggestionsEnabled: boolean;

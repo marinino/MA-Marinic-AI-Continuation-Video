@@ -133,6 +133,7 @@ export function GraphView(props: {
   showOnlyChangedParameters: boolean;
   onSidebarDataChange?: (data: {
     selectedNodeLabel: string | null;
+    selectedNodeType: string | null;
     computed: any | null;
     orderedSliderItems: OrderedSliderItem[];
     clipLogic: any;
@@ -1056,8 +1057,8 @@ export function GraphView(props: {
   }, [sidebarNode?.id, sidebarNodeData?.note]);
 
   useEffect(() => {
-  setDetailsLocalNote(detailsNodeData?.note ?? "");
-}, [detailsNode?.id, detailsNodeData?.note]);
+    setDetailsLocalNote(detailsNodeData?.note ?? "");
+  }, [detailsNode?.id, detailsNodeData?.note]);
 
   const handleSaveSidebarNote = useCallback(() => {
     if (!sidebarNode?.id) return;
@@ -1065,9 +1066,9 @@ export function GraphView(props: {
   }, [sidebarNode?.id, saveNodeNote, sidebarLocalNote]);
 
   const handleSaveDetailsNote = useCallback(() => {
-  if (!detailsNode?.id) return;
-  saveNodeNote(detailsNode.id, detailsLocalNote);
-}, [detailsNode?.id, detailsLocalNote, saveNodeNote]);
+    if (!detailsNode?.id) return;
+    saveNodeNote(detailsNode.id, detailsLocalNote);
+  }, [detailsNode?.id, detailsLocalNote, saveNodeNote]);
 
   const sidebarComputed = useMemo(() => {
     if (!sidebarNodeData?.categoryScores || sidebarNode?.type !== "params") return null;
@@ -1274,10 +1275,18 @@ export function GraphView(props: {
   );
 
   useEffect(() => {
+    console.log("clickedNodeId", g.clickedNodeId);
+    console.log("sidebarNode", sidebarNode?.id, sidebarNode?.type, sidebarNode?.data?.label);
+  }, [g.clickedNodeId, sidebarNode]);
+
+  useEffect(() => {
     const isParamsNode = sidebarNode?.type === "params";
 
     props.onSidebarDataChange?.({
-      selectedNodeLabel: (sidebarNodeData?.label as string | undefined) ?? null,
+      selectedNodeLabel: isParamsNode
+        ? ((sidebarNodeData?.label as string | undefined) ?? null)
+        : null,
+      selectedNodeType: sidebarNode?.type ?? null,
       computed: isParamsNode ? sidebarComputed : null,
       orderedSliderItems,
       clipLogic,
@@ -1287,10 +1296,10 @@ export function GraphView(props: {
       compareBaseNodeLabel: isParamsNode
         ? (sharedNodeDetailsProps?.compareBaseNodeLabel ?? null)
         : null,
-      note: sidebarLocalNote,
+      note: isParamsNode ? sidebarLocalNote : "",
       notesEnabled: props.notesEnabled,
-      onChangeNote: setSidebarLocalNote,
-      onSaveNote: handleSaveSidebarNote,
+      onChangeNote: isParamsNode ? setSidebarLocalNote : () => {},
+      onSaveNote: isParamsNode ? handleSaveSidebarNote : () => {},
     });
   }, [
     props.onSidebarDataChange,
@@ -1747,12 +1756,12 @@ export function GraphView(props: {
           const clipSize = getDefaultNodeSize("clip");
 
           const desiredImport = {
-  x: baseX + clipSize.w + NODE_GAP_X,
-  y:
-    baseY +
-    (clipSize.h - (importSize?.h ?? 100)) / 2 +
-    (branchIndex - 1) * BRANCH_SPACING,
-};
+            x: baseX + clipSize.w + NODE_GAP_X,
+            y:
+              baseY +
+              (clipSize.h - (importSize?.h ?? 100)) / 2 +
+              (branchIndex - 1) * BRANCH_SPACING,
+          };
 
           const importPos = findFreePosition(desiredImport, prevNodes, {
             stepY: 50,
@@ -1845,8 +1854,7 @@ export function GraphView(props: {
   // ---------- node click ----------
   const onNodeClick: NodeMouseHandler = (evt, node) => {
     const target = evt.target as HTMLElement | null;
-    console.log("NODE CLICK", node.type, target, target?.closest("[role='button']"));
-    if (target?.closest("button, a, [role='button'], .MuiDialog-root")) return;
+    console.log("NODE CLICK", node.type, target);
 
     if (isComparePicking && compareSourceNodeId) {
       finishComparePick(node.id);
@@ -2213,8 +2221,8 @@ export function GraphView(props: {
         paramDeltas={detailsNodeData?.paramDeltas}
         promptChanged={detailsNodeData?.promptChanged}
         note={detailsLocalNote}
-onChangeNote={setDetailsLocalNote}
-onSaveNote={handleSaveDetailsNote}
+        onChangeNote={setDetailsLocalNote}
+        onSaveNote={handleSaveDetailsNote}
         notesEnabled={props.notesEnabled}
         showWeightSuggestionsEnabled={props.showWeightSuggestionsEnabled}
         categoryVisibility={categoryVisibility}

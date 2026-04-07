@@ -45,7 +45,13 @@ export function NodeDetailsDialogView({
         onMouseDown={(e) => e.stopPropagation()}
       >
         <DialogTitle sx={{ m: 0, p: 2 }}>
-          {props.compareBaseNodeLabel ? "Comparing nodes" : props.metaSummary ? "Chnages in editing" : props.videoUrl ? "Clip" : "Details" }
+          {props.compareBaseNodeLabel
+            ? "Comparing nodes"
+            : props.metaSummary
+              ? "Chnages in editing"
+              : props.videoUrl
+                ? "Clip"
+                : "Details"}
           <IconButton
             aria-label="close"
             onClick={(e) => {
@@ -164,7 +170,6 @@ export function NodeDetailsDialogView({
                   </Tooltip>
                 </Stack>
 
-                
                 {logic.parameterItems.length > 0 && Boolean(props.compareBaseNodeLabel) && (
                   <CompareParameterBarGroup items={logic.parameterItems} />
                 )}
@@ -236,18 +241,18 @@ export function NodeDetailsDialogView({
                   )}
               </>
             ) : props.type === "import" ? (
-  <Stack spacing={1}>
-    <Typography variant="body2" color="text.secondary">
-      This is an import node. The user manually uploaded a video here.
-    </Typography>
+              <Stack spacing={1}>
+                <Typography variant="body2" color="text.secondary">
+                  This is an import node. The user manually uploaded a video here.
+                </Typography>
 
-    {props.importedFileName && (
-      <Typography variant="body2">
-        <strong>Imported file:</strong> {props.importedFileName}
-      </Typography>
-    )}
-  </Stack>
-) : props.videoUrl ? (
+                {props.importedFileName && (
+                  <Typography variant="body2">
+                    <strong>Imported file:</strong> {props.importedFileName}
+                  </Typography>
+                )}
+              </Stack>
+            ) : props.videoUrl ? (
               <>
                 <video src={props.videoUrl} controls style={{ width: "100%", borderRadius: 8 }} />
                 {props.videoFile?.filename && (
@@ -264,26 +269,26 @@ export function NodeDetailsDialogView({
           </Stack>
 
           {props.type !== "params" && props.notesEnabled && (
-                        <>
-                          <Divider sx={{ my: 2 }} />
-                          <Typography variant="caption" display="block" sx={{ mb: 1 }}>
-                            <strong>Notes</strong>
-                          </Typography>
-          
-                          <TextField
-                            multiline
-                            minRows={4}
-                            fullWidth
-                            value={props.note ?? ""}
-                            onChange={(e) => props.onChangeNote?.(e.target.value)}
-                            placeholder="Add notes for this node..."
-                          />
-          
-                          <Button variant="outlined" size="small" onClick={props.onSaveNote} sx={{ mt: 1 }}>
-                            Save notes
-                          </Button>
-                        </>
-                      )}
+            <>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="caption" display="block" sx={{ mb: 1 }}>
+                <strong>Notes</strong>
+              </Typography>
+
+              <TextField
+                multiline
+                minRows={4}
+                fullWidth
+                value={props.note ?? ""}
+                onChange={(e) => props.onChangeNote?.(e.target.value)}
+                placeholder="Add notes for this node..."
+              />
+
+              <Button variant="outlined" size="small" onClick={props.onSaveNote} sx={{ mt: 1 }}>
+                Save notes
+              </Button>
+            </>
+          )}
         </DialogContent>
 
         <DialogActions sx={{ justifyContent: "space-between" }}>

@@ -49,6 +49,7 @@ export function EditNode(props: NodeProps<any>) {
         highlightUnseenEnabled={ui?.highlightUnseenEnabled}
         notesEnabled={ui?.notesEnabled}
         onOpenDetails={ui?.onOpenDetails}
+        onSelectNode={ui.onSelectNode}
       >
         <Stack gap={1} mt={1}>
           {checkInSummary("clip_added", summaryLines) && <Chip label="Added clip" />}
