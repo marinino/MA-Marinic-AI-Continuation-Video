@@ -30,6 +30,7 @@ import { loadSettings, saveSettings } from "./utils/localStorage";
 import { LoadProjectDialog } from "./graph/dialogs/LoadProjectsDialog";
 import { CategoryScoresSidebar } from "./graph/components/CategoryScoresSidebar";
 import { BrachSuggestion } from "./graph/types/ui";
+import { ClipSelectionSidebar } from "./graph/components/ClipSelectionSidebar";
 
 type ColorMode = "light" | "dark";
 
@@ -78,7 +79,23 @@ export default function App({
 
   const [isCategorySidebarOpen, setIsCategorySidebarOpen] = useState(true);
 
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
+
+  const [clipCompareSlots, setClipCompareSlots] = useState<
+    { id: string | null; label?: string | null; videoUrl?: string | null }[]
+  >([
+    { id: null, label: null, videoUrl: null },
+    { id: null, label: null, videoUrl: null },
+    { id: null, label: null, videoUrl: null },
+  ]);
+
+  const [activeClipPick, setActiveClipPick] = useState<{
+    slotIndex: number;
+    ignoreNodeId: string | null;
+  } | null>(null);
+
   const [sidebarData, setSidebarData] = useState<{
+    selectedNodeId: string | null;
     selectedNodeLabel: string | null;
     selectedNodeType: string | null;
     computed: any | null;
@@ -94,6 +111,7 @@ export default function App({
     onSaveNote?: () => void;
     branchSuggestion: BrachSuggestion | null;
   }>({
+    selectedNodeId: null,
     selectedNodeLabel: null,
     selectedNodeType: null,
     computed: null,
@@ -241,6 +259,43 @@ export default function App({
     }
   };
 
+  const handlePickClipSlot = (index: number) => {
+    setActiveClipPick({
+      slotIndex: index,
+      ignoreNodeId: sidebarData.selectedNodeId ?? null,
+    });
+  };
+
+  const handleClearClipSlot = (index: number) => {
+    setClipCompareSlots((prev) =>
+      prev.map((slot, i) => (i === index ? { id: null, label: null, videoUrl: null } : slot))
+    );
+
+    setActiveClipPick((prev) => (prev?.slotIndex === index ? null : prev));
+  };
+
+  const handleClipPickedFromGraph = (clip: {
+    id: string;
+    label?: string | null;
+    videoUrl?: string | null;
+  }) => {
+    if (!activeClipPick) return;
+
+    setClipCompareSlots((prev) =>
+      prev.map((slot, i) =>
+        i === activeClipPick.slotIndex
+          ? {
+              id: clip.id,
+              label: clip.label ?? null,
+              videoUrl: clip.videoUrl ?? null,
+            }
+          : slot
+      )
+    );
+
+    setActiveClipPick(null);
+  };
+
   if (!project) return <div style={{ padding: 16 }}>{title}</div>;
 
   return (
@@ -338,6 +393,7 @@ export default function App({
             overflow: "hidden",
           }}
         >
+          {/* LEFT SIDEBAR */}
           <Box
             sx={{
               flex: isCategorySidebarOpen ? "0 0 33%" : "0 0 52px",
@@ -373,6 +429,7 @@ export default function App({
             />
           </Box>
 
+          {/* CENTER GRAPH */}
           <Box
             sx={{
               flex: 1,
@@ -393,8 +450,35 @@ export default function App({
                 graphCardDisplayMode={graphCardDisplayMode}
                 showOnlyChangedParameters={showOnlyChangedParameters}
                 onSidebarDataChange={setSidebarData}
+                activeClipPick={activeClipPick}
+                onClipPicked={handleClipPickedFromGraph}
               />
             </ReactFlowProvider>
+          </Box>
+
+          {/* RIGHT SIDEBAR */}
+          <Box
+            sx={{
+              flex: isRightSidebarOpen ? "0 0 33%" : "0 0 52px",
+              width: isRightSidebarOpen ? "33%" : "52px",
+              minWidth: 0,
+              maxWidth: isRightSidebarOpen ? "33%" : "52px",
+              height: "100%",
+              borderLeft: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+              overflow: "hidden",
+              transition: "width 0.2s ease, flex-basis 0.2s ease",
+            }}
+          >
+            <ClipSelectionSidebar
+              open={isRightSidebarOpen}
+              onToggle={() => setIsRightSidebarOpen((prev) => !prev)}
+              slots={clipCompareSlots}
+              activePickSlot={activeClipPick?.slotIndex ?? null}
+              onPickSlot={handlePickClipSlot}
+              onClearSlot={handleClearClipSlot}
+            />
           </Box>
         </Box>
       </Box>

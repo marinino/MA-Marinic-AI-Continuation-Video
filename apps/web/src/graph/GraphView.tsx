@@ -133,6 +133,7 @@ export function GraphView(props: {
   restrictCategories: boolean;
   showOnlyChangedParameters: boolean;
   onSidebarDataChange?: (data: {
+    selectedNodeId: string | null;
     selectedNodeLabel: string | null;
     selectedNodeType: string | null;
     computed: any | null;
@@ -148,6 +149,11 @@ export function GraphView(props: {
     onSaveNote: () => void;
     branchSuggestion: BrachSuggestion | null;
   }) => void;
+  activeClipPick?: {
+    slotIndex: number;
+    ignoreNodeId: string | null;
+  } | null;
+  onClipPicked?: (clip: { id: string; label?: string | null; videoUrl?: string | null }) => void;
 }) {
   // ---------- reactflow instance ----------
   const rf = useReactFlow();
@@ -340,6 +346,8 @@ export function GraphView(props: {
 
   const handleOpenDetails = useCallback(
     (nodeId: string) => {
+      if (props.activeClipPick !== null) return;
+
       if (isComparePicking && compareSourceNodeId) {
         finishComparePick(nodeId);
         return;
@@ -348,7 +356,7 @@ export function GraphView(props: {
       setDetailsNodeId(nodeId);
       setDetailsOpen(true);
     },
-    [isComparePicking, compareSourceNodeId, finishComparePick]
+    [props.activeClipPick, isComparePicking, compareSourceNodeId, finishComparePick]
   );
 
   const handleCloseDetails = useCallback(() => {
@@ -454,6 +462,13 @@ export function GraphView(props: {
       return next;
     });
   }, [customSliders]);
+
+  useEffect(() => {
+    if (props.activeClipPick !== null) {
+      setActionDialogOpen(false);
+      setDetailsOpen(false);
+    }
+  }, [props.activeClipPick]);
 
   const { allCategoryIds } = useCategoryIds(customSliders);
 
@@ -1304,6 +1319,7 @@ export function GraphView(props: {
       notesEnabled: props.notesEnabled,
       onChangeNote: isParamsNode ? setSidebarLocalNote : () => {},
       onSaveNote: isParamsNode ? handleSaveSidebarNote : () => {},
+      selectedNodeId: sidebarNode?.id ?? null,
     });
   }, [
     props.onSidebarDataChange,
@@ -1862,9 +1878,26 @@ export function GraphView(props: {
   }
 
   // ---------- node click ----------
-  const onNodeClick: NodeMouseHandler = (evt, node) => {
-    const target = evt.target as HTMLElement | null;
-    console.log("NODE CLICK", node.type, target);
+  const onNodeClick: NodeMouseHandler = (_evt, node) => {
+    console.log("GRAPHVIEW onNodeClick fired", node.id, node.type);
+
+    if (props.activeClipPick && node.type === "clip") {
+      if (node.id === props.activeClipPick.ignoreNodeId) {
+        return;
+      }
+
+      const nodeData = node.data as any;
+
+      props.onClipPicked?.({
+        id: node.id,
+        label: nodeData?.label ?? null,
+        videoUrl: nodeData?.videoUrl ?? null,
+      });
+
+      setActionDialogOpen(false);
+      setDetailsOpen(false);
+      return;
+    }
 
     if (isComparePicking && compareSourceNodeId) {
       finishComparePick(node.id);
@@ -1881,6 +1914,7 @@ export function GraphView(props: {
   const graphUI = useMemo(
     () => ({
       onAdd: (nodeId: string) => {
+        if (props.activeClipPick !== null) return;
         selectNode(nodeId);
         setActionDialogOpen(true);
       },
@@ -1905,6 +1939,9 @@ export function GraphView(props: {
 
       isComparePicking,
       compareSourceNodeId,
+
+      activeClipPick: props.activeClipPick ?? null,
+      onPickClipNode: props.onClipPicked,
     }),
     [
       selectNode,
@@ -1925,6 +1962,8 @@ export function GraphView(props: {
       showAllCategories,
       isComparePicking,
       compareSourceNodeId,
+      props.activeClipPick,
+      props.onClipPicked,
     ]
   );
 
@@ -1985,6 +2024,29 @@ export function GraphView(props: {
             </Button>
           </Paper>
         )
+      )}
+      {props.activeClipPick !== null && (
+        <Paper
+          elevation={2}
+          sx={{
+            position: "absolute",
+            zIndex: 10,
+            top: isComparePicking ? 80 : 12,
+            left: 12,
+            p: 1.25,
+            borderLeft: 6,
+            borderLeftColor: "primary.main",
+            bgcolor: "primary.50",
+            minWidth: 260,
+          }}
+        >
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <StatusDot state="running" />
+            <Box sx={{ fontSize: 14, fontWeight: 600 }}>
+              Select clip for window {(props.activeClipPick?.slotIndex ?? -1) + 1}
+            </Box>
+          </Stack>
+        </Paper>
       )}
       <GraphUIContext.Provider value={graphUI}>
         <ReactFlow

@@ -108,7 +108,23 @@ export function NodeCard(props: {
   const borderColor = base.border;
 
   const shouldHighlightUnseen = props.type === "clip" && !props.videoOpened && !props.selected;
+  const ui = useContext(GraphUIContext);
+  if (!ui) throw new Error("GraphUIContext missing");
 
+  const handleOpen = () => {
+    if (ui.activeClipPick && props.type === "clip") {
+      if (props.nodeId === ui.activeClipPick.ignoreNodeId) return;
+
+      ui.onPickClipNode?.({
+        id: props.nodeId,
+        label: props.title ?? null,
+        videoUrl: props.videoUrl ?? null,
+      });
+      return;
+    }
+
+    props.onOpenDetails?.(props.nodeId);
+  };
   return (
     <>
       <GraphCard
@@ -135,7 +151,7 @@ export function NodeCard(props: {
         lowNoiseEndStep={props.lowNoiseEndStep}
         paramDeltas={props.paramDeltas}
         branchSuggestion={props.branchSuggestion}
-        onOpen={() => props.onOpenDetails?.(props.nodeId)}
+        onOpen={handleOpen}
         onAdd={props.onAdd}
         onVideoOpened={props.onVideoOpened}
         highlightUnseenEnabled={props.highlightUnseenEnabled}

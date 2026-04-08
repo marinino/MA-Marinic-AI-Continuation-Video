@@ -443,6 +443,14 @@ export type GraphUIContextValue = {
 
   isComparePicking: boolean;
   compareSourceNodeId: string | null;
+  activeClipPick:
+    | {
+        slotIndex: number;
+        ignoreNodeId: string | null;
+      }
+    | null
+    | undefined;
+  onPickClipNode?: (clip: { id: string; label?: string | null; videoUrl?: string | null }) => void;
 };
 
 export type EditMetaSummary = {
