@@ -78,6 +78,7 @@ import {
   collectSubtreeNodeIds,
   getHiddenDescendantIds,
   buildParameterHistoryFromBranchSteps,
+  getSimpleFromParentClip,
 } from "./graph_helpers/selectors";
 import { useManualTimelineImport } from "./hooks/useManualTimelineImport";
 import { DeleteNodeDialog } from "./dialogs/DeleteNodeDialog";
@@ -1445,6 +1446,16 @@ export function GraphView(props: {
     setV2VLength(71);
     setClipStatus("");
     setClipPreviewUrl(null);
+
+      const incoming = buildIncomingMap(g.rfEdges);
+  const nodesById = new Map(g.rfNodes.map((n) => [n.id, n]));
+  const parentSimple = getSimpleFromParentClip(
+    fromClipId,
+    nodesById,
+    incoming
+  );
+
+  v2v.replaceSimple(parentSimple);
 
     // reset advanced like before
     setAdvanced({

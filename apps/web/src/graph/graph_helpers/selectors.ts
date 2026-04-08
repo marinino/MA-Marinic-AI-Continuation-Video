@@ -1,6 +1,6 @@
 import type { Project } from "@ma/shared";
 import type { Edge as RFEdge, Node as RFNode } from "reactflow";
-import { BranchNodeLike, ParameterHistoryMap } from "../types/ui";
+import { BranchNodeLike, ParameterHistoryMap, SimpleReal } from "../types/ui";
 
 export function resolveEditIdForClipId(project: Project, clipId: string): string | null {
   const clip = project.nodes.find((n) => n.id === clipId) as any;
@@ -249,5 +249,72 @@ export function buildParameterHistoryFromBranchSteps(
         index: x.index,
         value: x.lowStepPct as number,
       })),
+  };
+}
+
+export function getSimpleFromParentClip(
+  clipId: string,
+  nodesById: Map<string, RFNode>,
+  incoming: Map<string, RFEdge>,
+): SimpleReal {
+  const fallback: SimpleReal = {
+    totalSteps: 20,
+    stepRatioPct: 65,
+    highShift: 2.6,
+    highCfg: 2.6,
+    highStrength: 0.3,
+  };
+
+  const edge = incoming.get(clipId);
+  if (!edge) return fallback;
+
+  const sourceNode = nodesById.get(edge.source);
+  if (!sourceNode || sourceNode.type !== "params") return fallback;
+
+  const d = (sourceNode.data as any) ?? {};
+
+  const highStart =
+    typeof d.highNoiseStartStep === "number" ? d.highNoiseStartStep : null;
+  const highEnd =
+    typeof d.highNoiseEndStep === "number" ? d.highNoiseEndStep : null;
+  const lowStart =
+    typeof d.lowNoiseStartStep === "number" ? d.lowNoiseStartStep : null;
+  const lowEnd =
+    typeof d.lowNoiseEndStep === "number" ? d.lowNoiseEndStep : null;
+
+  const highWindow =
+    highStart != null && highEnd != null ? highEnd - highStart : null;
+  const lowWindow =
+    lowStart != null && lowEnd != null ? lowEnd - lowStart : null;
+
+  const derivedTotalSteps =
+    highWindow != null && lowWindow != null && highWindow + lowWindow > 0
+      ? highWindow + lowWindow
+      : typeof d.highNoiseSteps === "number"
+        ? d.highNoiseSteps
+        : typeof d.lowNoiseSteps === "number"
+          ? d.lowNoiseSteps
+          : fallback.totalSteps;
+
+  const derivedLowStepPct =
+    lowWindow != null && derivedTotalSteps > 0
+      ? Math.round((lowWindow / derivedTotalSteps) * 100)
+      : fallback.stepRatioPct;
+
+  return {
+    totalSteps: derivedTotalSteps,
+    stepRatioPct: derivedLowStepPct,
+    highShift:
+      typeof d.highNoiseShift === "number"
+        ? d.highNoiseShift
+        : fallback.highShift,
+    highCfg:
+      typeof d.highNoiseCfg === "number"
+        ? d.highNoiseCfg
+        : fallback.highCfg,
+    highStrength:
+      typeof d.highNoiseModelStrength === "number"
+        ? d.highNoiseModelStrength
+        : fallback.highStrength,
   };
 }
