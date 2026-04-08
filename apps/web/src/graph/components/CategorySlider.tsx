@@ -18,7 +18,7 @@ export const CategorySlider = React.memo(function CategorySlider(props: {
     props.onChange?.(Array.isArray(v) ? v[0] : v);
   };
 
-  console.log(readonly)
+  console.log(readonly);
 
   return (
     <Box sx={props.sx}>

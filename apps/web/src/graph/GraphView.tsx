@@ -301,7 +301,6 @@ export function GraphView(props: {
   });
 
   // simple sliders hook (your preference)
-  const v2v = useV2VSliders();
 
   const [categoryVisibility, setCategoryVisibility] = useState<Record<string, boolean>>(() =>
     loadCategoryVisibility()
@@ -321,6 +320,8 @@ export function GraphView(props: {
   const [importVideoFile, setImportVideoFile] = useState<File | null>(null);
   const [importVideoUploading, setImportVideoUploading] = useState(false);
   const [importVideoStatus, setImportVideoStatus] = useState("");
+
+  const v2v = useV2VSliders(formulaWeights);
 
   const finishComparePick = useCallback(
     (targetNodeId: string) => {

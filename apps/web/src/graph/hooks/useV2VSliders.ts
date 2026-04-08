@@ -11,6 +11,8 @@ import {
   SpeedMode,
   CleanWeights,
   BuiltInCategoryId,
+  FormulaWeights,
+  ScoreRanges,
 } from "../types/ui";
 import {
   DEFAULT_FORMULA_WEIGHTS,
@@ -20,8 +22,11 @@ import {
 import {
   adjustSimpleForCategoryTarget,
   adjustSimpleForScoreTarget,
+  denormalizeSimpleValue,
   getScoreRanges,
+  simpleToNormalizedValues,
 } from "./useV2VParams";
+import { applyWeights } from "../graph_helpers/sliderLogic";
 
 export const SAFE_PRESETS: Record<SpeedMode, SafePreset[]> = {
   quality: SAFE_PRESETS_QUALITY,
@@ -79,7 +84,7 @@ function clampSimple(mode: SpeedMode, s: SimpleReal): SimpleReal {
   };
 }
 
-export function useV2VSliders() {
+export function useV2VSliders(formulaWeights: FormulaWeights) {
   const [v2vTab, setV2vTab] = useState<V2VTab>("simple");
   const [catView, setCatView] = useState<CatView>("sliders");
   const [simpleSpeedMode, setSimpleSpeedMode] = useState<SpeedMode>("quality");
@@ -89,11 +94,42 @@ export function useV2VSliders() {
     return Math.round(x * f) / f;
   }
 
+  function distanceSimple(a: SimpleReal, b: SimpleReal, ranges: ScoreRanges) {
+    const na = simpleToNormalizedValues(a, ranges);
+    const nb = simpleToNormalizedValues(b, ranges);
+
+    const keys: Array<keyof typeof na> = ["steps", "ratio", "shift", "cfg", "strength"];
+
+    let sum = 0;
+    for (const key of keys) {
+      const d = na[key] - nb[key];
+      sum += d * d;
+    }
+
+    return Math.sqrt(sum);
+  }
+
+  function mixTwoPresets(
+    a: Record<SafeKey, number>,
+    b: Record<SafeKey, number>,
+    t: number
+  ): SimpleReal {
+    const tt = Math.max(0, Math.min(1, t));
+
+    return {
+      totalSteps: tt * a.totalSteps + (1 - tt) * b.totalSteps,
+      stepRatioPct: tt * a.stepRatioPct + (1 - tt) * b.stepRatioPct,
+      highShift: tt * a.highShift + (1 - tt) * b.highShift,
+      highCfg: tt * a.highCfg + (1 - tt) * b.highCfg,
+      highStrength: tt * a.highStrength + (1 - tt) * b.highStrength,
+    };
+  }
+
   function simulateSliderChange(prev: SimpleReal, key: SafeKey, raw: number): SimpleReal {
     const patched = { ...prev, [key]: raw };
     const clamped = clampSimple(simpleSpeedMode, patched);
 
-    const constrained = applySafeConstraints(clamped, key);
+    const constrained = applySafeConstraintsForDraggedParameter(clamped, key);
     return clampSimple(simpleSpeedMode, constrained);
   }
 
@@ -143,7 +179,49 @@ export function useV2VSliders() {
     return bounds;
   }
 
-  function applySafeConstraints(simple: SimpleReal, activeKey: SafeKey): SimpleReal {
+  function projectToSafeRegion(simple: SimpleReal): SimpleReal {
+    const presets = getPresetSliderUnits(simpleSpeedMode);
+    const clampedTarget = clampSimple(simpleSpeedMode, simple);
+    const ranges = getScoreRanges(simpleSpeedMode);
+
+    let best = clampSimple(simpleSpeedMode, presets[0] as SimpleReal);
+    let bestDist = distanceSimple(best, clampedTarget, ranges);
+
+    // 1) reine Presets testen
+    for (const preset of presets) {
+      const candidate = clampSimple(simpleSpeedMode, preset as SimpleReal);
+      const dist = distanceSimple(candidate, clampedTarget, ranges);
+
+      if (dist < bestDist) {
+        best = candidate;
+        bestDist = dist;
+      }
+    }
+
+    // 2) Mischungen von je 2 Presets testen
+    for (let i = 0; i < presets.length; i++) {
+      for (let j = i + 1; j < presets.length; j++) {
+        for (let s = 0; s <= 20; s++) {
+          const t = s / 20;
+          const mixed = mixTwoPresets(presets[i], presets[j], t);
+          const candidate = clampSimple(simpleSpeedMode, mixed);
+          const dist = distanceSimple(candidate, clampedTarget, ranges);
+
+          if (dist < bestDist) {
+            best = candidate;
+            bestDist = dist;
+          }
+        }
+      }
+    }
+
+    return best;
+  }
+
+  function applySafeConstraintsForDraggedParameter(
+    simple: SimpleReal,
+    activeKey: SafeKey
+  ): SimpleReal {
     const activeValue = simple[activeKey] as number;
 
     const cands = edgeCandidates(activeKey, activeValue);
@@ -179,16 +257,16 @@ export function useV2VSliders() {
 
   const replaceSimple = (next: SimpleReal) => {
     const clamped = clampSimple(simpleSpeedMode, next);
-    const constrained = applySafeConstraints(clamped, "totalSteps");
-    setSimple(clampSimple(simpleSpeedMode, constrained));
+    const projected = projectToSafeRegion(clamped);
+    setSimple(clampSimple(simpleSpeedMode, projected));
   };
 
   // ✅ wenn mode wechselt → Werte in neuen Bereich clampen
   useEffect(() => {
     setSimple((prev) => {
-      const c = clampSimple(simpleSpeedMode, prev);
-      const constrained = applySafeConstraints(c, "totalSteps");
-      return clampSimple(simpleSpeedMode, constrained);
+      const clamped = clampSimple(simpleSpeedMode, prev);
+      const projected = projectToSafeRegion(clamped);
+      return clampSimple(simpleSpeedMode, projected);
     });
   }, [simpleSpeedMode]);
 
@@ -204,7 +282,7 @@ export function useV2VSliders() {
     setSimple((prev) => {
       const patched = { ...prev, [key]: raw };
       const clamped = clampSimple(simpleSpeedMode, patched);
-      const constrained = applySafeConstraints(clamped, key);
+      const constrained = applySafeConstraintsForDraggedParameter(clamped, key);
       return clampSimple(simpleSpeedMode, constrained);
     });
   };
@@ -214,30 +292,30 @@ export function useV2VSliders() {
   const scoreRanges = useMemo(() => getScoreRanges(simpleSpeedMode), [simpleSpeedMode]);
 
   const setCategoryScore = (categoryId: BuiltInCategoryId, targetScore: number) => {
-    setSimple((prev) =>
-      adjustSimpleForCategoryTarget({
-        simple: prev,
-        categoryId,
-        targetScore,
-        ranges: scoreRanges,
-        formulaWeights: DEFAULT_FORMULA_WEIGHTS,
-        clampSimpleWithMode: (s) => clampSimple(simpleSpeedMode, s),
-        applySafeConstraintsWithKey: (s, activeKey) =>
-          applySafeConstraints(clampSimple(simpleSpeedMode, s), activeKey),
-      })
-    );
-  };
+    setSimple((prev) => {
+      const weights = formulaWeights[categoryId];
+      if (!weights) return prev;
 
-  const setCustomCategoryScore = (weights: CleanWeights, targetScore: number) => {
-    setSimple((prev) =>
-      adjustSimpleForScoreTarget({
+      return adjustSimpleForScoreTargetGlobal({
         simple: prev,
         targetScore,
         weights,
         ranges: scoreRanges,
         clampSimpleWithMode: (s) => clampSimple(simpleSpeedMode, s),
-        applySafeConstraintsWithKey: (s, activeKey) =>
-          applySafeConstraints(clampSimple(simpleSpeedMode, s), activeKey),
+        projectToSafeRegion: (s) => projectToSafeRegion(s),
+      });
+    });
+  };
+
+  const setCustomCategoryScore = (weights: CleanWeights, targetScore: number) => {
+    setSimple((prev) =>
+      adjustSimpleForScoreTargetGlobal({
+        simple: prev,
+        targetScore,
+        weights,
+        ranges: scoreRanges,
+        clampSimpleWithMode: (s) => clampSimple(simpleSpeedMode, s),
+        projectToSafeRegion: (s) => projectToSafeRegion(s),
       })
     );
   };
@@ -289,6 +367,66 @@ export function useV2VSliders() {
     if (!cands.length) return null;
     const raw = boundsFromCandidates(cands);
     return quantizeBounds(simpleSpeedMode, raw);
+  }
+
+  function adjustSimpleForScoreTargetGlobal(args: {
+    simple: SimpleReal;
+    targetScore: number;
+    weights: CleanWeights;
+    ranges: ScoreRanges;
+    clampSimpleWithMode: (s: SimpleReal) => SimpleReal;
+    projectToSafeRegion: (s: SimpleReal) => SimpleReal;
+  }): SimpleReal {
+    const { simple, targetScore, weights, ranges, clampSimpleWithMode, projectToSafeRegion } = args;
+
+    let current = projectToSafeRegion(clampSimpleWithMode(simple));
+    const target = clamp(targetScore, 0, 100);
+
+    const featureMap = [
+      { weightKey: "steps" as const, simpleKey: "totalSteps" as const },
+      { weightKey: "ratio" as const, simpleKey: "stepRatioPct" as const },
+      { weightKey: "shift" as const, simpleKey: "highShift" as const },
+      { weightKey: "cfg" as const, simpleKey: "highCfg" as const },
+      { weightKey: "strength" as const, simpleKey: "highStrength" as const },
+    ];
+
+    let best = current;
+    let bestError = Infinity;
+
+    for (let iter = 0; iter < 25; iter++) {
+      const values01 = simpleToNormalizedValues(current, ranges);
+      const currentScore = Math.round(applyWeights(weights, values01) * 100);
+      const error = target - currentScore;
+
+      if (Math.abs(error) < Math.abs(bestError)) {
+        best = current;
+        bestError = error;
+      }
+
+      if (Math.abs(error) < 1) break;
+
+      let draft = { ...current };
+
+      for (const entry of featureMap) {
+        const w = weights[entry.weightKey] ?? 0;
+        if (!w) continue;
+
+        const current01 = values01[entry.weightKey];
+        const direction = Math.sign(error) * Math.sign(w);
+        const step01 = Math.min(0.08, (Math.abs(error) / 100) * Math.abs(w) * 0.35);
+
+        const next01 = clamp(current01 + direction * step01, 0, 1);
+        const denorm = denormalizeSimpleValue(entry.weightKey, next01, ranges);
+
+        (draft as any)[entry.simpleKey] = denorm;
+      }
+
+      draft = clampSimpleWithMode(draft);
+      draft = projectToSafeRegion(draft);
+      current = clampSimpleWithMode(draft);
+    }
+
+    return best;
   }
 
   return {

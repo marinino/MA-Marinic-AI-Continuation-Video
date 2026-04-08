@@ -42,7 +42,7 @@ export const OrderedSliderRow = React.memo(function OrderedSliderRow({
           return (
             <CategorySlider
               label="Creativity"
-              value={scores.creativity}
+              value={allScores.creativity ?? 0}
               sx={catInfluenceSx("creativity", activeEffects)}
               onLabelClick={() => openWeights("creativity")}
               onChange={setCategoryScore ? (v) => setCategoryScore("creativity", v) : undefined}
@@ -54,7 +54,7 @@ export const OrderedSliderRow = React.memo(function OrderedSliderRow({
           return (
             <CategorySlider
               label="Prompt faithfulness"
-              value={scores.promptFaithfulness}
+              value={allScores.promptFaithfulness ?? 0}
               sx={catInfluenceSx("promptFaithfulness", activeEffects)}
               onLabelClick={() => openWeights("promptFaithfulness")}
               onChange={
@@ -68,7 +68,7 @@ export const OrderedSliderRow = React.memo(function OrderedSliderRow({
           return (
             <CategorySlider
               label="Motion"
-              value={scores.motion}
+              value={allScores.motion ?? 0}
               sx={catInfluenceSx("motion", activeEffects)}
               onLabelClick={() => openWeights("motion")}
               onChange={setCategoryScore ? (v) => setCategoryScore("motion", v) : undefined}
@@ -80,7 +80,7 @@ export const OrderedSliderRow = React.memo(function OrderedSliderRow({
           return (
             <CategorySlider
               label="Transition Smoothness"
-              value={scores.transitionSmoothness}
+              value={allScores.transitionSmoothness ?? 0}
               sx={catInfluenceSx("transitionSmoothness", activeEffects)}
               onLabelClick={() => openWeights("transitionSmoothness")}
               onChange={
@@ -94,7 +94,7 @@ export const OrderedSliderRow = React.memo(function OrderedSliderRow({
           return (
             <CategorySlider
               label="Video Faithfulness"
-              value={scores.videoFaithfulness}
+              value={allScores.videoFaithfulness ?? 0}
               sx={catInfluenceSx("videoFaithfulness", activeEffects)}
               onLabelClick={() => openWeights("videoFaithfulness")}
               onChange={
