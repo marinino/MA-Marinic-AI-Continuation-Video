@@ -30,6 +30,7 @@ export function CategoryScoresSidebar({
   parameterItems,
   parameterHistory,
   compareBaseNodeLabel,
+  prompt,
   notesEnabled,
   note,
   onChangeNote,
@@ -48,6 +49,7 @@ export function CategoryScoresSidebar({
   parameterItems: any[];
   parameterHistory: any;
   compareBaseNodeLabel?: string | null;
+  prompt?: string;
   notesEnabled?: boolean;
   note?: string;
   onChangeNote?: (value: string) => void;
@@ -104,6 +106,24 @@ export function CategoryScoresSidebar({
                 ? `Selected node: ${selectedNodeLabel}`
                 : "No parameter node selected"}
             </Typography>
+
+            {selectedNodeType === "params" && prompt?.trim() && (
+              <Box sx={{ mt: 1.5 }}>
+                <Typography variant="caption" display="block" sx={{ mb: 0.5, fontWeight: 600 }}>
+                  Prompt
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {prompt}
+                </Typography>
+              </Box>
+            )}
           </Box>
 
           <Tabs

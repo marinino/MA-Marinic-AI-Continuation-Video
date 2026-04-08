@@ -87,6 +87,7 @@ export default function App({
     parameterItems: any[];
     parameterHistory: any;
     compareBaseNodeLabel: string | null;
+    prompt: string;
     note: string;
     notesEnabled: boolean;
     onChangeNote?: (value: string) => void;
@@ -101,6 +102,7 @@ export default function App({
     parameterItems: [],
     parameterHistory: {},
     compareBaseNodeLabel: null,
+    prompt: "",
     note: "",
     notesEnabled: false,
     onChangeNote: undefined,
@@ -360,6 +362,7 @@ export default function App({
               parameterItems={sidebarData.parameterItems}
               parameterHistory={sidebarData.parameterHistory}
               compareBaseNodeLabel={sidebarData.compareBaseNodeLabel}
+              prompt={sidebarData.prompt}
               notesEnabled={sidebarData.notesEnabled}
               note={sidebarData.note}
               onChangeNote={sidebarData.onChangeNote}

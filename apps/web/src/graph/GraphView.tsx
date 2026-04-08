@@ -141,6 +141,7 @@ export function GraphView(props: {
     parameterItems: any[];
     parameterHistory: any;
     compareBaseNodeLabel: string | null;
+    prompt: string;
     note: string;
     notesEnabled: boolean;
     onChangeNote: (value: string) => void;
@@ -1298,6 +1299,7 @@ export function GraphView(props: {
       compareBaseNodeLabel: isParamsNode
         ? (sharedNodeDetailsProps?.compareBaseNodeLabel ?? null)
         : null,
+      prompt: isParamsNode ? String(sidebarNodeData?.prompt ?? "") : "",
       note: isParamsNode ? sidebarLocalNote : "",
       notesEnabled: props.notesEnabled,
       onChangeNote: isParamsNode ? setSidebarLocalNote : () => {},
@@ -1979,7 +1981,7 @@ export function GraphView(props: {
         !hasRoot && (
           <Paper elevation={2} sx={{ position: "absolute", zIndex: 10, top: 12, left: 12, p: 1 }}>
             <Button variant="contained" onClick={createRoot}>
-              Start Root
+              Create Root
             </Button>
           </Paper>
         )
