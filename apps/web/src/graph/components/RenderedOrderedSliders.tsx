@@ -21,7 +21,7 @@ export function renderOrderedSliderItem(
             sx={clipLogic.catInfluenceSx("creativity", clipLogic.activeEffects)}
             onLabelClick={() => openWeights("creativity")}
             onChange={setCategoryScore ? (v) => setCategoryScore("creativity", v) : undefined}
-            readonly={!setCategoryScore}
+            readonly={true}
             clickable={clickable}
           />
         );
@@ -36,7 +36,7 @@ export function renderOrderedSliderItem(
             onChange={
               setCategoryScore ? (v) => setCategoryScore("promptFaithfulness", v) : undefined
             }
-            readonly={!setCategoryScore}
+            readonly={true}
             clickable={clickable}
           />
         );
@@ -49,7 +49,7 @@ export function renderOrderedSliderItem(
             sx={clipLogic.catInfluenceSx("motion", clipLogic.activeEffects)}
             onLabelClick={() => openWeights("motion")}
             onChange={setCategoryScore ? (v) => setCategoryScore("motion", v) : undefined}
-            readonly={!setCategoryScore}
+            readonly={true}
             clickable={clickable}
           />
         );
@@ -64,7 +64,7 @@ export function renderOrderedSliderItem(
             onChange={
               setCategoryScore ? (v) => setCategoryScore("transitionSmoothness", v) : undefined
             }
-            readonly={!setCategoryScore}
+            readonly={true}
             clickable={clickable}
           />
         );
@@ -79,7 +79,7 @@ export function renderOrderedSliderItem(
             onChange={
               setCategoryScore ? (v) => setCategoryScore("videoFaithfulness", v) : undefined
             }
-            readonly={!setCategoryScore}
+            readonly={true}
             clickable={clickable}
           />
         );
@@ -95,7 +95,7 @@ export function renderOrderedSliderItem(
       onChange={
         setCustomCategoryScore ? (v) => setCustomCategoryScore(item.slider.w, v) : undefined
       }
-      readonly={!setCustomCategoryScore}
+      readonly={true}
       clickable={clickable}
     />
   );

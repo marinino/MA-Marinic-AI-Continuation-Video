@@ -178,10 +178,10 @@ export function useV2VSliders() {
   });
 
   const replaceSimple = (next: SimpleReal) => {
-  const clamped = clampSimple(simpleSpeedMode, next);
-  const constrained = applySafeConstraints(clamped, "totalSteps");
-  setSimple(clampSimple(simpleSpeedMode, constrained));
-};
+    const clamped = clampSimple(simpleSpeedMode, next);
+    const constrained = applySafeConstraints(clamped, "totalSteps");
+    setSimple(clampSimple(simpleSpeedMode, constrained));
+  };
 
   // ✅ wenn mode wechselt → Werte in neuen Bereich clampen
   useEffect(() => {

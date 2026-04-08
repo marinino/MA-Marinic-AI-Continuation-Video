@@ -1447,15 +1447,11 @@ export function GraphView(props: {
     setClipStatus("");
     setClipPreviewUrl(null);
 
-      const incoming = buildIncomingMap(g.rfEdges);
-  const nodesById = new Map(g.rfNodes.map((n) => [n.id, n]));
-  const parentSimple = getSimpleFromParentClip(
-    fromClipId,
-    nodesById,
-    incoming
-  );
+    const incoming = buildIncomingMap(g.rfEdges);
+    const nodesById = new Map(g.rfNodes.map((n) => [n.id, n]));
+    const parentSimple = getSimpleFromParentClip(fromClipId, nodesById, incoming);
 
-  v2v.replaceSimple(parentSimple);
+    v2v.replaceSimple(parentSimple);
 
     // reset advanced like before
     setAdvanced({

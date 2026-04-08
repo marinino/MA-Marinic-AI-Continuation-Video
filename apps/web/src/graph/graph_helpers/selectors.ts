@@ -255,7 +255,7 @@ export function buildParameterHistoryFromBranchSteps(
 export function getSimpleFromParentClip(
   clipId: string,
   nodesById: Map<string, RFNode>,
-  incoming: Map<string, RFEdge>,
+  incoming: Map<string, RFEdge>
 ): SimpleReal {
   const fallback: SimpleReal = {
     totalSteps: 20,
@@ -273,19 +273,13 @@ export function getSimpleFromParentClip(
 
   const d = (sourceNode.data as any) ?? {};
 
-  const highStart =
-    typeof d.highNoiseStartStep === "number" ? d.highNoiseStartStep : null;
-  const highEnd =
-    typeof d.highNoiseEndStep === "number" ? d.highNoiseEndStep : null;
-  const lowStart =
-    typeof d.lowNoiseStartStep === "number" ? d.lowNoiseStartStep : null;
-  const lowEnd =
-    typeof d.lowNoiseEndStep === "number" ? d.lowNoiseEndStep : null;
+  const highStart = typeof d.highNoiseStartStep === "number" ? d.highNoiseStartStep : null;
+  const highEnd = typeof d.highNoiseEndStep === "number" ? d.highNoiseEndStep : null;
+  const lowStart = typeof d.lowNoiseStartStep === "number" ? d.lowNoiseStartStep : null;
+  const lowEnd = typeof d.lowNoiseEndStep === "number" ? d.lowNoiseEndStep : null;
 
-  const highWindow =
-    highStart != null && highEnd != null ? highEnd - highStart : null;
-  const lowWindow =
-    lowStart != null && lowEnd != null ? lowEnd - lowStart : null;
+  const highWindow = highStart != null && highEnd != null ? highEnd - highStart : null;
+  const lowWindow = lowStart != null && lowEnd != null ? lowEnd - lowStart : null;
 
   const derivedTotalSteps =
     highWindow != null && lowWindow != null && highWindow + lowWindow > 0
@@ -304,14 +298,8 @@ export function getSimpleFromParentClip(
   return {
     totalSteps: derivedTotalSteps,
     stepRatioPct: derivedLowStepPct,
-    highShift:
-      typeof d.highNoiseShift === "number"
-        ? d.highNoiseShift
-        : fallback.highShift,
-    highCfg:
-      typeof d.highNoiseCfg === "number"
-        ? d.highNoiseCfg
-        : fallback.highCfg,
+    highShift: typeof d.highNoiseShift === "number" ? d.highNoiseShift : fallback.highShift,
+    highCfg: typeof d.highNoiseCfg === "number" ? d.highNoiseCfg : fallback.highCfg,
     highStrength:
       typeof d.highNoiseModelStrength === "number"
         ? d.highNoiseModelStrength
