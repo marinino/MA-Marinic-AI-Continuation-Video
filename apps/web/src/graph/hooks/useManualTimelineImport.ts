@@ -113,7 +113,6 @@ export function useManualTimelineImport({
 
       const branchIndex = countBranches(g.rfEdges, fromClipId);
 
-      const EDIT_OFFSET_X = 260;
       const BRANCH_SPACING_Y = 140;
       const NODE_GAP_X = 60;
 
@@ -121,7 +120,7 @@ export function useManualTimelineImport({
       const clipSize = getDefaultNodeSize("clip");
 
       const desiredEditPos = {
-        x: baseX + EDIT_OFFSET_X,
+        x: baseX + clipSize.w + NODE_GAP_X,
         y: baseY + Math.max(0, branchIndex - 1) * BRANCH_SPACING_Y,
       };
 
