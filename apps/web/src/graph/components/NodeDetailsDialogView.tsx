@@ -8,9 +8,13 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControl,
   IconButton,
+  InputLabel,
   LinearProgress,
+  MenuItem,
   Popover,
+  Select,
   Stack,
   TextField,
   Tooltip,
@@ -158,6 +162,51 @@ export function NodeDetailsDialogView({
               )
             ) : props.type === "params" ? (
               <>
+                {Boolean(props.compareBaseNodeLabel) && props.compareSelector && (
+                  <Stack spacing={1.5}>
+                    <Divider />
+
+                    <Typography variant="caption" display="block">
+                      <strong>Compare selection</strong>
+                    </Typography>
+
+                    <FormControl fullWidth size="small">
+                      <InputLabel id="base-node-select-label">Base node</InputLabel>
+                      <Select
+                        labelId="base-node-select-label"
+                        value={props.compareSelector.selectedBaseNodeId ?? ""}
+                        label="Base node"
+                        onChange={(e) =>
+                          props.compareSelector?.onChangeBaseNode(String(e.target.value))
+                        }
+                      >
+                        {props.compareSelector.baseOptions.map((option, index) => (
+                          <MenuItem key={option.nodeId} value={option.nodeId}>
+                            {`Step ${index + 1} — ${option.label} — ${option.frames} frames`}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <FormControl fullWidth size="small">
+                      <InputLabel id="compare-node-select-label">Compare node</InputLabel>
+                      <Select
+                        labelId="compare-node-select-label"
+                        value={props.compareSelector.selectedCompareNodeId ?? ""}
+                        label="Compare node"
+                        onChange={(e) =>
+                          props.compareSelector?.onChangeCompareNode(String(e.target.value))
+                        }
+                      >
+                        {props.compareSelector.compareOptions.map((option, index) => (
+                          <MenuItem key={option.nodeId} value={option.nodeId}>
+                            {`Step ${index + 1} — ${option.label} — ${option.frames} frames`}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Stack>
+                )}
                 <Stack direction="row" spacing={0.5} alignItems="center">
                   <Typography variant="caption" display="block">
                     <strong>Parameters</strong>

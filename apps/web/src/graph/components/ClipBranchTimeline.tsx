@@ -28,11 +28,7 @@ export function ClipBranchTimeline({
       }}
     >
       {segments.map((seg, index) => (
-        <Tooltip
-          key={seg.paramNodeId}
-          title={`${seg.label} • ${seg.frames} frames`}
-          arrow
-        >
+        <Tooltip key={seg.paramNodeId} title={`${seg.label} • ${seg.frames} frames`} arrow>
           <Box
             onClick={() => onSelectParamNode?.(seg.paramNodeId)}
             sx={{

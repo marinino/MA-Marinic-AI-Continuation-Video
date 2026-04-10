@@ -10,8 +10,6 @@ type ClipSlot = {
   videoUrl?: string | null;
 };
 
-
-
 export function ClipSelectionSidebar({
   open,
   onToggle,
@@ -21,6 +19,8 @@ export function ClipSelectionSidebar({
   onPickSlot,
   onClearSlot,
   onSelectParamNode,
+  onCompare,
+  canCompare,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -30,6 +30,8 @@ export function ClipSelectionSidebar({
   onPickSlot: (index: number) => void;
   onClearSlot: (index: number) => void;
   onSelectParamNode?: (nodeId: string) => void;
+  onCompare?: () => void;
+  canCompare?: boolean;
 }) {
   return (
     <Box
@@ -52,11 +54,32 @@ export function ClipSelectionSidebar({
             minWidth: 0,
           }}
         >
-          <Box sx={{ px: 2, pt: 2, pb: 1 }}>
-            <Typography variant="subtitle2">Clip comparison</Typography>
-            <Typography variant="caption" color="text.secondary">
-              Select up to 2 clips from the graph.
-            </Typography>
+          <Box
+            sx={{
+              px: 2,
+              pt: 2,
+              pb: 1,
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: 2,
+            }}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="subtitle2">Clip comparison</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Select up to 2 clips from the graph.
+              </Typography>
+            </Box>
+
+            <Button
+              variant="contained"
+              onClick={onCompare}
+              disabled={!canCompare}
+              sx={{ flexShrink: 0, alignSelf: "flex-start" }}
+            >
+              Compare
+            </Button>
           </Box>
 
           <Box
@@ -149,11 +172,11 @@ export function ClipSelectionSidebar({
                       </Typography>
 
                       {timeline.length > 0 && (
-  <ClipBranchTimeline
-    segments={timeline}
-    onSelectParamNode={onSelectParamNode}
-  />
-)}
+                        <ClipBranchTimeline
+                          segments={timeline}
+                          onSelectParamNode={onSelectParamNode}
+                        />
+                      )}
 
                       <Box sx={{ display: "flex", gap: 1 }}>
                         <Button variant="outlined" onClick={() => onPickSlot(index)}>

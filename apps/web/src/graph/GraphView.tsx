@@ -79,6 +79,7 @@ import {
   getHiddenDescendantIds,
   buildParameterHistoryFromBranchSteps,
   getSimpleFromParentClip,
+  collectParamTimelineForClip,
 } from "./graph_helpers/selectors";
 import { useManualTimelineImport } from "./hooks/useManualTimelineImport";
 import { DeleteNodeDialog } from "./dialogs/DeleteNodeDialog";
@@ -153,6 +154,11 @@ export function GraphView(props: {
     slotIndex: number;
   } | null;
   onClipPicked?: (clip: { id: string; label?: string | null; videoUrl?: string | null }) => void;
+  externalCompareRequest?: {
+    sourceNodeId: string;
+    targetNodeId: string;
+    requestKey: number;
+  } | null;
 }) {
   // ---------- reactflow instance ----------
   const rf = useReactFlow();
@@ -287,6 +293,7 @@ export function GraphView(props: {
   const [hideTargetIds, setHideTargetIds] = useState<string[]>([]);
   const [sidebarLocalNote, setSidebarLocalNote] = useState("");
   const [detailsLocalNote, setDetailsLocalNote] = useState("");
+  const [compareModeSource, setCompareModeSource] = useState<"graph" | "sidebar" | null>(null);
 
   const paletteKey = genState === "idle" ? "success" : genState === "running" ? "warning" : "error";
 
@@ -363,6 +370,7 @@ export function GraphView(props: {
     setCompareSourceNodeId(null);
     setCompareTargetNodeId(null);
     setIsComparePicking(false);
+    setCompareModeSource(null);
   }, []);
 
   const [customSliders, setCustomSliders] = useState<CustomScoreSlider[]>(() =>
@@ -512,6 +520,21 @@ export function GraphView(props: {
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    if (!props.externalCompareRequest) return;
+
+    const { sourceNodeId, targetNodeId } = props.externalCompareRequest;
+
+    setCompareModeSource("sidebar");
+    setCompareSourceNodeId(sourceNodeId);
+    setCompareTargetNodeId(targetNodeId);
+    setIsComparePicking(false);
+    setDetailsNodeId(sourceNodeId);
+    setDetailsOpen(true);
+
+    selectNode(sourceNodeId);
+  }, [props.externalCompareRequest?.requestKey]);
 
   useEffect(() => {
     setCategoryVisibility((prev) => {
@@ -670,6 +693,7 @@ export function GraphView(props: {
     setIsComparePicking(false);
     setCompareSourceNodeId(null);
     setCompareTargetNodeId(null);
+    setCompareModeSource(null);
   }, []);
 
   const confirmHideNode = useCallback(() => {
@@ -809,6 +833,7 @@ export function GraphView(props: {
   );
 
   const handleStartCompare = useCallback((nodeId: string) => {
+    setCompareModeSource("graph");
     setCompareSourceNodeId(nodeId);
     setCompareTargetNodeId(null);
     setIsComparePicking(true);
@@ -1023,14 +1048,14 @@ export function GraphView(props: {
       if (n.type !== "params") return n;
 
       const branchSteps = collectParamBranchSteps(n.id, precomputedNodesById, edges);
-const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
-  minSteps: 5,
-  minCategoryDeltaAbs: 1,
-  minParamDeltaAbs: 0.01,
-  minStreak: 5,
-  recencyWindow: 15,
-  categoryLabels,
-});
+      const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
+        minSteps: 5,
+        minCategoryDeltaAbs: 1,
+        minParamDeltaAbs: 0.01,
+        minStreak: 5,
+        recencyWindow: 15,
+        categoryLabels,
+      });
 
       const parameterHistory = buildParameterHistoryFromBranchSteps(
         branchSteps,
@@ -1049,6 +1074,60 @@ const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
 
     return finalNodes;
   }, [g.nodesWithRootFlag, g.rfEdges, categoryLabels]);
+
+  const compareSelector = useMemo(() => {
+    if (!compareSourceNodeId || !compareTargetNodeId) return undefined;
+
+    const sourceNode = nodesForUI.find((n) => n.id === compareSourceNodeId) as RFNode | undefined;
+    const targetNode = nodesForUI.find((n) => n.id === compareTargetNodeId) as RFNode | undefined;
+
+    const sourceParentClipId = (sourceNode?.data as any)?.parentClipId ?? null;
+    const targetParentClipId = (targetNode?.data as any)?.parentClipId ?? null;
+
+    const sourceOutEdge = g.rfEdges.find((e) => e.source === compareSourceNodeId);
+    const targetOutEdge = g.rfEdges.find((e) => e.source === compareTargetNodeId);
+
+    const sourceClipId = sourceOutEdge?.target ?? null;
+    const targetClipId = targetOutEdge?.target ?? null;
+
+    const baseClipId = sourceClipId ?? sourceParentClipId;
+    const compareClipId = targetClipId ?? targetParentClipId;
+
+    if (!baseClipId || !compareClipId) return undefined;
+
+    const baseSteps = collectParamTimelineForClip(baseClipId, nodesForUI as any, g.rfEdges as any);
+    const compareSteps = collectParamTimelineForClip(
+      compareClipId,
+      nodesForUI as any,
+      g.rfEdges as any
+    );
+
+    const baseOptions = baseSteps.map((step) => ({
+      nodeId: step.paramNodeId,
+      label: step.label,
+      frames: step.frames,
+    }));
+
+    const compareOptions = compareSteps.map((step) => ({
+      nodeId: step.paramNodeId,
+      label: step.label,
+      frames: step.frames,
+    }));
+
+    return {
+      selectedBaseNodeId: compareSourceNodeId,
+      selectedCompareNodeId: compareTargetNodeId,
+      baseOptions,
+      compareOptions,
+      onChangeBaseNode: (nodeId: string) => {
+        setCompareSourceNodeId(nodeId);
+        setDetailsNodeId(nodeId);
+      },
+      onChangeCompareNode: (nodeId: string) => {
+        setCompareTargetNodeId(nodeId);
+      },
+    };
+  }, [compareSourceNodeId, compareTargetNodeId, nodesForUI, g.rfEdges]);
 
   const detailsNode = useMemo(() => {
     if (!detailsNodeId) return null;
@@ -1201,13 +1280,13 @@ const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
 
     return {
       branchSuggestion: detectParamWeightSuggestion(branchSteps, {
-  minSteps: 5,
-  minCategoryDeltaAbs: 1,
-  minParamDeltaAbs: 0.01,
-  minStreak: 5,
-  recencyWindow: 15,
-  categoryLabels,
-}),
+        minSteps: 5,
+        minCategoryDeltaAbs: 1,
+        minParamDeltaAbs: 0.01,
+        minStreak: 5,
+        recencyWindow: 15,
+        categoryLabels,
+      }),
       parameterHistory: buildParameterHistoryFromBranchSteps(branchSteps, nodesById),
     };
   }, [detailsNode?.id, nodesForUI, g.rfEdges]);
@@ -1881,31 +1960,31 @@ const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
 
   // ---------- node click ----------
   const onNodeClick: NodeMouseHandler = (_evt, node) => {
-  if (props.activeClipPick && node.type === "clip") {
-    const nodeData = node.data as any;
+    if (props.activeClipPick && node.type === "clip") {
+      const nodeData = node.data as any;
 
-    props.onClipPicked?.({
-      id: node.id,
-      label: nodeData?.label ?? null,
-      videoUrl: nodeData?.videoUrl ?? null,
-    });
+      props.onClipPicked?.({
+        id: node.id,
+        label: nodeData?.label ?? null,
+        videoUrl: nodeData?.videoUrl ?? null,
+      });
 
-    setActionDialogOpen(false);
-    setDetailsOpen(false);
-    return;
-  }
+      setActionDialogOpen(false);
+      setDetailsOpen(false);
+      return;
+    }
 
-  if (isComparePicking && compareSourceNodeId) {
-    finishComparePick(node.id);
-    return;
-  }
+    if (isComparePicking && compareSourceNodeId) {
+      finishComparePick(node.id);
+      return;
+    }
 
-  selectNode(node.id);
+    selectNode(node.id);
 
-  if (node.type === "clip" || node.type === "edit" || node.type === "import") {
-    setActionDialogOpen(true);
-  }
-};
+    if (node.type === "clip" || node.type === "edit" || node.type === "import") {
+      setActionDialogOpen(true);
+    }
+  };
 
   const graphUI = useMemo(
     () => ({
@@ -2304,6 +2383,7 @@ const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
             ? ((compareBaseNodeData?.label as string | undefined) ?? compareTargetNodeId) || null
             : null
         }
+        compareSelector={compareModeSource === "sidebar" ? compareSelector : undefined}
       />
     </div>
   );

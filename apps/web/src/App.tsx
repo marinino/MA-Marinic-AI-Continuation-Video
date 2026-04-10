@@ -29,7 +29,7 @@ import { InformationDialog } from "./graph/dialogs/InformationDialog";
 import { loadSettings, saveSettings } from "./utils/localStorage";
 import { LoadProjectDialog } from "./graph/dialogs/LoadProjectsDialog";
 import { CategoryScoresSidebar } from "./graph/components/CategoryScoresSidebar";
-import { BrachSuggestion } from "./graph/types/ui";
+import { BrachSuggestion, CompareTimelineOption } from "./graph/types/ui";
 import { ClipSelectionSidebar } from "./graph/components/ClipSelectionSidebar";
 import { collectParamTimelineForClip } from "./graph/graph_helpers/selectors";
 
@@ -86,29 +86,50 @@ export default function App({
     { id: string | null; label?: string | null; videoUrl?: string | null }[]
   >([
     { id: null, label: null, videoUrl: null },
-    { id: null, label: null, videoUrl: null }
+    { id: null, label: null, videoUrl: null },
   ]);
 
+  const [timelineCompareDraft, setTimelineCompareDraft] = useState<{
+    leftSlotIndex: number;
+    rightSlotIndex: number;
+    leftOptions: CompareTimelineOption[];
+    rightOptions: CompareTimelineOption[];
+    leftSelectedParamNodeId: string | null;
+    rightSelectedParamNodeId: string | null;
+  } | null>(null);
+
+  const [externalCompareRequest, setExternalCompareRequest] = useState<{
+    sourceNodeId: string;
+    targetNodeId: string;
+    requestKey: number;
+  } | null>(null);
+
+  const canCompareClips = clipCompareSlots.filter((x) => x.id).length >= 2;
+
   const clipCompareTimelineSlots = useMemo(() => {
-  if (!project) return [];
+    if (!project) return [];
 
-  return clipCompareSlots.map((slot) => {
-    if (!slot.id) return [];
-    
+    return clipCompareSlots.map((slot) => {
+      if (!slot.id) return [];
 
-    const rawSteps = collectParamTimelineForClip(slot.id, project.nodes as any, project.edges as any);
+      const rawSteps = collectParamTimelineForClip(
+        slot.id,
+        project.nodes as any,
+        project.edges as any
+      );
 
-    const totalFrames = rawSteps.reduce((sum, step) => sum + Math.max(0, step.frames || 0), 0);
+      const totalFrames = rawSteps.reduce((sum, step) => sum + Math.max(0, step.frames || 0), 0);
 
-    return rawSteps.map((step) => ({
-      paramNodeId: step.paramNodeId,
-      label: step.label,
-      frames: step.frames,
-      widthPct:
-        totalFrames > 0 ? (step.frames / totalFrames) * 100 : 100 / Math.max(rawSteps.length, 1),
-    }));
-  });
-}, [project, clipCompareSlots]);
+      return rawSteps.map((step, index) => ({
+        index,
+        paramNodeId: step.paramNodeId,
+        label: step.label,
+        frames: step.frames,
+        widthPct:
+          totalFrames > 0 ? (step.frames / totalFrames) * 100 : 100 / Math.max(rawSteps.length, 1),
+      }));
+    });
+  }, [project, clipCompareSlots]);
 
   const [activeClipPick, setActiveClipPick] = useState<{
     slotIndex: number;
@@ -174,18 +195,59 @@ export default function App({
   ]);
 
   const handleSelectParamNodeFromTimeline = (nodeId: string) => {
-  setProject((prev) => {
-    if (!prev) return prev;
+    setProject((prev) => {
+      if (!prev) return prev;
 
-    return {
-      ...prev,
-      uiState: {
-        ...(prev.uiState ?? {}),
-        selectedNodeId: nodeId,
-      },
-    };
-  });
-};
+      return {
+        ...prev,
+        uiState: {
+          ...(prev.uiState ?? {}),
+          selectedNodeId: nodeId,
+        },
+      };
+    });
+  };
+
+  const handleConfirmTimelineCompare = () => {
+    if (!timelineCompareDraft) return;
+    if (
+      !timelineCompareDraft.leftSelectedParamNodeId ||
+      !timelineCompareDraft.rightSelectedParamNodeId
+    ) {
+      return;
+    }
+
+    setExternalCompareRequest({
+      sourceNodeId: timelineCompareDraft.leftSelectedParamNodeId,
+      targetNodeId: timelineCompareDraft.rightSelectedParamNodeId,
+      requestKey: Date.now(),
+    });
+  };
+
+  const handleOpenTimelineCompare = () => {
+    const filledSlots = clipCompareSlots
+      .map((slot, index) => ({ slot, index }))
+      .filter((x) => !!x.slot.id);
+
+    if (filledSlots.length < 2) return;
+
+    const left = filledSlots[0];
+    const right = filledSlots[1];
+
+    const leftOptions = clipCompareTimelineSlots[left.index] ?? [];
+    const rightOptions = clipCompareTimelineSlots[right.index] ?? [];
+
+    const leftLast = leftOptions[leftOptions.length - 1] ?? null;
+    const rightLast = rightOptions[rightOptions.length - 1] ?? null;
+
+    if (!leftLast?.paramNodeId || !rightLast?.paramNodeId) return;
+
+    setExternalCompareRequest({
+      sourceNodeId: leftLast.paramNodeId,
+      targetNodeId: rightLast.paramNodeId,
+      requestKey: Date.now(),
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -295,7 +357,7 @@ export default function App({
 
   const handlePickClipSlot = (index: number) => {
     setActiveClipPick({
-      slotIndex: index
+      slotIndex: index,
     });
   };
 
@@ -485,6 +547,7 @@ export default function App({
                 onSidebarDataChange={setSidebarData}
                 activeClipPick={activeClipPick}
                 onClipPicked={handleClipPickedFromGraph}
+                externalCompareRequest={externalCompareRequest}
               />
             </ReactFlowProvider>
           </Box>
@@ -504,17 +567,18 @@ export default function App({
               transition: "width 0.2s ease, flex-basis 0.2s ease",
             }}
           >
-<ClipSelectionSidebar
-  open={isRightSidebarOpen}
-  onToggle={() => setIsRightSidebarOpen((prev) => !prev)}
-  slots={clipCompareSlots}
-  timelines={clipCompareTimelineSlots}
-  activePickSlot={activeClipPick?.slotIndex ?? null}
-  onPickSlot={handlePickClipSlot}
-  onClearSlot={handleClearClipSlot}
-  onSelectParamNode={handleSelectParamNodeFromTimeline}
-/>
-
+            <ClipSelectionSidebar
+              open={isRightSidebarOpen}
+              onToggle={() => setIsRightSidebarOpen((prev) => !prev)}
+              slots={clipCompareSlots}
+              timelines={clipCompareTimelineSlots}
+              activePickSlot={activeClipPick?.slotIndex ?? null}
+              onPickSlot={handlePickClipSlot}
+              onClearSlot={handleClearClipSlot}
+              onSelectParamNode={handleSelectParamNodeFromTimeline}
+              onCompare={handleOpenTimelineCompare}
+              canCompare={canCompareClips}
+            />
           </Box>
         </Box>
       </Box>

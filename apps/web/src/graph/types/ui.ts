@@ -446,7 +446,6 @@ export type GraphUIContextValue = {
   activeClipPick:
     | {
         slotIndex: number;
-  
       }
     | null
     | undefined;
@@ -472,6 +471,14 @@ export type BranchTimelineStep = {
 };
 
 export type BranchTimelineSegment = {
+  paramNodeId: string;
+  label: string;
+  frames: number;
+  widthPct: number;
+};
+
+export type CompareTimelineOption = {
+  index: number;
   paramNodeId: string;
   label: string;
   frames: number;

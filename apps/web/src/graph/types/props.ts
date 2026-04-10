@@ -67,4 +67,12 @@ export interface NodeDetailsDialogProps {
   parameterHistory?: ParameterHistoryMap;
 
   compareBaseNodeLabel?: string | null;
+  compareSelector?: {
+    selectedBaseNodeId: string | null;
+    selectedCompareNodeId: string | null;
+    baseOptions: { nodeId: string; label: string; frames: number }[];
+    compareOptions: { nodeId: string; label: string; frames: number }[];
+    onChangeBaseNode: (nodeId: string) => void;
+    onChangeCompareNode: (nodeId: string) => void;
+  };
 }

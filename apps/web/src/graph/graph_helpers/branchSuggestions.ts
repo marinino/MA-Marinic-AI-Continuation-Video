@@ -190,17 +190,17 @@ export function detectParamWeightSuggestion(
         confidence: round2(confidence),
         suggestedWeightDeltaPct,
         suggestedAction,
-message: buildSuggestionMessage({
-  category,
-  categoryLabels: opts?.categoryLabels,
-  parameter: param,
-  parameterDirection,
-  hitCount,
-  streakLength,
-  avgCategoryDelta: round2(avgCategoryDelta),
-  avgParamDelta: round2(avgParamDelta),
-  suggestedWeightDeltaPct,
-}),
+        message: buildSuggestionMessage({
+          category,
+          categoryLabels: opts?.categoryLabels,
+          parameter: param,
+          parameterDirection,
+          hitCount,
+          streakLength,
+          avgCategoryDelta: round2(avgCategoryDelta),
+          avgParamDelta: round2(avgParamDelta),
+          suggestedWeightDeltaPct,
+        }),
       };
 
       if (
