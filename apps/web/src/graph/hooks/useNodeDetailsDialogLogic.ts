@@ -23,6 +23,14 @@ export function useNodeDetailsDialog(props: NodeDetailsDialogProps) {
   const [showSuggestionDetails, setShowSuggestionDetails] = useState(false);
   const [paramsInfoAnchorEl, setParamsInfoAnchorEl] = useState<HTMLElement | null>(null);
 
+  const colors = {
+    highCfg: "#0072B2",
+    highShift: "#009E73",
+    highStrength: "#E69F00",
+    highSteps: "#CC79A7",
+    lowSteps: "#D55E00",
+  } as const;
+
   const isComparing = Boolean(props.compareBaseNodeLabel);
   const compareDeltas = isComparing ? props.d : undefined;
 
@@ -183,5 +191,6 @@ export function useNodeDetailsDialog(props: NodeDetailsDialogProps) {
     paramLabel,
     deltaChipSx,
     fmt,
+    colors,
   };
 }

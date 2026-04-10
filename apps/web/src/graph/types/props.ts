@@ -75,4 +75,9 @@ export interface NodeDetailsDialogProps {
     onChangeBaseNode: (nodeId: string) => void;
     onChangeCompareNode: (nodeId: string) => void;
   };
+
+  compareParameterHistory?: {
+    baseHistory: ParameterHistoryMap;
+    compareHistory: ParameterHistoryMap;
+  };
 }

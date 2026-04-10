@@ -26,6 +26,7 @@ import { ParameterBarGroup } from "../components/ParameterBarGroup";
 import { NodeDetailsDialogProps } from "../types/props";
 import { useNodeDetailsDialog } from "../hooks/useNodeDetailsDialogLogic";
 import { CompareParameterBarGroup } from "./CompareParameterBarGroup";
+import { CompareZoomedParameterView } from "./CompareZoomedParameter";
 type Logic = ReturnType<typeof useNodeDetailsDialog>;
 
 export function NodeDetailsDialogView({
@@ -222,6 +223,17 @@ export function NodeDetailsDialogView({
                 {logic.parameterItems.length > 0 && Boolean(props.compareBaseNodeLabel) && (
                   <CompareParameterBarGroup items={logic.parameterItems} />
                 )}
+
+                {logic.parameterItems.length > 0 &&
+                  Boolean(props.compareBaseNodeLabel) &&
+                  props.compareParameterHistory && (
+                    <CompareZoomedParameterView
+                      items={logic.parameterItems}
+                      baseHistory={props.compareParameterHistory.baseHistory}
+                      compareHistory={props.compareParameterHistory.compareHistory}
+                      colors={logic.colors}
+                    />
+                  )}
 
                 {props.showWeightSuggestionsEnabled &&
                   props.branchSuggestion &&

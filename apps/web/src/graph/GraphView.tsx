@@ -1129,6 +1129,23 @@ export function GraphView(props: {
     };
   }, [compareSourceNodeId, compareTargetNodeId, nodesForUI, g.rfEdges]);
 
+  const compareParameterHistory = useMemo(() => {
+    if (compareModeSource !== "sidebar") return undefined;
+    if (!compareSourceNodeId || !compareTargetNodeId) return undefined;
+
+    const nodes = nodesForUI as RFNode[];
+    const edges = g.rfEdges as RFEdge[];
+    const nodesById = new Map(nodes.map((n) => [n.id, n]));
+
+    const baseBranchSteps = collectParamBranchSteps(compareSourceNodeId, nodesById, edges);
+    const compareBranchSteps = collectParamBranchSteps(compareTargetNodeId, nodesById, edges);
+
+    return {
+      baseHistory: buildParameterHistoryFromBranchSteps(baseBranchSteps, nodesById),
+      compareHistory: buildParameterHistoryFromBranchSteps(compareBranchSteps, nodesById),
+    };
+  }, [compareModeSource, compareSourceNodeId, compareTargetNodeId, nodesForUI, g.rfEdges]);
+
   const detailsNode = useMemo(() => {
     if (!detailsNodeId) return null;
     return nodesForUI.find((n) => n.id === detailsNodeId) ?? null;
@@ -2384,6 +2401,9 @@ export function GraphView(props: {
             : null
         }
         compareSelector={compareModeSource === "sidebar" ? compareSelector : undefined}
+        compareParameterHistory={
+          compareModeSource === "sidebar" ? compareParameterHistory : undefined
+        }
       />
     </div>
   );
