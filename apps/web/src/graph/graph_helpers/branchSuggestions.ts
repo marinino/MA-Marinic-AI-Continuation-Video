@@ -86,6 +86,7 @@ export function detectParamWeightSuggestion(
     minParamDeltaAbs?: number;
     minStreak?: number;
     recencyWindow?: number;
+    categoryLabels?: Record<string, string | undefined>;
   }
 ): ParamWeightSuggestion | null {
   const minSteps = opts?.minSteps ?? 5;
@@ -189,16 +190,17 @@ export function detectParamWeightSuggestion(
         confidence: round2(confidence),
         suggestedWeightDeltaPct,
         suggestedAction,
-        message: buildSuggestionMessage({
-          category,
-          parameter: param,
-          parameterDirection,
-          hitCount,
-          streakLength,
-          avgCategoryDelta: round2(avgCategoryDelta),
-          avgParamDelta: round2(avgParamDelta),
-          suggestedWeightDeltaPct,
-        }),
+message: buildSuggestionMessage({
+  category,
+  categoryLabels: opts?.categoryLabels,
+  parameter: param,
+  parameterDirection,
+  hitCount,
+  streakLength,
+  avgCategoryDelta: round2(avgCategoryDelta),
+  avgParamDelta: round2(avgParamDelta),
+  suggestedWeightDeltaPct,
+}),
       };
 
       if (

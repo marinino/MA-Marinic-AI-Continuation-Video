@@ -1023,14 +1023,14 @@ export function GraphView(props: {
       if (n.type !== "params") return n;
 
       const branchSteps = collectParamBranchSteps(n.id, precomputedNodesById, edges);
-
-      const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
-        minSteps: 5,
-        minCategoryDeltaAbs: 1,
-        minParamDeltaAbs: 0.01,
-        minStreak: 5,
-        recencyWindow: 15,
-      });
+const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
+  minSteps: 5,
+  minCategoryDeltaAbs: 1,
+  minParamDeltaAbs: 0.01,
+  minStreak: 5,
+  recencyWindow: 15,
+  categoryLabels,
+});
 
       const parameterHistory = buildParameterHistoryFromBranchSteps(
         branchSteps,
@@ -1184,6 +1184,7 @@ export function GraphView(props: {
         minParamDeltaAbs: 0.01,
         minStreak: 5,
         recencyWindow: 15,
+        categoryLabels,
       }),
       parameterHistory: buildParameterHistoryFromBranchSteps(branchSteps, nodesById),
     };
@@ -1200,12 +1201,13 @@ export function GraphView(props: {
 
     return {
       branchSuggestion: detectParamWeightSuggestion(branchSteps, {
-        minSteps: 5,
-        minCategoryDeltaAbs: 1,
-        minParamDeltaAbs: 0.01,
-        minStreak: 5,
-        recencyWindow: 15,
-      }),
+  minSteps: 5,
+  minCategoryDeltaAbs: 1,
+  minParamDeltaAbs: 0.01,
+  minStreak: 5,
+  recencyWindow: 15,
+  categoryLabels,
+}),
       parameterHistory: buildParameterHistoryFromBranchSteps(branchSteps, nodesById),
     };
   }, [detailsNode?.id, nodesForUI, g.rfEdges]);

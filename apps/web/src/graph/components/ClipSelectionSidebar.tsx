@@ -55,7 +55,7 @@ export function ClipSelectionSidebar({
           <Box sx={{ px: 2, pt: 2, pb: 1 }}>
             <Typography variant="subtitle2">Clip comparison</Typography>
             <Typography variant="caption" color="text.secondary">
-              Select up to 3 clips from the graph.
+              Select up to 2 clips from the graph.
             </Typography>
           </Box>
 
