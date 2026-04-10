@@ -1,6 +1,8 @@
 import { Box, IconButton, Typography, Divider, Button } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { BranchTimelineSegment } from "../types/ui";
+import { ClipBranchTimeline } from "./ClipBranchTimeline";
 
 type ClipSlot = {
   id: string | null;
@@ -8,20 +10,26 @@ type ClipSlot = {
   videoUrl?: string | null;
 };
 
+
+
 export function ClipSelectionSidebar({
   open,
   onToggle,
   slots,
+  timelines,
   activePickSlot,
   onPickSlot,
   onClearSlot,
+  onSelectParamNode,
 }: {
   open: boolean;
   onToggle: () => void;
   slots: ClipSlot[];
+  timelines: BranchTimelineSegment[][];
   activePickSlot: number | null;
   onPickSlot: (index: number) => void;
   onClearSlot: (index: number) => void;
+  onSelectParamNode?: (nodeId: string) => void;
 }) {
   return (
     <Box
@@ -65,6 +73,7 @@ export function ClipSelectionSidebar({
           >
             {slots.map((slot, index) => {
               const isPicking = activePickSlot === index;
+              const timeline = timelines[index] ?? [];
 
               return (
                 <Box
@@ -138,6 +147,13 @@ export function ClipSelectionSidebar({
                       <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
                         {slot.label ?? "Unnamed Clip"}
                       </Typography>
+
+                      {timeline.length > 0 && (
+  <ClipBranchTimeline
+    segments={timeline}
+    onSelectParamNode={onSelectParamNode}
+  />
+)}
 
                       <Box sx={{ display: "flex", gap: 1 }}>
                         <Button variant="outlined" onClick={() => onPickSlot(index)}>

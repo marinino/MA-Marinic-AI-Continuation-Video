@@ -1,6 +1,6 @@
 import type { Project } from "@ma/shared";
 import type { Edge as RFEdge, Node as RFNode } from "reactflow";
-import { BranchNodeLike, ParameterHistoryMap, SimpleReal } from "../types/ui";
+import { BranchNodeLike, BranchTimelineStep, ParameterHistoryMap, SimpleReal } from "../types/ui";
 
 export function resolveEditIdForClipId(project: Project, clipId: string): string | null {
   const clip = project.nodes.find((n) => n.id === clipId) as any;
@@ -305,4 +305,58 @@ export function getSimpleFromParentClip(
         ? d.highNoiseModelStrength
         : fallback.highStrength,
   };
+}
+
+export function collectParamTimelineForClip(
+  clipId: string,
+  nodes: RFNode[],
+  edges: RFEdge[]
+): BranchTimelineStep[] {
+  const nodesById = new Map(nodes.map((n) => [n.id, n]));
+  const incoming = new Map<string, RFEdge[]>();
+
+  for (const e of edges) {
+    const arr = incoming.get(e.target) ?? [];
+    arr.push(e);
+    incoming.set(e.target, arr);
+  }
+
+  const steps: BranchTimelineStep[] = [];
+  let currentId: string | null = clipId;
+
+  while (currentId) {
+    const currentNode = nodesById.get(currentId);
+    if (!currentNode) break;
+
+    const inEdges = incoming.get(currentId) ?? [];
+    const parentEdge = inEdges[0];
+    if (!parentEdge) break;
+
+    const parentNode = nodesById.get(parentEdge.source);
+    if (!parentNode) break;
+
+    if (currentNode.type === "clip" && parentNode.type === "params") {
+      const data = (parentNode.data as any) ?? {};
+
+      steps.push({
+        paramNodeId: parentNode.id,
+        clipNodeId: currentNode.id,
+        label: data.label ?? "Params",
+        frames: Number(data.generatedFrames ?? data.length ?? 71),
+        prompt: data.prompt ?? "",
+      });
+
+      currentId = parentNode.id;
+      continue;
+    }
+
+    if (parentNode.type === "edit") {
+      currentId = parentNode.id;
+      continue;
+    }
+
+    currentId = parentNode.id;
+  }
+
+  return steps.reverse();
 }

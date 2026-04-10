@@ -446,7 +446,7 @@ export type GraphUIContextValue = {
   activeClipPick:
     | {
         slotIndex: number;
-        ignoreNodeId: string | null;
+  
       }
     | null
     | undefined;
@@ -461,4 +461,19 @@ export type EditMetaSummary = {
   counts?: Record<string, number>;
   summaryLines?: string[];
   detailLines?: string[];
+};
+
+export type BranchTimelineStep = {
+  paramNodeId: string;
+  clipNodeId: string;
+  label: string;
+  frames: number;
+  prompt?: string;
+};
+
+export type BranchTimelineSegment = {
+  paramNodeId: string;
+  label: string;
+  frames: number;
+  widthPct: number;
 };

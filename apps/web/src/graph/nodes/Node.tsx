@@ -113,7 +113,6 @@ export function NodeCard(props: {
 
   const handleOpen = () => {
     if (ui.activeClipPick && props.type === "clip") {
-      if (props.nodeId === ui.activeClipPick.ignoreNodeId) return;
 
       ui.onPickClipNode?.({
         id: props.nodeId,

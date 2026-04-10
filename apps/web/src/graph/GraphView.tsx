@@ -151,7 +151,6 @@ export function GraphView(props: {
   }) => void;
   activeClipPick?: {
     slotIndex: number;
-    ignoreNodeId: string | null;
   } | null;
   onClipPicked?: (clip: { id: string; label?: string | null; videoUrl?: string | null }) => void;
 }) {
@@ -1674,6 +1673,7 @@ export function GraphView(props: {
                 prompt,
                 mode: "v2v",
                 parentClipId: parentId,
+                generatedFrames: length,
                 ...params,
                 categoryScores: allScores,
                 categoryLabels,
@@ -1879,37 +1879,31 @@ export function GraphView(props: {
 
   // ---------- node click ----------
   const onNodeClick: NodeMouseHandler = (_evt, node) => {
-    console.log("GRAPHVIEW onNodeClick fired", node.id, node.type);
+  if (props.activeClipPick && node.type === "clip") {
+    const nodeData = node.data as any;
 
-    if (props.activeClipPick && node.type === "clip") {
-      if (node.id === props.activeClipPick.ignoreNodeId) {
-        return;
-      }
+    props.onClipPicked?.({
+      id: node.id,
+      label: nodeData?.label ?? null,
+      videoUrl: nodeData?.videoUrl ?? null,
+    });
 
-      const nodeData = node.data as any;
+    setActionDialogOpen(false);
+    setDetailsOpen(false);
+    return;
+  }
 
-      props.onClipPicked?.({
-        id: node.id,
-        label: nodeData?.label ?? null,
-        videoUrl: nodeData?.videoUrl ?? null,
-      });
+  if (isComparePicking && compareSourceNodeId) {
+    finishComparePick(node.id);
+    return;
+  }
 
-      setActionDialogOpen(false);
-      setDetailsOpen(false);
-      return;
-    }
+  selectNode(node.id);
 
-    if (isComparePicking && compareSourceNodeId) {
-      finishComparePick(node.id);
-      return;
-    }
-
-    selectNode(node.id);
-
-    if (node.type === "clip" || node.type === "edit" || node.type === "import") {
-      setActionDialogOpen(true);
-    }
-  };
+  if (node.type === "clip" || node.type === "edit" || node.type === "import") {
+    setActionDialogOpen(true);
+  }
+};
 
   const graphUI = useMemo(
     () => ({
