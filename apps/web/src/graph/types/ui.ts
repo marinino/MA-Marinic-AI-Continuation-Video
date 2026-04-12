@@ -463,15 +463,19 @@ export type EditMetaSummary = {
 };
 
 export type BranchTimelineStep = {
-  paramNodeId: string;
-  clipNodeId: string;
+  kind: "params" | "non-param";
+  nodeId: string;
+  paramNodeId: string | null;
+  clipNodeId: string | null;
   label: string;
   frames: number;
   prompt?: string;
 };
 
 export type BranchTimelineSegment = {
-  paramNodeId: string;
+  index: number;
+  kind: "params" | "non-param";
+  paramNodeId: string | null;
   label: string;
   frames: number;
   widthPct: number;

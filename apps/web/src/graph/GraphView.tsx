@@ -1102,17 +1102,21 @@ export function GraphView(props: {
       g.rfEdges as any
     );
 
-    const baseOptions = baseSteps.map((step) => ({
-      nodeId: step.paramNodeId,
-      label: step.label,
-      frames: step.frames,
-    }));
+    const baseOptions = baseSteps
+      .filter((step) => !!step.paramNodeId)
+      .map((step) => ({
+        nodeId: step.paramNodeId as string,
+        label: step.label,
+        frames: step.frames,
+      }));
 
-    const compareOptions = compareSteps.map((step) => ({
-      nodeId: step.paramNodeId,
-      label: step.label,
-      frames: step.frames,
-    }));
+    const compareOptions = compareSteps
+      .filter((step) => !!step.paramNodeId)
+      .map((step) => ({
+        nodeId: step.paramNodeId as string,
+        label: step.label,
+        frames: step.frames,
+      }));
 
     return {
       selectedBaseNodeId: compareSourceNodeId,

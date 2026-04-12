@@ -122,6 +122,7 @@ export default function App({
 
       return rawSteps.map((step, index) => ({
         index,
+        kind: step.kind,
         paramNodeId: step.paramNodeId,
         label: step.label,
         frames: step.frames,
@@ -237,14 +238,14 @@ export default function App({
     const leftOptions = clipCompareTimelineSlots[left.index] ?? [];
     const rightOptions = clipCompareTimelineSlots[right.index] ?? [];
 
-    const leftLast = leftOptions[leftOptions.length - 1] ?? null;
-    const rightLast = rightOptions[rightOptions.length - 1] ?? null;
+    const leftLastParam = [...leftOptions].reverse().find((x) => !!x.paramNodeId) ?? null;
+    const rightLastParam = [...rightOptions].reverse().find((x) => !!x.paramNodeId) ?? null;
 
-    if (!leftLast?.paramNodeId || !rightLast?.paramNodeId) return;
+    if (!leftLastParam?.paramNodeId || !rightLastParam?.paramNodeId) return;
 
     setExternalCompareRequest({
-      sourceNodeId: leftLast.paramNodeId,
-      targetNodeId: rightLast.paramNodeId,
+      sourceNodeId: leftLastParam.paramNodeId,
+      targetNodeId: rightLastParam.paramNodeId,
       requestKey: Date.now(),
     });
   };

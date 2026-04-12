@@ -76,17 +76,54 @@ export function CategoryScoresSidebar({
         sx={{
           width: 52,
           flexShrink: 0,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "flex-start",
-          pt: 1,
+          height: "100%",
+          position: "relative",
           borderRight: open ? "1px solid" : "none",
           borderColor: "divider",
         }}
       >
-        <IconButton size="small" onClick={onToggle}>
-          {open ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-        </IconButton>
+        <Box
+          sx={{
+            position: "absolute",
+            top: 8,
+            left: 0,
+            width: "100%",
+            height: 48,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2,
+          }}
+        >
+          <IconButton size="small" onClick={onToggle}>
+            {open ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+          </IconButton>
+        </Box>
+
+        <Box
+          onClick={onToggle}
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            cursor: "pointer",
+            userSelect: "none",
+            zIndex: 1,
+          }}
+        >
+          <Typography
+            sx={{
+              transform: "rotate(-90deg)",
+              transformOrigin: "center",
+              whiteSpace: "nowrap",
+              fontSize: 11,
+              lineHeight: 1,
+            }}
+          >
+            {open ? "COLLAPSE" : "INSPECT PARAMETER NODE"}
+          </Typography>
+        </Box>
       </Box>
 
       {open && (

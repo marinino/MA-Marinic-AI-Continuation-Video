@@ -339,11 +339,28 @@ export function collectParamTimelineForClip(
       const data = (parentNode.data as any) ?? {};
 
       steps.push({
+        kind: "params",
+        nodeId: parentNode.id,
         paramNodeId: parentNode.id,
         clipNodeId: currentNode.id,
         label: data.label ?? "Params",
         frames: Number(data.generatedFrames ?? data.length ?? 71),
         prompt: data.prompt ?? "",
+      });
+
+      currentId = parentNode.id;
+      continue;
+    }
+
+    if (currentNode.type === "clip" && parentNode.type !== "params") {
+      steps.push({
+        kind: "non-param",
+        nodeId: parentNode.id,
+        paramNodeId: null,
+        clipNodeId: currentNode.id,
+        label: "non param",
+        frames: 25,
+        prompt: "",
       });
 
       currentId = parentNode.id;
