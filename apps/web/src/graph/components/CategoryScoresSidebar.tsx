@@ -117,7 +117,7 @@ export function CategoryScoresSidebar({
               transform: "rotate(-90deg)",
               transformOrigin: "center",
               whiteSpace: "nowrap",
-              fontSize: 11,
+              fontSize: 20,
               lineHeight: 1,
             }}
           >

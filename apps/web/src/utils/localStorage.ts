@@ -107,6 +107,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   graphCardDisplayMode: "chips",
   restrictCategories: true,
   showOnlyChangedParameters: true,
+  loopComparisonVideos: true,
 };
 
 export function loadSettings(): AppSettings {
@@ -132,6 +133,7 @@ export function loadSettings(): AppSettings {
           : DEFAULT_SETTINGS.graphCardDisplayMode,
       restrictCategories: parsed?.restrictCategories !== false,
       showOnlyChangedParameters: parsed?.showOnlyChangedParameters !== false,
+      loopComparisonVideos: parsed?.loopComparisonVideos !== false,
     };
   } catch {
     return DEFAULT_SETTINGS;

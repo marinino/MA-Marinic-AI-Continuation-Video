@@ -32,6 +32,8 @@ type SettingsProps = {
   setRestrictCategories: (value: boolean) => void;
   showOnlyChangedParameters: boolean;
   setShowOnlyChangedParameters: (value: boolean) => void;
+  loopComparisonVideos: boolean;
+  setLoopComparisonVideos: (value: boolean) => void;
 };
 
 export function Settings({
@@ -53,6 +55,8 @@ export function Settings({
   setRestrictCategories,
   showOnlyChangedParameters,
   setShowOnlyChangedParameters,
+  loopComparisonVideos,
+  setLoopComparisonVideos,
 }: SettingsProps) {
   return (
     <Dialog
@@ -109,6 +113,13 @@ export function Settings({
           description="When enabled the nodes in the graph will only show the parameters that have changed from their parent node"
           value={showOnlyChangedParameters}
           onChange={setShowOnlyChangedParameters}
+        />
+
+        <BooleanToggleRow
+          label="Loop videos in comparison sidebar"
+          description="When enabled, video previews in the clip comparison sidebar play continuously in a loop"
+          value={loopComparisonVideos}
+          onChange={setLoopComparisonVideos}
         />
 
         <Box

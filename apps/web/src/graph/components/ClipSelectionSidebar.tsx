@@ -21,6 +21,7 @@ export function ClipSelectionSidebar({
   onSelectParamNode,
   onCompare,
   canCompare,
+  loopVideos,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -32,6 +33,7 @@ export function ClipSelectionSidebar({
   onSelectParamNode?: (nodeId: string) => void;
   onCompare?: () => void;
   canCompare?: boolean;
+  loopVideos: boolean;
 }) {
   return (
     <Box
@@ -157,8 +159,17 @@ export function ClipSelectionSidebar({
                         {slot.videoUrl ? (
                           <video
                             src={slot.videoUrl}
-                            controls
-                            style={{ width: "100%", maxHeight: 220, display: "block" }}
+                            autoPlay
+                            loop={loopVideos}
+                            muted
+                            playsInline
+                            controls={!loopVideos}
+                            style={{
+                              width: "100%",
+                              maxHeight: 220,
+                              display: "block",
+                              objectFit: "contain",
+                            }}
                           />
                         ) : (
                           <Typography variant="body2" color="grey.400">
@@ -240,7 +251,7 @@ export function ClipSelectionSidebar({
               transform: "rotate(-90deg)",
               transformOrigin: "center",
               whiteSpace: "nowrap",
-              fontSize: 11,
+              fontSize: 20,
               lineHeight: 1,
             }}
           >

@@ -344,6 +344,7 @@ export type AppSettings = {
   graphCardDisplayMode: GraphCardDisplayMode;
   restrictCategories: boolean;
   showOnlyChangedParameters: boolean;
+  loopComparisonVideos: boolean;
 };
 
 export type SummaryChip = {

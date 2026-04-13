@@ -78,6 +78,10 @@ export default function App({
     initialSettings.showOnlyChangedParameters
   );
 
+  const [loopComparisonVideos, setLoopComparisonVideos] = useState(
+    initialSettings.loopComparisonVideos
+  );
+
   const [isCategorySidebarOpen, setIsCategorySidebarOpen] = useState(true);
 
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
@@ -183,6 +187,7 @@ export default function App({
       graphCardDisplayMode,
       restrictCategories,
       showOnlyChangedParameters,
+      loopComparisonVideos,
     });
   }, [
     showEdgeLabels,
@@ -193,6 +198,7 @@ export default function App({
     graphCardDisplayMode,
     restrictCategories,
     showOnlyChangedParameters,
+    loopComparisonVideos,
   ]);
 
   const handleSelectParamNodeFromTimeline = (nodeId: string) => {
@@ -579,6 +585,7 @@ export default function App({
               onSelectParamNode={handleSelectParamNodeFromTimeline}
               onCompare={handleOpenTimelineCompare}
               canCompare={canCompareClips}
+              loopVideos={loopComparisonVideos}
             />
           </Box>
         </Box>
@@ -603,6 +610,8 @@ export default function App({
         setGraphCardDisplayMode={setGraphCardDisplayMode}
         showOnlyChangedParameters={showOnlyChangedParameters}
         setShowOnlyChangedParameters={setShowOnlyChangedParameters}
+        loopComparisonVideos={loopComparisonVideos}
+        setLoopComparisonVideos={setLoopComparisonVideos}
       />
 
       <InformationDialog open={legendOpen} onClose={() => setLegendOpen(false)} />
