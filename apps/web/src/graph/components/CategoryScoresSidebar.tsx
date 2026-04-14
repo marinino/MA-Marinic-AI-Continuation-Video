@@ -59,8 +59,6 @@ export function CategoryScoresSidebar({
 }) {
   const [tab, setTab] = useState<SidebarTab>("categories");
 
-  console.log(selectedNodeType, "LABBBB");
-
   return (
     <Box
       sx={{

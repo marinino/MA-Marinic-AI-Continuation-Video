@@ -1,5 +1,5 @@
 import type { Project, StoredMediaFile } from "@ma/shared";
-import { ComfyStartVideoInput, ComfyStartVideoResult, ComfyHistory } from "./graph/types/ui";
+import { ComfyStartVideoInput, ComfyStartVideoResult, ComfyHistory, TransitionEvaluation } from "./graph/types/ui";
 
 const API = "/api";
 
@@ -202,4 +202,22 @@ export async function openTimelineInResolve(projectId: string, filename: string)
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
+}
+
+export async function evaluateTransitions(projectId: string, frameCount = 5): Promise<{
+  evaluations: Record<string, TransitionEvaluation>;
+  debug: any;
+}> {
+  const res = await fetch(`${API}/projects/${projectId}/evaluate-transitions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ frameCount }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`evaluateTransitions failed: ${res.status} ${text}`);
+  }
+
+  return await res.json();
 }

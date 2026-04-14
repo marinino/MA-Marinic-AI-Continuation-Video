@@ -1393,10 +1393,7 @@ export function GraphView(props: {
       } as any)
   );
 
-  useEffect(() => {
-    console.log("clickedNodeId", g.clickedNodeId);
-    console.log("sidebarNode", sidebarNode?.id, sidebarNode?.type, sidebarNode?.data?.label);
-  }, [g.clickedNodeId, sidebarNode]);
+
 
   useEffect(() => {
     const isParamsNode = sidebarNode?.type === "params";

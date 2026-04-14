@@ -489,3 +489,37 @@ export type CompareTimelineOption = {
   frames: number;
   widthPct: number;
 };
+
+export type TransitionPair = {
+  parentClipId: string;
+  paramsNodeId: string;
+  childClipId: string;
+};
+
+export type TransitionEvaluation = {
+  parentClipId: string;
+  childClipId: string;
+  paramsNodeId: string;
+  frameCount: number;
+
+  appearanceScore: number;
+  motionScore: number;
+  boundaryJumpScore: number;
+
+  overallScore: number;
+  label: "smooth" | "moderate" | "rough";
+
+  details: {
+    pairwiseSsimMean: number;
+    boundarySsim: number;
+    parentMotionDx: number;
+    parentMotionDy: number;
+    parentMotionMagnitude: number;
+    childMotionDx: number;
+    childMotionDy: number;
+    childMotionMagnitude: number;
+    motionDxDelta: number;
+    motionDyDelta: number;
+    motionMagnitudeDelta: number;
+  };
+};

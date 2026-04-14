@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Project } from "@ma/shared";
-import { createProject, saveProject, loadProject } from "./api"; // ✅ getProject dazu
+import { createProject, saveProject, loadProject, evaluateTransitions } from "./api";
 import { GraphView } from "./graph/GraphView";
 import {
   AppBar,
@@ -32,6 +32,7 @@ import { CategoryScoresSidebar } from "./graph/components/CategoryScoresSidebar"
 import { BrachSuggestion, CompareTimelineOption } from "./graph/types/ui";
 import { ClipSelectionSidebar } from "./graph/components/ClipSelectionSidebar";
 import { collectParamTimelineForClip } from "./graph/graph_helpers/selectors";
+import BugReportIcon from "@mui/icons-material/BugReport";
 
 type ColorMode = "light" | "dark";
 
@@ -52,6 +53,7 @@ export default function App({
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("New Project");
   const [creating, setCreating] = useState(false);
+  const [evaluatingTransitions, setEvaluatingTransitions] = useState(false);
 
   const initialSettings = loadSettings();
 
@@ -437,6 +439,36 @@ export default function App({
 
             {/* RIGHT */}
             <Box sx={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
+
+              <Tooltip title={"Debug transition evaluation"}>
+  <span>
+    <IconButton
+      onClick={async () => {
+        if (!project?.id || evaluatingTransitions) return;
+
+        try {
+          setEvaluatingTransitions(true);
+const result = await evaluateTransitions(project.id, 5);
+console.log("transition evaluation result", result);
+console.log("evaluations", result.evaluations);
+console.log("debug", result.debug);
+alert(
+  `pairs=${result.debug?.pairCount ?? 0}, evals=${Object.keys(result.evaluations ?? {}).length}, skipped=${result.debug?.skipped?.length ?? 0}`
+);
+        } catch (err) {
+          console.error("transition evaluation failed", err);
+        } finally {
+          setEvaluatingTransitions(false);
+        }
+      }}
+      sx={{ mr: 1 }}
+      aria-label="debug transition evaluation"
+      disabled={!project?.id || evaluatingTransitions}
+    >
+      <BugReportIcon />
+    </IconButton>
+  </span>
+</Tooltip>
               <Tooltip title={"Save"}>
                 <IconButton
                   onClick={() => {

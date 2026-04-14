@@ -1,8 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { nanoid } from "nanoid";
 import WebSocket from "ws";
-import t2vWorkflow from "./../../../../workflows/Create_Video.json" assert { type: "json" };
-import v2vWorkflow from "./../../../../workflows/Extend_Video.json" assert { type: "json" };
+import t2vWorkflow from "./../../../../workflows/Create_Video.json" with { type: "json" };
+import v2vWorkflow from "./../../../../workflows/Extend_Video.json" with { type: "json" };
 import { StoredMediaFile } from "@ma/shared";
 import path from "node:path";
 import fs from "node:fs/promises";

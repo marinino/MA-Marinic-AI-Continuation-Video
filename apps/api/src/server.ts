@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import dotenv from "dotenv";
 import { timelineRoutes } from "./routes/timline";
+import { transitionEvaluationRoutes } from "./routes/transitionEvaluation";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,6 +40,7 @@ await app.register(comfyRoutes);
 
 await app.register(editorRoutes);
 await app.register(timelineRoutes);
+await app.register(transitionEvaluationRoutes);
 
 app.get("/projects", async () => {
   return await listProjects();
