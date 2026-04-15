@@ -1,6 +1,12 @@
 import type { Project } from "@ma/shared";
 import type { Edge as RFEdge, Node as RFNode } from "reactflow";
-import { BranchNodeLike, BranchTimelineStep, ParameterHistoryMap, SimpleReal, TransitionPair } from "../types/ui";
+import {
+  BranchNodeLike,
+  BranchTimelineStep,
+  ParameterHistoryMap,
+  SimpleReal,
+  TransitionPair,
+} from "../types/ui";
 
 export function resolveEditIdForClipId(project: Project, clipId: string): string | null {
   const clip = project.nodes.find((n) => n.id === clipId) as any;
@@ -377,5 +383,3 @@ export function collectParamTimelineForClip(
 
   return steps.reverse();
 }
-
-

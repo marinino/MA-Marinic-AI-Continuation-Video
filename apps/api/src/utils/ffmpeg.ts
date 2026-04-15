@@ -47,16 +47,7 @@ export async function extractBoundaryFrames(
       ? `scale=${size}:${size}:force_original_aspect_ratio=decrease,pad=${size}:${size}:(ow-iw)/2:(oh-ih)/2`
       : `reverse,scale=${size}:${size}:force_original_aspect_ratio=decrease,pad=${size}:${size}:(ow-iw)/2:(oh-ih)/2`;
 
-  const args = [
-    "-y",
-    "-i",
-    videoPath,
-    "-vf",
-    vf,
-    "-frames:v",
-    String(count),
-    pattern,
-  ];
+  const args = ["-y", "-i", videoPath, "-vf", vf, "-frames:v", String(count), pattern];
 
   await run("ffmpeg", args);
 

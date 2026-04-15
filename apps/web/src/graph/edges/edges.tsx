@@ -5,8 +5,6 @@ import { useTheme } from "@mui/material/styles";
 import { EdgeKind } from "../types/ui";
 import { scoreToEdgeColor, scoreToStrokeWidth } from "../graph_helpers/layout";
 
-
-
 export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
   const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd } =
     props;
@@ -46,10 +44,7 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
   const edgeColor = scoreToEdgeColor(transitionScore, fallbackColor);
   const strokeWidth = scoreToStrokeWidth(transitionScore);
 
-  const labelText =
-    typeof transitionScore === "number"
-      ? `${text} · ${transitionScore}`
-      : text;
+  const labelText = typeof transitionScore === "number" ? `${text} · ${transitionScore}` : text;
 
   return (
     <>

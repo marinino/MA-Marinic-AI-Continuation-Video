@@ -88,10 +88,10 @@ export async function evaluateProjectTransitions(
   };
 
   const scriptPath =
-  process.env.TRANSITION_EVAL_SCRIPT ||
-  path.resolve(__dirname, "../../../../scripts/transition_eval.py");
+    process.env.TRANSITION_EVAL_SCRIPT ||
+    path.resolve(__dirname, "../../../../scripts/transition_eval.py");
 
-console.log("transition eval scriptPath", scriptPath);
+  console.log("transition eval scriptPath", scriptPath);
 
   for (const pair of pairs) {
     try {

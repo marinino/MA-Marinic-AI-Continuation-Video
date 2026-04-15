@@ -1,5 +1,10 @@
 import type { Project, StoredMediaFile } from "@ma/shared";
-import { ComfyStartVideoInput, ComfyStartVideoResult, ComfyHistory, TransitionEvaluation } from "./graph/types/ui";
+import {
+  ComfyStartVideoInput,
+  ComfyStartVideoResult,
+  ComfyHistory,
+  TransitionEvaluation,
+} from "./graph/types/ui";
 
 const API = "/api";
 
@@ -204,7 +209,10 @@ export async function openTimelineInResolve(projectId: string, filename: string)
   return res.json();
 }
 
-export async function evaluateTransitions(projectId: string, frameCount = 5): Promise<{
+export async function evaluateTransitions(
+  projectId: string,
+  frameCount = 5
+): Promise<{
   evaluations: Record<string, TransitionEvaluation>;
   debug: any;
 }> {

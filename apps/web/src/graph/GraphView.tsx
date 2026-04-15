@@ -895,8 +895,6 @@ export function GraphView(props: {
     [g, props.onChange]
   );
 
-  
-
   const nodesForUI = useMemo(() => {
     const nodes = g.nodesWithRootFlag as Node[];
     const edges = g.rfEdges as Edge[];
@@ -1082,36 +1080,36 @@ export function GraphView(props: {
   }, [g.nodesWithRootFlag, g.rfEdges, categoryLabels]);
 
   const edgesForUI = useMemo(() => {
-  const nodeById = new Map(nodesForUI.map((n) => [n.id, n]));
+    const nodeById = new Map(nodesForUI.map((n) => [n.id, n]));
 
-  return g.rfEdges.map((edge) => {
-    const sourceNode = nodeById.get(edge.source);
-    const targetNode = nodeById.get(edge.target);
+    return g.rfEdges.map((edge) => {
+      const sourceNode = nodeById.get(edge.source);
+      const targetNode = nodeById.get(edge.target);
 
-    const isParamToClip = sourceNode?.type === "params" && targetNode?.type === "clip";
-    if (!isParamToClip) return edge;
+      const isParamToClip = sourceNode?.type === "params" && targetNode?.type === "clip";
+      if (!isParamToClip) return edge;
 
-    const evaluation = props.transitionEvaluations[edge.target];
-    if (!evaluation) return edge;
+      const evaluation = props.transitionEvaluations[edge.target];
+      if (!evaluation) return edge;
 
-    const score = evaluation.overallScore;
-    const strokeWidth = scoreToStrokeWidth(score);
+      const score = evaluation.overallScore;
+      const strokeWidth = scoreToStrokeWidth(score);
 
-    return {
-      ...edge,
-      data: {
-        ...(edge.data as any),
-        transitionScore: score,
-        transitionLabel: evaluation.label,
-        appearanceScore: evaluation.appearanceScore,
-        motionScore: evaluation.motionScore,
-        boundaryJumpScore: evaluation.boundaryJumpScore,
-        strokeWidth,
-        scoreColorHint: scoreToEdgeColor(score, ""),
-      },
-    };
-  });
-}, [g.rfEdges, nodesForUI, props.transitionEvaluations]);
+      return {
+        ...edge,
+        data: {
+          ...(edge.data as any),
+          transitionScore: score,
+          transitionLabel: evaluation.label,
+          appearanceScore: evaluation.appearanceScore,
+          motionScore: evaluation.motionScore,
+          boundaryJumpScore: evaluation.boundaryJumpScore,
+          strokeWidth,
+          scoreColorHint: scoreToEdgeColor(score, ""),
+        },
+      };
+    });
+  }, [g.rfEdges, nodesForUI, props.transitionEvaluations]);
 
   const compareSelector = useMemo(() => {
     if (!compareSourceNodeId || !compareTargetNodeId) return undefined;
@@ -1430,8 +1428,6 @@ export function GraphView(props: {
         showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
       } as any)
   );
-
-
 
   useEffect(() => {
     const isParamsNode = sidebarNode?.type === "params";

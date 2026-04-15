@@ -55,8 +55,8 @@ export default function App({
   const [creating, setCreating] = useState(false);
   const [evaluatingTransitions, setEvaluatingTransitions] = useState(false);
   const [transitionEvaluations, setTransitionEvaluations] = useState<
-  Record<string, TransitionEvaluation>
->({});
+    Record<string, TransitionEvaluation>
+  >({});
 
   const initialSettings = loadSettings();
 
@@ -442,37 +442,36 @@ export default function App({
 
             {/* RIGHT */}
             <Box sx={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
-
               <Tooltip title={"Debug transition evaluation"}>
-  <span>
-    <IconButton
-      onClick={async () => {
-        if (!project?.id || evaluatingTransitions) return;
+                <span>
+                  <IconButton
+                    onClick={async () => {
+                      if (!project?.id || evaluatingTransitions) return;
 
-        try {
-          setEvaluatingTransitions(true);
-const result = await evaluateTransitions(project.id, 5);
-setTransitionEvaluations(result.evaluations);
-console.log("transition evaluation result", result);
-console.log("evaluations", result.evaluations);
-console.log("debug", result.debug);
-alert(
-  `pairs=${result.debug?.pairCount ?? 0}, evals=${Object.keys(result.evaluations ?? {}).length}, skipped=${result.debug?.skipped?.length ?? 0}`
-);
-        } catch (err) {
-          console.error("transition evaluation failed", err);
-        } finally {
-          setEvaluatingTransitions(false);
-        }
-      }}
-      sx={{ mr: 1 }}
-      aria-label="debug transition evaluation"
-      disabled={!project?.id || evaluatingTransitions}
-    >
-      <BugReportIcon />
-    </IconButton>
-  </span>
-</Tooltip>
+                      try {
+                        setEvaluatingTransitions(true);
+                        const result = await evaluateTransitions(project.id, 5);
+                        setTransitionEvaluations(result.evaluations);
+                        console.log("transition evaluation result", result);
+                        console.log("evaluations", result.evaluations);
+                        console.log("debug", result.debug);
+                        alert(
+                          `pairs=${result.debug?.pairCount ?? 0}, evals=${Object.keys(result.evaluations ?? {}).length}, skipped=${result.debug?.skipped?.length ?? 0}`
+                        );
+                      } catch (err) {
+                        console.error("transition evaluation failed", err);
+                      } finally {
+                        setEvaluatingTransitions(false);
+                      }
+                    }}
+                    sx={{ mr: 1 }}
+                    aria-label="debug transition evaluation"
+                    disabled={!project?.id || evaluatingTransitions}
+                  >
+                    <BugReportIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
               <Tooltip title={"Save"}>
                 <IconButton
                   onClick={() => {

@@ -21,16 +21,13 @@ function resolveComfyVideoFilePath(videoFile: any): string | null {
   if (!filename) return null;
 
   const comfyInputDir =
-    process.env.COMFY_INPUT_DIR ||
-    path.resolve(process.cwd(), "tools", "comfyui", "input");
+    process.env.COMFY_INPUT_DIR || path.resolve(process.cwd(), "tools", "comfyui", "input");
 
   const comfyOutputDir =
-    process.env.COMFY_OUTPUT_DIR ||
-    path.resolve(process.cwd(), "tools", "comfyui", "output");
+    process.env.COMFY_OUTPUT_DIR || path.resolve(process.cwd(), "tools", "comfyui", "output");
 
   const comfyTempDir =
-    process.env.COMFY_TEMP_DIR ||
-    path.resolve(process.cwd(), "tools", "comfyui", "temp");
+    process.env.COMFY_TEMP_DIR || path.resolve(process.cwd(), "tools", "comfyui", "temp");
 
   let baseDir: string;
   switch (type) {
