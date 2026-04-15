@@ -3,6 +3,9 @@ import { memo } from "react";
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from "reactflow";
 import { useTheme } from "@mui/material/styles";
 import { EdgeKind } from "../types/ui";
+import { scoreToEdgeColor, scoreToStrokeWidth } from "../graph_helpers/layout";
+
+
 
 export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
   const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd } =
@@ -20,11 +23,12 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
 
   const text = (data as any)?.label ?? "";
   const kind: EdgeKind = (data as any)?.label ?? "";
-
-  // ✅ DAS ist dein Toggle-Flag:
   const showLabel: boolean = (data as any)?.showLabel ?? true;
 
-  const edgeColor = (() => {
+  const transitionScore: number | undefined = (data as any)?.transitionScore;
+  const transitionLabel: string | undefined = (data as any)?.transitionLabel;
+
+  const fallbackColor = (() => {
     switch (kind) {
       case "input":
         return theme.palette.primary.main;
@@ -39,6 +43,14 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
     }
   })();
 
+  const edgeColor = scoreToEdgeColor(transitionScore, fallbackColor);
+  const strokeWidth = scoreToStrokeWidth(transitionScore);
+
+  const labelText =
+    typeof transitionScore === "number"
+      ? `${text} · ${transitionScore}`
+      : text;
+
   return (
     <>
       <BaseEdge
@@ -46,11 +58,10 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
         markerEnd={markerEnd}
         style={{
           stroke: edgeColor,
-          strokeWidth: 2,
+          strokeWidth,
         }}
       />
 
-      {/* ✅ Nur rendern, wenn showLabel true ist */}
       {showLabel && (
         <EdgeLabelRenderer>
           <Box
@@ -58,7 +69,6 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
               position: "absolute",
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
               pointerEvents: "none",
-
               fontSize: 12,
               bgcolor: "background.paper",
               color: "text.primary",
@@ -67,11 +77,15 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
               borderRadius: 1.5,
               border: 1,
               borderColor: edgeColor,
-
               whiteSpace: "nowrap",
             }}
+            title={
+              typeof transitionScore === "number"
+                ? `Transition ${transitionLabel ?? ""} (${transitionScore})`
+                : undefined
+            }
           >
-            {text}
+            {labelText}
           </Box>
         </EdgeLabelRenderer>
       )}

@@ -71,6 +71,8 @@ import {
   countBranches,
   findFreePosition,
   getDefaultNodeSize,
+  scoreToEdgeColor,
+  scoreToStrokeWidth,
 } from "./graph_helpers/layout";
 import {
   buildIncomingMap,
@@ -106,6 +108,7 @@ import {
   GraphCardDisplayMode,
   OrderedSliderItem,
   StandardCategoryKey,
+  TransitionEvaluation,
 } from "./types/ui";
 import { buildCompareCategoryDeltas, buildCompareDelta } from "./graph_helpers/compareLogic";
 import { NodeDetailsDialog } from "./dialogs/NodeDetailsDialog";
@@ -133,6 +136,7 @@ export function GraphView(props: {
   graphCardDisplayMode: GraphCardDisplayMode;
   restrictCategories: boolean;
   showOnlyChangedParameters: boolean;
+  transitionEvaluations: Record<string, TransitionEvaluation>;
   onSidebarDataChange?: (data: {
     selectedNodeId: string | null;
     selectedNodeLabel: string | null;
@@ -891,6 +895,8 @@ export function GraphView(props: {
     [g, props.onChange]
   );
 
+  
+
   const nodesForUI = useMemo(() => {
     const nodes = g.nodesWithRootFlag as Node[];
     const edges = g.rfEdges as Edge[];
@@ -1074,6 +1080,38 @@ export function GraphView(props: {
 
     return finalNodes;
   }, [g.nodesWithRootFlag, g.rfEdges, categoryLabels]);
+
+  const edgesForUI = useMemo(() => {
+  const nodeById = new Map(nodesForUI.map((n) => [n.id, n]));
+
+  return g.rfEdges.map((edge) => {
+    const sourceNode = nodeById.get(edge.source);
+    const targetNode = nodeById.get(edge.target);
+
+    const isParamToClip = sourceNode?.type === "params" && targetNode?.type === "clip";
+    if (!isParamToClip) return edge;
+
+    const evaluation = props.transitionEvaluations[edge.target];
+    if (!evaluation) return edge;
+
+    const score = evaluation.overallScore;
+    const strokeWidth = scoreToStrokeWidth(score);
+
+    return {
+      ...edge,
+      data: {
+        ...(edge.data as any),
+        transitionScore: score,
+        transitionLabel: evaluation.label,
+        appearanceScore: evaluation.appearanceScore,
+        motionScore: evaluation.motionScore,
+        boundaryJumpScore: evaluation.boundaryJumpScore,
+        strokeWidth,
+        scoreColorHint: scoreToEdgeColor(score, ""),
+      },
+    };
+  });
+}, [g.rfEdges, nodesForUI, props.transitionEvaluations]);
 
   const compareSelector = useMemo(() => {
     if (!compareSourceNodeId || !compareTargetNodeId) return undefined;
@@ -2145,7 +2183,7 @@ export function GraphView(props: {
         <ReactFlow
           onInit={(instance) => setRfInstance(instance)}
           nodes={nodesForUI}
-          edges={g.rfEdges}
+          edges={edgesForUI}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           nodesDraggable

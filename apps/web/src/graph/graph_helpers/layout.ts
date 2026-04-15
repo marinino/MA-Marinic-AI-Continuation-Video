@@ -156,3 +156,15 @@ export function centerOnNode(
 export function truncateLabel(str: string, max = 13) {
   return str.length > max ? str.slice(0, max) + "..." : str;
 }
+
+export function scoreToStrokeWidth(score: number | null | undefined) {
+  if (typeof score !== "number") return 2;
+  return 2 + (score / 100) * 6; // 2..8
+}
+
+export function scoreToEdgeColor(score: number | null | undefined, fallback: string) {
+  if (typeof score !== "number") return fallback;
+  if (score >= 80) return "#4caf50";
+  if (score >= 55) return "#ff9800";
+  return "#f44336";
+}

@@ -29,7 +29,7 @@ import { InformationDialog } from "./graph/dialogs/InformationDialog";
 import { loadSettings, saveSettings } from "./utils/localStorage";
 import { LoadProjectDialog } from "./graph/dialogs/LoadProjectsDialog";
 import { CategoryScoresSidebar } from "./graph/components/CategoryScoresSidebar";
-import { BrachSuggestion, CompareTimelineOption } from "./graph/types/ui";
+import { BrachSuggestion, CompareTimelineOption, TransitionEvaluation } from "./graph/types/ui";
 import { ClipSelectionSidebar } from "./graph/components/ClipSelectionSidebar";
 import { collectParamTimelineForClip } from "./graph/graph_helpers/selectors";
 import BugReportIcon from "@mui/icons-material/BugReport";
@@ -54,6 +54,9 @@ export default function App({
   const [newProjectName, setNewProjectName] = useState("New Project");
   const [creating, setCreating] = useState(false);
   const [evaluatingTransitions, setEvaluatingTransitions] = useState(false);
+  const [transitionEvaluations, setTransitionEvaluations] = useState<
+  Record<string, TransitionEvaluation>
+>({});
 
   const initialSettings = loadSettings();
 
@@ -449,6 +452,7 @@ export default function App({
         try {
           setEvaluatingTransitions(true);
 const result = await evaluateTransitions(project.id, 5);
+setTransitionEvaluations(result.evaluations);
 console.log("transition evaluation result", result);
 console.log("evaluations", result.evaluations);
 console.log("debug", result.debug);
@@ -587,6 +591,7 @@ alert(
                 activeClipPick={activeClipPick}
                 onClipPicked={handleClipPickedFromGraph}
                 externalCompareRequest={externalCompareRequest}
+                transitionEvaluations={transitionEvaluations}
               />
             </ReactFlowProvider>
           </Box>
