@@ -82,6 +82,8 @@ import {
   buildParameterHistoryFromBranchSteps,
   getSimpleFromParentClip,
   collectParamTimelineForClip,
+  getClipGeneratedPlaybackInfo,
+  getVideoTotalFrames,
 } from "./graph_helpers/selectors";
 import { useManualTimelineImport } from "./hooks/useManualTimelineImport";
 import { DeleteNodeDialog } from "./dialogs/DeleteNodeDialog";
@@ -137,6 +139,7 @@ export function GraphView(props: {
   restrictCategories: boolean;
   showOnlyChangedParameters: boolean;
   transitionEvaluations: Record<string, TransitionEvaluation>;
+  showOnlyGeneratedPart: boolean;
   onSidebarDataChange?: (data: {
     selectedNodeId: string | null;
     selectedNodeLabel: string | null;
@@ -1193,6 +1196,12 @@ export function GraphView(props: {
 
   const detailsNodeData = detailsNode?.data as any | undefined;
 
+const detailsVideoPlayback = useMemo(() => {
+  if (!detailsNode || detailsNode.type !== "clip") return undefined;
+
+  return getClipGeneratedPlaybackInfo(detailsNode.id, nodesForUI as RFNode[], g.rfEdges);
+}, [detailsNode, nodesForUI, g.rfEdges]);
+
   const sidebarNode = useMemo(() => {
     if (!g.clickedNodeId) return null;
     return nodesForUI.find((n) => n.id === g.clickedNodeId) ?? null;
@@ -1497,11 +1506,14 @@ export function GraphView(props: {
           id,
           type: "clip",
           position: { x: 50, y: 80 },
-          data: {
-            label: "Root Clip",
-            videoFile: file,
-            videoStatus: "done",
-            videoOpened: false,
+        data: {
+  label: "Root Clip",
+  videoFile: file,
+  videoStatus: "done",
+  videoOpened: false,
+  fps: 16,
+  totalFrames: 81,
+
           } as any,
           draggable: true,
         };
@@ -1542,19 +1554,21 @@ export function GraphView(props: {
     setRootUploadStatus("Uploading…");
 
     try {
-      const stored = await comfyUploadVideo(rootUploadFile);
+const stored = await comfyUploadVideo(rootUploadFile);
 
       const id = nanoid();
       const rootClip: RFNode = {
         id,
         type: "clip",
         position: { x: 50, y: 80 },
-        data: {
-          label: "Root Clip",
-          videoFile: stored,
-          videoStatus: "done",
-          videoOpened: false,
-        } as any,
+       data: {
+  label: "Root Clip",
+  videoFile: stored,
+  videoStatus: "done",
+  videoOpened: false,
+    fps: stored.fps ?? null,
+    totalFrames: stored.totalFrames ?? null,
+} as any,
         draggable: true,
       };
 
@@ -1814,18 +1828,28 @@ export function GraphView(props: {
               draggable: true,
             };
 
-            const clipNode: RFNode = {
-              id: newClipId,
-              type: "clip",
-              position: clipPos,
-              data: {
-                label: "Generated Clip",
-                videoFile: file,
-                videoStatus: "done",
-                videoOpened: false,
-              } as any,
-              draggable: true,
-            };
+const parentNode = prevNodes.find((n) => n.id === parentId);
+const parentTotalFrames =
+  typeof (parentNode?.data as any)?.totalFrames === "number"
+    ? (parentNode?.data as any).totalFrames
+    : 0;
+
+const newTotalFrames = parentTotalFrames + length;
+
+const clipNode: RFNode = {
+  id: newClipId,
+  type: "clip",
+  position: clipPos,
+  data: {
+    label: "Generated Clip",
+    videoFile: file,
+    videoStatus: "done",
+    videoOpened: false,
+    fps: 16,
+    totalFrames: newTotalFrames,
+  } as any,
+  draggable: true,
+};
 
             const nextNodes = [...prevNodes, paramNode, clipNode];
 
@@ -1867,7 +1891,7 @@ export function GraphView(props: {
     setImportVideoStatus("Uploading…");
 
     try {
-      const stored = await comfyUploadVideo(importVideoFile);
+const stored = await comfyUploadVideo(importVideoFile);
 
       const importId = nanoid();
       const clipId = nanoid();
@@ -1975,6 +1999,9 @@ export function GraphView(props: {
               videoFile: stored,
               videoStatus: "done",
               videoOpened: false,
+
+    fps: stored.fps ?? null,
+    totalFrames: stored.totalFrames ?? null,
             } as any,
             draggable: true,
           };
@@ -2395,6 +2422,8 @@ export function GraphView(props: {
         type={(detailsNode?.type as "clip" | "params" | "edit" | "import") ?? "clip"}
         d={(detailsEffectiveDelta as any) ?? {}}
         videoUrl={(detailsNodeData?.videoUrl as string | null | undefined) ?? null}
+          videoPlayback={detailsVideoPlayback}
+  showOnlyGeneratedPart={props.showOnlyGeneratedPart}
         videoFile={detailsNodeData?.videoFile}
         videoStatus={detailsNodeData?.videoStatus}
         metaSummary={detailsNodeData?.metaSummaryData}

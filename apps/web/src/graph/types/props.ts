@@ -80,4 +80,13 @@ export interface NodeDetailsDialogProps {
     baseHistory: ParameterHistoryMap;
     compareHistory: ParameterHistoryMap;
   };
+
+  videoPlayback?: {
+  fps?: number | null;
+  totalFrames?: number | null;
+  generatedStartFrame?: number | null;
+  hasGeneratedSegment?: boolean;
+};
+
+showOnlyGeneratedPart?: boolean;
 }

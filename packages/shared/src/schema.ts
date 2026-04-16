@@ -84,6 +84,9 @@ export const StoredMediaFileSchema = z.object({
   filename: z.string(),
   subfolder: z.string(),
   type: z.string(),
+   fps: z.number().optional(),
+  durationSec: z.number().optional(),
+  totalFrames: z.number().optional()
 });
 
 export const ClipNodeDataSchema = z

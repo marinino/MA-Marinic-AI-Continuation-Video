@@ -108,6 +108,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   restrictCategories: true,
   showOnlyChangedParameters: true,
   loopComparisonVideos: true,
+  showOnlyGeneratedPart: false,
 };
 
 export function loadSettings(): AppSettings {
@@ -134,6 +135,7 @@ export function loadSettings(): AppSettings {
       restrictCategories: parsed?.restrictCategories !== false,
       showOnlyChangedParameters: parsed?.showOnlyChangedParameters !== false,
       loopComparisonVideos: parsed?.loopComparisonVideos !== false,
+      showOnlyGeneratedPart: parsed?.showOnlyGeneratedPart !== false,
     };
   } catch {
     return DEFAULT_SETTINGS;

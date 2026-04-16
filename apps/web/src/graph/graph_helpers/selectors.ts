@@ -3,6 +3,7 @@ import type { Edge as RFEdge, Node as RFNode } from "reactflow";
 import {
   BranchNodeLike,
   BranchTimelineStep,
+  ClipGeneratedPlaybackInfo,
   ParameterHistoryMap,
   SimpleReal,
   TransitionPair,
@@ -382,4 +383,97 @@ export function collectParamTimelineForClip(
   }
 
   return steps.reverse();
+}
+
+
+export function getClipGeneratedPlaybackInfo(
+  clipId: string,
+  nodes: RFNode[],
+  edges: RFEdge[]
+): ClipGeneratedPlaybackInfo {
+  const timeline = collectParamTimelineForClip(clipId, nodes, edges);
+
+  const currentStep = [...timeline]
+    .reverse()
+    .find((step) => step.kind === "params" && step.clipNodeId === clipId);
+
+  const generatedFrames =
+    currentStep && typeof currentStep.frames === "number" && Number.isFinite(currentStep.frames)
+      ? currentStep.frames
+      : null;
+
+  const clipNode = nodes.find((n) => n.id === clipId);
+  const clipData = (clipNode?.data as any) ?? {};
+
+  const fps =
+    typeof clipData.fps === "number" && Number.isFinite(clipData.fps) && clipData.fps > 0
+      ? clipData.fps
+      : null;
+
+  const totalFrames =
+    typeof clipData.totalFrames === "number" &&
+    Number.isFinite(clipData.totalFrames) &&
+    clipData.totalFrames > 0
+      ? clipData.totalFrames
+      : null;
+
+  if (
+    generatedFrames == null ||
+    totalFrames == null ||
+    generatedFrames <= 0 ||
+    totalFrames <= 0
+  ) {
+    return {
+      fps,
+      totalFrames,
+      generatedFrames,
+      generatedStartFrame: null,
+      hasGeneratedSegment: false,
+    };
+  }
+
+  const clampedGeneratedFrames = Math.min(generatedFrames, totalFrames);
+  const generatedStartFrame = Math.max(0, totalFrames - clampedGeneratedFrames);
+
+  return {
+    fps,
+    totalFrames,
+    generatedFrames: clampedGeneratedFrames,
+    generatedStartFrame,
+    hasGeneratedSegment: true,
+  };
+}
+
+export function getVideoTotalFrames(file: File, fps = 16): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+
+    const cleanup = () => {
+      URL.revokeObjectURL(url);
+      video.removeAttribute("src");
+      video.load();
+    };
+
+    video.preload = "metadata";
+    video.src = url;
+
+    video.onloadedmetadata = () => {
+      const duration = video.duration;
+
+      cleanup();
+
+      if (!Number.isFinite(duration) || duration <= 0) {
+        reject(new Error("Could not read video duration."));
+        return;
+      }
+
+      resolve(Math.max(1, Math.round(duration * fps)));
+    };
+
+    video.onerror = () => {
+      cleanup();
+      reject(new Error("Failed to load video metadata."));
+    };
+  });
 }

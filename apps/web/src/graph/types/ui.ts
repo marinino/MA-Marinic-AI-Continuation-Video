@@ -345,6 +345,7 @@ export type AppSettings = {
   restrictCategories: boolean;
   showOnlyChangedParameters: boolean;
   loopComparisonVideos: boolean;
+  showOnlyGeneratedPart: boolean;
 };
 
 export type SummaryChip = {
@@ -522,4 +523,31 @@ export type TransitionEvaluation = {
     motionDyDelta: number;
     motionMagnitudeDelta: number;
   };
+};
+
+export type ClipGeneratedPlaybackInfo = {
+  fps: number | null;
+  totalFrames: number | null;
+  generatedFrames: number | null;
+  generatedStartFrame: number | null;
+  hasGeneratedSegment: boolean;
+};
+
+export type ClipSlot = {
+  id: string | null;
+  label?: string | null;
+  videoUrl?: string | null;
+  playback?: {
+    totalFrames?: number | null;
+    generatedStartFrame?: number | null;
+    hasGeneratedSegment?: boolean;
+    generatedFrames?: number | null;
+  };
+};
+
+export type VideoSegmentPlayback = {
+  fps?: number
+  totalFrames?: number | null;
+  generatedStartFrame?: number | null;
+  hasGeneratedSegment?: boolean;
 };

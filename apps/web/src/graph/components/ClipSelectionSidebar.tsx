@@ -1,14 +1,11 @@
-import { Box, IconButton, Typography, Divider, Button } from "@mui/material";
+import { Box, IconButton, Typography, Divider, Button, FormControlLabel, Switch } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { BranchTimelineSegment } from "../types/ui";
+import { BranchTimelineSegment, ClipSlot } from "../types/ui";
 import { ClipBranchTimeline } from "./ClipBranchTimeline";
+import { VideoSegmentPlayer } from "./VideoSegmentPlayer";
 
-type ClipSlot = {
-  id: string | null;
-  label?: string | null;
-  videoUrl?: string | null;
-};
+
 
 export function ClipSelectionSidebar({
   open,
@@ -22,6 +19,8 @@ export function ClipSelectionSidebar({
   onCompare,
   canCompare,
   loopVideos,
+  onToggleLoopVideos,
+  showOnlyGeneratedPart
 }: {
   open: boolean;
   onToggle: () => void;
@@ -34,6 +33,8 @@ export function ClipSelectionSidebar({
   onCompare?: () => void;
   canCompare?: boolean;
   loopVideos: boolean;
+  onToggleLoopVideos?: () => void;
+  showOnlyGeneratedPart: boolean;
 }) {
   return (
     <Box
@@ -57,32 +58,44 @@ export function ClipSelectionSidebar({
           }}
         >
           <Box
-            sx={{
-              px: 2,
-              pt: 2,
-              pb: 1,
-              display: "flex",
-              alignItems: "flex-start",
-              justifyContent: "space-between",
-              gap: 2,
-            }}
-          >
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle2">Clip comparison</Typography>
-              <Typography variant="caption" color="text.secondary">
-                Select up to 2 clips from the graph.
-              </Typography>
-            </Box>
+  sx={{
+    px: 2,
+    pt: 2,
+    pb: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: 1.5,
+  }}
+>
+  <Box
+    sx={{
+      display: "flex",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 2,
+    }}
+  >
+   
 
-            <Button
-              variant="contained"
-              onClick={onCompare}
-              disabled={!canCompare}
-              sx={{ flexShrink: 0, alignSelf: "flex-start" }}
-            >
-              Compare
-            </Button>
-          </Box>
+
+
+    <Button
+      variant="contained"
+      onClick={onCompare}
+      disabled={!canCompare}
+      sx={{ flexShrink: 0, alignSelf: "flex-start" }}
+    >
+      Compare
+    </Button>
+        <FormControlLabel
+    control={<Switch checked={loopVideos} onChange={onToggleLoopVideos} />}
+    label="Loop videos"
+    sx={{ ml: 0 }}
+  />
+  </Box>
+
+  
+</Box>
 
           <Box
             sx={{
@@ -157,26 +170,58 @@ export function ClipSelectionSidebar({
                         }}
                       >
                         {slot.videoUrl ? (
-                          <video
-                            src={slot.videoUrl}
-                            autoPlay
-                            loop={loopVideos}
-                            muted
-                            playsInline
-                            controls={!loopVideos}
-                            style={{
-                              width: "100%",
-                              maxHeight: 220,
-                              display: "block",
-                              objectFit: "contain",
-                            }}
-                          />
+                          <VideoSegmentPlayer
+  src={slot.videoUrl}
+  playback={slot.playback}
+  showOnlyGeneratedPart={showOnlyGeneratedPart}
+  autoPlay
+  loop={loopVideos}
+  muted
+  controls={!loopVideos}
+  style={{
+    width: "100%",
+    maxHeight: 220,
+    display: "block",
+    objectFit: "contain",
+  }}
+/>
                         ) : (
                           <Typography variant="body2" color="grey.400">
                             No preview available
                           </Typography>
                         )}
                       </Box>
+
+                        {slot.playback?.hasGeneratedSegment &&
+    typeof slot.playback.totalFrames === "number" &&
+    typeof slot.playback.generatedStartFrame === "number" &&
+    slot.playback.totalFrames > 0 && (
+      <Box
+        sx={{
+          height: 8,
+          borderRadius: 999,
+          overflow: "hidden",
+          bgcolor: "grey.800",
+        }}
+      >
+        <Box
+          sx={{
+            width: `${(slot.playback.generatedStartFrame / slot.playback.totalFrames) * 100}%`,
+            height: "100%",
+            bgcolor: "grey.500",
+            float: "left",
+          }}
+        />
+        <Box
+          sx={{
+            width: `${((slot.playback.totalFrames - slot.playback.generatedStartFrame) / slot.playback.totalFrames) * 100}%`,
+            height: "100%",
+            bgcolor: "success.main",
+            float: "left",
+          }}
+        />
+      </Box>
+    )}
 
                       <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
                         {slot.label ?? "Unnamed Clip"}

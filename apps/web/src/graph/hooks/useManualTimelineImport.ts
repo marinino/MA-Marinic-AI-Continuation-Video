@@ -34,6 +34,39 @@ type UseManualTimelineImportArgs = {
   setErrorDialog: React.Dispatch<React.SetStateAction<ErrorDialogState>>;
 };
 
+function getVideoTotalFrames(file: File, fps = 16): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+
+    const cleanup = () => {
+      URL.revokeObjectURL(url);
+      video.removeAttribute("src");
+      video.load();
+    };
+
+    video.preload = "metadata";
+    video.src = url;
+
+    video.onloadedmetadata = () => {
+      const duration = video.duration;
+      cleanup();
+
+      if (!Number.isFinite(duration) || duration <= 0) {
+        reject(new Error("Could not read video duration."));
+        return;
+      }
+
+      resolve(Math.max(1, Math.round(duration * fps)));
+    };
+
+    video.onerror = () => {
+      cleanup();
+      reject(new Error("Failed to load video metadata."));
+    };
+  });
+}
+
 function getBaselineStoredTimelineFilenameForClip(project: Project, clipId: string): string | null {
   const editId = (() => {
     const clip = project.nodes.find((n) => n.id === clipId) as any;
@@ -91,7 +124,7 @@ export function useManualTimelineImport({
 
     try {
       // 1) Uploads
-      const storedVideo: StoredMediaFile = await comfyUploadVideo(editedVideoFile);
+const storedVideo: StoredMediaFile = await comfyUploadVideo(editedVideoFile);
 
       const baseline = getBaselineStoredTimelineFilenameForClip(project, fromClipId);
 
@@ -200,6 +233,9 @@ export function useManualTimelineImport({
           videoStatus: "done",
           videoOpened: false,
           producedByEditId: editId,
+       
+    fps: storedVideo.fps ?? null,
+    totalFrames: storedVideo.totalFrames ?? null,
         } as any,
         draggable: true,
       };

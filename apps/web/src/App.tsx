@@ -31,7 +31,7 @@ import { LoadProjectDialog } from "./graph/dialogs/LoadProjectsDialog";
 import { CategoryScoresSidebar } from "./graph/components/CategoryScoresSidebar";
 import { BrachSuggestion, CompareTimelineOption, TransitionEvaluation } from "./graph/types/ui";
 import { ClipSelectionSidebar } from "./graph/components/ClipSelectionSidebar";
-import { collectParamTimelineForClip } from "./graph/graph_helpers/selectors";
+import { collectParamTimelineForClip, getClipGeneratedPlaybackInfo } from "./graph/graph_helpers/selectors";
 import BugReportIcon from "@mui/icons-material/BugReport";
 
 type ColorMode = "light" | "dark";
@@ -87,13 +87,27 @@ export default function App({
     initialSettings.loopComparisonVideos
   );
 
+    const [showOnlyGeneratedPart, setShowOnlyGeneratedPart] = useState(
+    initialSettings.showOnlyGeneratedPart
+  );
+
   const [isCategorySidebarOpen, setIsCategorySidebarOpen] = useState(true);
 
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
 
-  const [clipCompareSlots, setClipCompareSlots] = useState<
-    { id: string | null; label?: string | null; videoUrl?: string | null }[]
-  >([
+const [clipCompareSlots, setClipCompareSlots] = useState<
+  {
+    id: string | null;
+    label?: string | null;
+    videoUrl?: string | null;
+    playback?: {
+      totalFrames?: number | null;
+      generatedStartFrame?: number | null;
+      hasGeneratedSegment?: boolean;
+      generatedFrames?: number | null;
+    };
+  }[]
+>([
     { id: null, label: null, videoUrl: null },
     { id: null, label: null, videoUrl: null },
   ]);
@@ -193,6 +207,7 @@ export default function App({
       restrictCategories,
       showOnlyChangedParameters,
       loopComparisonVideos,
+      showOnlyGeneratedPart
     });
   }, [
     showEdgeLabels,
@@ -204,6 +219,7 @@ export default function App({
     restrictCategories,
     showOnlyChangedParameters,
     loopComparisonVideos,
+    showOnlyGeneratedPart
   ]);
 
   const handleSelectParamNodeFromTimeline = (nodeId: string) => {
@@ -374,34 +390,46 @@ export default function App({
   };
 
   const handleClearClipSlot = (index: number) => {
-    setClipCompareSlots((prev) =>
-      prev.map((slot, i) => (i === index ? { id: null, label: null, videoUrl: null } : slot))
-    );
+setClipCompareSlots((prev) =>
+  prev.map((slot, i) =>
+    i === index ? { id: null, label: null, videoUrl: null, playback: undefined } : slot
+  )
+);
 
     setActiveClipPick((prev) => (prev?.slotIndex === index ? null : prev));
   };
 
-  const handleClipPickedFromGraph = (clip: {
-    id: string;
-    label?: string | null;
-    videoUrl?: string | null;
-  }) => {
-    if (!activeClipPick) return;
+const handleClipPickedFromGraph = (clip: {
+  id: string;
+  label?: string | null;
+  videoUrl?: string | null;
+}) => {
+  if (!activeClipPick || !project) return;
 
-    setClipCompareSlots((prev) =>
-      prev.map((slot, i) =>
-        i === activeClipPick.slotIndex
-          ? {
-              id: clip.id,
-              label: clip.label ?? null,
-              videoUrl: clip.videoUrl ?? null,
-            }
-          : slot
-      )
+  setClipCompareSlots((prev) => {
+
+    const playback = getClipGeneratedPlaybackInfo(
+      clip.id,
+      project.nodes as any,
+      project.edges as any
     );
 
-    setActiveClipPick(null);
-  };
+
+
+    return prev.map((slot, i) =>
+      i === activeClipPick.slotIndex
+        ? {
+            id: clip.id,
+            label: clip.label ?? null,
+            videoUrl: clip.videoUrl ?? null,
+            playback
+          }
+        : slot
+    );
+  });
+
+  setActiveClipPick(null);
+};
 
   if (!project) return <div style={{ padding: 16 }}>{title}</div>;
 
@@ -591,6 +619,7 @@ export default function App({
                 onClipPicked={handleClipPickedFromGraph}
                 externalCompareRequest={externalCompareRequest}
                 transitionEvaluations={transitionEvaluations}
+                showOnlyGeneratedPart={showOnlyGeneratedPart}
               />
             </ReactFlowProvider>
           </Box>
@@ -622,6 +651,8 @@ export default function App({
               onCompare={handleOpenTimelineCompare}
               canCompare={canCompareClips}
               loopVideos={loopComparisonVideos}
+              onToggleLoopVideos={() => setLoopComparisonVideos((prev) => !prev)}
+              showOnlyGeneratedPart={showOnlyGeneratedPart}
             />
           </Box>
         </Box>
@@ -648,6 +679,8 @@ export default function App({
         setShowOnlyChangedParameters={setShowOnlyChangedParameters}
         loopComparisonVideos={loopComparisonVideos}
         setLoopComparisonVideos={setLoopComparisonVideos}
+showOnlyGeneratedPart={showOnlyGeneratedPart}
+        setShowOnlyGeneratedPart={setShowOnlyGeneratedPart}
       />
 
       <InformationDialog open={legendOpen} onClose={() => setLegendOpen(false)} />

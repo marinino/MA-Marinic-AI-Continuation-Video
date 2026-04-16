@@ -7,6 +7,8 @@ import { StoredMediaFile } from "@ma/shared";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 const COMFY_URL = process.env.COMFY_URL ?? "http://127.0.0.1:8188";
 const COMFY_WS = COMFY_URL.replace(/^http/, "ws");
@@ -29,6 +31,72 @@ function safeExt(filename: string) {
   // optional: nur erlaubte video-formate
   const allowed = new Set([".mp4", ".mov", ".webm", ".mkv"]);
   return allowed.has(ext) ? ext : "";
+}
+
+const execFileAsync = promisify(execFile);
+
+function parseFraction(value?: string): number | null {
+  if (!value) return null;
+
+  if (value.includes("/")) {
+    const [a, b] = value.split("/").map(Number);
+    if (!Number.isFinite(a) || !Number.isFinite(b) || b === 0) return null;
+    return a / b;
+  }
+
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+async function readVideoMetadata(filePath: string): Promise<{
+  fps: number;
+  durationSec: number;
+  totalFrames: number;
+}> {
+  const { stdout } = await execFileAsync("ffprobe", [
+    "-v",
+    "error",
+    "-select_streams",
+    "v:0",
+    "-show_entries",
+    "stream=avg_frame_rate,r_frame_rate,nb_frames,duration",
+    "-of",
+    "json",
+    filePath,
+  ]);
+
+  const parsed = JSON.parse(stdout);
+  const stream = parsed?.streams?.[0];
+
+  if (!stream) {
+    throw new Error("No video stream found.");
+  }
+
+  const fps =
+    parseFraction(stream.avg_frame_rate) ??
+    parseFraction(stream.r_frame_rate);
+
+  const durationSec = Number(stream.duration);
+  const nbFrames = Number(stream.nb_frames);
+
+  if (!fps || !Number.isFinite(fps) || fps <= 0) {
+    throw new Error("Could not determine fps.");
+  }
+
+  if (!Number.isFinite(durationSec) || durationSec <= 0) {
+    throw new Error("Could not determine duration.");
+  }
+
+  const totalFrames =
+    Number.isFinite(nbFrames) && nbFrames > 0
+      ? Math.round(nbFrames)
+      : Math.max(1, Math.round(durationSec * fps));
+
+  return {
+    fps,
+    durationSec,
+    totalFrames,
+  };
 }
 
 async function ensureCopiedToInput(file: { filename: string; subfolder?: string; type?: string }) {
@@ -241,30 +309,32 @@ export async function comfyRoutes(app: FastifyInstance) {
     return { prompt_id: data.prompt_id, client_id };
   });
 
-  app.post("/comfy/upload", async (req, reply) => {
-    // erwartet multipart/form-data mit field name "file"
-    const file = await (req as any).file();
-    if (!file) return reply.code(400).send({ error: "missing_file" });
+app.post("/comfy/upload", async (req, reply) => {
+  const file = await (req as any).file();
+  if (!file) return reply.code(400).send({ error: "missing_file" });
 
-    const orig = safeBasename(file.filename);
-    const ext = safeExt(orig);
-    if (!ext) return reply.code(400).send({ error: "unsupported_filetype" });
+  const orig = safeBasename(file.filename);
+  const ext = safeExt(orig);
+  if (!ext) return reply.code(400).send({ error: "unsupported_filetype" });
 
-    const unique = `${Date.now()}_${nanoid()}${ext}`;
-    const dstPath = path.join(COMFY_INPUT_DIR, unique);
+  const unique = `${Date.now()}_${nanoid()}${ext}`;
+  const dstPath = path.join(COMFY_INPUT_DIR, unique);
 
-    await fs.mkdir(COMFY_INPUT_DIR, { recursive: true });
+  await fs.mkdir(COMFY_INPUT_DIR, { recursive: true });
 
-    // file.file ist ein stream
-    await pipeline(file.file, (await import("node:fs")).createWriteStream(dstPath));
+  await pipeline(file.file, (await import("node:fs")).createWriteStream(dstPath));
 
-    // gib ein StoredMediaFile zurück, das "input" markiert
-    const stored = {
-      filename: unique,
-      subfolder: "", // input hat i.d.R. keinen subfolder
-      type: "input", // wichtig!
-    };
+  const metadata = await readVideoMetadata(dstPath);
 
-    return reply.send(stored);
-  });
+  const stored = {
+    filename: unique,
+    subfolder: "",
+    type: "input",
+    fps: metadata.fps,
+    durationSec: metadata.durationSec,
+    totalFrames: metadata.totalFrames,
+  };
+
+  return reply.send(stored);
+});
 }

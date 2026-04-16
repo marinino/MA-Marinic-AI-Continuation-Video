@@ -27,6 +27,7 @@ import { NodeDetailsDialogProps } from "../types/props";
 import { useNodeDetailsDialog } from "../hooks/useNodeDetailsDialogLogic";
 import { CompareParameterBarGroup } from "./CompareParameterBarGroup";
 import { CompareZoomedParameterView } from "./CompareZoomedParameter";
+import { VideoSegmentPlayer } from "./VideoSegmentPlayer";
 type Logic = ReturnType<typeof useNodeDetailsDialog>;
 
 export function NodeDetailsDialogView({
@@ -315,7 +316,13 @@ export function NodeDetailsDialogView({
               </Stack>
             ) : props.videoUrl ? (
               <>
-                <video src={props.videoUrl} controls style={{ width: "100%", borderRadius: 8 }} />
+                <VideoSegmentPlayer
+                  src={props.videoUrl}
+                  playback={props.videoPlayback}
+                  showOnlyGeneratedPart={props.showOnlyGeneratedPart}
+                  controls
+                  style={{ width: "100%", borderRadius: 8 }}
+                />
                 {props.videoFile?.filename && (
                   <Typography variant="caption" color="text.secondary">
                     {props.videoFile.filename}

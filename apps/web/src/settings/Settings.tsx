@@ -34,6 +34,8 @@ type SettingsProps = {
   setShowOnlyChangedParameters: (value: boolean) => void;
   loopComparisonVideos: boolean;
   setLoopComparisonVideos: (value: boolean) => void;
+    showOnlyGeneratedPart: boolean;
+  setShowOnlyGeneratedPart: (value: boolean) => void;
 };
 
 export function Settings({
@@ -57,6 +59,8 @@ export function Settings({
   setShowOnlyChangedParameters,
   loopComparisonVideos,
   setLoopComparisonVideos,
+  showOnlyGeneratedPart,
+  setShowOnlyGeneratedPart
 }: SettingsProps) {
   return (
     <Dialog
@@ -120,6 +124,13 @@ export function Settings({
           description="When enabled, video previews in the clip comparison sidebar play continuously in a loop"
           value={loopComparisonVideos}
           onChange={setLoopComparisonVideos}
+        />
+
+        <BooleanToggleRow
+          label="Only show new clip snippets"
+          description="When enabled, clip nodes show only the newly generated part after parameter node"
+          value={showOnlyGeneratedPart}
+          onChange={setShowOnlyGeneratedPart}
         />
 
         <Box
