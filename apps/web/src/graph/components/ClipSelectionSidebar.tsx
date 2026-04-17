@@ -192,36 +192,7 @@ export function ClipSelectionSidebar({
                         )}
                       </Box>
 
-                        {slot.playback?.hasGeneratedSegment &&
-    typeof slot.playback.totalFrames === "number" &&
-    typeof slot.playback.generatedStartFrame === "number" &&
-    slot.playback.totalFrames > 0 && (
-      <Box
-        sx={{
-          height: 8,
-          borderRadius: 999,
-          overflow: "hidden",
-          bgcolor: "grey.800",
-        }}
-      >
-        <Box
-          sx={{
-            width: `${(slot.playback.generatedStartFrame / slot.playback.totalFrames) * 100}%`,
-            height: "100%",
-            bgcolor: "grey.500",
-            float: "left",
-          }}
-        />
-        <Box
-          sx={{
-            width: `${((slot.playback.totalFrames - slot.playback.generatedStartFrame) / slot.playback.totalFrames) * 100}%`,
-            height: "100%",
-            bgcolor: "success.main",
-            float: "left",
-          }}
-        />
-      </Box>
-    )}
+                   
 
                       <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
                         {slot.label ?? "Unnamed Clip"}

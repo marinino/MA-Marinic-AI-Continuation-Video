@@ -29,9 +29,9 @@ import { InformationDialog } from "./graph/dialogs/InformationDialog";
 import { loadSettings, saveSettings } from "./utils/localStorage";
 import { LoadProjectDialog } from "./graph/dialogs/LoadProjectsDialog";
 import { CategoryScoresSidebar } from "./graph/components/CategoryScoresSidebar";
-import { BrachSuggestion, CompareTimelineOption, TransitionEvaluation } from "./graph/types/ui";
+import { BrachSuggestion, CompareTimelineOption, TransitionEvaluation, VideoSegmentPlayback } from "./graph/types/ui";
 import { ClipSelectionSidebar } from "./graph/components/ClipSelectionSidebar";
-import { collectParamTimelineForClip, getClipGeneratedPlaybackInfo } from "./graph/graph_helpers/selectors";
+import { collectParamTimelineForClip, getVideoSegmentPlaybackForClip } from "./graph/graph_helpers/selectors";
 import BugReportIcon from "@mui/icons-material/BugReport";
 
 type ColorMode = "light" | "dark";
@@ -100,17 +100,12 @@ const [clipCompareSlots, setClipCompareSlots] = useState<
     id: string | null;
     label?: string | null;
     videoUrl?: string | null;
-    playback?: {
-      totalFrames?: number | null;
-      generatedStartFrame?: number | null;
-      hasGeneratedSegment?: boolean;
-      generatedFrames?: number | null;
-    };
+    playback?: VideoSegmentPlayback;
   }[]
 >([
-    { id: null, label: null, videoUrl: null },
-    { id: null, label: null, videoUrl: null },
-  ]);
+  { id: null, label: null, videoUrl: null, playback: undefined },
+  { id: null, label: null, videoUrl: null, playback: undefined },
+]);
 
   const [timelineCompareDraft, setTimelineCompareDraft] = useState<{
     leftSlotIndex: number;
@@ -128,6 +123,23 @@ const [clipCompareSlots, setClipCompareSlots] = useState<
   } | null>(null);
 
   const canCompareClips = clipCompareSlots.filter((x) => x.id).length >= 2;
+
+  const clipCompareSlotsWithPlayback = useMemo(() => {
+  if (!project) return clipCompareSlots;
+
+  return clipCompareSlots.map((slot) => {
+    if (!slot.id) return slot;
+
+    return {
+      ...slot,
+      playback: getVideoSegmentPlaybackForClip(
+        slot.id,
+        project.nodes as any,
+        project.edges as any
+      ),
+    };
+  });
+}, [project, clipCompareSlots]);
 
   const clipCompareTimelineSlots = useMemo(() => {
     if (!project) return [];
@@ -407,26 +419,16 @@ const handleClipPickedFromGraph = (clip: {
   if (!activeClipPick || !project) return;
 
   setClipCompareSlots((prev) => {
-
-    const playback = getClipGeneratedPlaybackInfo(
-      clip.id,
-      project.nodes as any,
-      project.edges as any
-    );
-
-
-
-    return prev.map((slot, i) =>
-      i === activeClipPick.slotIndex
-        ? {
-            id: clip.id,
-            label: clip.label ?? null,
-            videoUrl: clip.videoUrl ?? null,
-            playback
-          }
-        : slot
-    );
-  });
+  return prev.map((slot, i) =>
+    i === activeClipPick.slotIndex
+      ? {
+          id: clip.id,
+          label: clip.label ?? null,
+          videoUrl: clip.videoUrl ?? null,
+        }
+      : slot
+  );
+});
 
   setActiveClipPick(null);
 };
@@ -478,7 +480,7 @@ const handleClipPickedFromGraph = (clip: {
 
                       try {
                         setEvaluatingTransitions(true);
-                        const result = await evaluateTransitions(project.id, 5);
+                        const result = await evaluateTransitions(project.id, 20);
                         setTransitionEvaluations(result.evaluations);
                         console.log("transition evaluation result", result);
                         console.log("evaluations", result.evaluations);
@@ -639,21 +641,21 @@ const handleClipPickedFromGraph = (clip: {
               transition: "width 0.2s ease, flex-basis 0.2s ease",
             }}
           >
-            <ClipSelectionSidebar
-              open={isRightSidebarOpen}
-              onToggle={() => setIsRightSidebarOpen((prev) => !prev)}
-              slots={clipCompareSlots}
-              timelines={clipCompareTimelineSlots}
-              activePickSlot={activeClipPick?.slotIndex ?? null}
-              onPickSlot={handlePickClipSlot}
-              onClearSlot={handleClearClipSlot}
-              onSelectParamNode={handleSelectParamNodeFromTimeline}
-              onCompare={handleOpenTimelineCompare}
-              canCompare={canCompareClips}
-              loopVideos={loopComparisonVideos}
-              onToggleLoopVideos={() => setLoopComparisonVideos((prev) => !prev)}
-              showOnlyGeneratedPart={showOnlyGeneratedPart}
-            />
+<ClipSelectionSidebar
+  open={isRightSidebarOpen}
+  onToggle={() => setIsRightSidebarOpen((prev) => !prev)}
+  slots={clipCompareSlotsWithPlayback}
+  timelines={clipCompareTimelineSlots}
+  activePickSlot={activeClipPick?.slotIndex ?? null}
+  onPickSlot={handlePickClipSlot}
+  onClearSlot={handleClearClipSlot}
+  onSelectParamNode={handleSelectParamNodeFromTimeline}
+  onCompare={handleOpenTimelineCompare}
+  canCompare={canCompareClips}
+  loopVideos={loopComparisonVideos}
+  onToggleLoopVideos={() => setLoopComparisonVideos((prev) => !prev)}
+  showOnlyGeneratedPart={showOnlyGeneratedPart}
+/>
           </Box>
         </Box>
       </Box>

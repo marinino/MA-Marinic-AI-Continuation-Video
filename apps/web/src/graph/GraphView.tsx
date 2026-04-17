@@ -82,8 +82,8 @@ import {
   buildParameterHistoryFromBranchSteps,
   getSimpleFromParentClip,
   collectParamTimelineForClip,
-  getClipGeneratedPlaybackInfo,
-  getVideoTotalFrames,
+  getVideoSegmentPlaybackForClip,
+
 } from "./graph_helpers/selectors";
 import { useManualTimelineImport } from "./hooks/useManualTimelineImport";
 import { DeleteNodeDialog } from "./dialogs/DeleteNodeDialog";
@@ -1196,11 +1196,7 @@ export function GraphView(props: {
 
   const detailsNodeData = detailsNode?.data as any | undefined;
 
-const detailsVideoPlayback = useMemo(() => {
-  if (!detailsNode || detailsNode.type !== "clip") return undefined;
 
-  return getClipGeneratedPlaybackInfo(detailsNode.id, nodesForUI as RFNode[], g.rfEdges);
-}, [detailsNode, nodesForUI, g.rfEdges]);
 
   const sidebarNode = useMemo(() => {
     if (!g.clickedNodeId) return null;
@@ -1357,6 +1353,16 @@ const detailsVideoPlayback = useMemo(() => {
     };
   }, [detailsNode?.id, nodesForUI, g.rfEdges]);
 
+  const detailsVideoPlayback = useMemo(() => {
+  if (!detailsNode || detailsNode.type !== "clip") return undefined;
+
+  return getVideoSegmentPlaybackForClip(
+    detailsNode.id,
+    nodesForUI as RFNode[],
+    g.rfEdges as RFEdge[]
+  );
+}, [detailsNode, nodesForUI, g.rfEdges]);
+
   const sharedNodeDetailsProps = useMemo(() => {
     if (!sidebarNode || sidebarNode.type !== "params") return null;
 
@@ -1511,8 +1517,8 @@ const detailsVideoPlayback = useMemo(() => {
   videoFile: file,
   videoStatus: "done",
   videoOpened: false,
-  fps: 16,
   totalFrames: 81,
+
 
           } as any,
           draggable: true,
@@ -1566,8 +1572,7 @@ const stored = await comfyUploadVideo(rootUploadFile);
   videoFile: stored,
   videoStatus: "done",
   videoOpened: false,
-    fps: stored.fps ?? null,
-    totalFrames: stored.totalFrames ?? null,
+totalFrames: 0,
 } as any,
         draggable: true,
       };
@@ -1845,8 +1850,7 @@ const clipNode: RFNode = {
     videoFile: file,
     videoStatus: "done",
     videoOpened: false,
-    fps: 16,
-    totalFrames: newTotalFrames,
+totalFrames: newTotalFrames,
   } as any,
   draggable: true,
 };
@@ -1999,9 +2003,7 @@ const stored = await comfyUploadVideo(importVideoFile);
               videoFile: stored,
               videoStatus: "done",
               videoOpened: false,
-
-    fps: stored.fps ?? null,
-    totalFrames: stored.totalFrames ?? null,
+totalFrames: 0,
             } as any,
             draggable: true,
           };

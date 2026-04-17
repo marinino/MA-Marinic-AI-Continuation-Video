@@ -48,56 +48,7 @@ function parseFraction(value?: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-async function readVideoMetadata(filePath: string): Promise<{
-  fps: number;
-  durationSec: number;
-  totalFrames: number;
-}> {
-  const { stdout } = await execFileAsync("ffprobe", [
-    "-v",
-    "error",
-    "-select_streams",
-    "v:0",
-    "-show_entries",
-    "stream=avg_frame_rate,r_frame_rate,nb_frames,duration",
-    "-of",
-    "json",
-    filePath,
-  ]);
 
-  const parsed = JSON.parse(stdout);
-  const stream = parsed?.streams?.[0];
-
-  if (!stream) {
-    throw new Error("No video stream found.");
-  }
-
-  const fps =
-    parseFraction(stream.avg_frame_rate) ??
-    parseFraction(stream.r_frame_rate);
-
-  const durationSec = Number(stream.duration);
-  const nbFrames = Number(stream.nb_frames);
-
-  if (!fps || !Number.isFinite(fps) || fps <= 0) {
-    throw new Error("Could not determine fps.");
-  }
-
-  if (!Number.isFinite(durationSec) || durationSec <= 0) {
-    throw new Error("Could not determine duration.");
-  }
-
-  const totalFrames =
-    Number.isFinite(nbFrames) && nbFrames > 0
-      ? Math.round(nbFrames)
-      : Math.max(1, Math.round(durationSec * fps));
-
-  return {
-    fps,
-    durationSec,
-    totalFrames,
-  };
-}
 
 async function ensureCopiedToInput(file: { filename: string; subfolder?: string; type?: string }) {
   const filename = safeBasename(file.filename);
@@ -324,15 +275,13 @@ app.post("/comfy/upload", async (req, reply) => {
 
   await pipeline(file.file, (await import("node:fs")).createWriteStream(dstPath));
 
-  const metadata = await readVideoMetadata(dstPath);
+
 
   const stored = {
     filename: unique,
     subfolder: "",
     type: "input",
-    fps: metadata.fps,
-    durationSec: metadata.durationSec,
-    totalFrames: metadata.totalFrames,
+   
   };
 
   return reply.send(stored);

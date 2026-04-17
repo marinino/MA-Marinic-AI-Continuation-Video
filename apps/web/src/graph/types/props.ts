@@ -8,6 +8,7 @@ import type {
   EditMetaSummary,
   ParamDelats,
   ParameterHistoryMap,
+  VideoSegmentPlayback,
 } from "../types/ui";
 
 export interface NodeDetailsDialogProps {
@@ -81,12 +82,7 @@ export interface NodeDetailsDialogProps {
     compareHistory: ParameterHistoryMap;
   };
 
-  videoPlayback?: {
-  fps?: number | null;
-  totalFrames?: number | null;
-  generatedStartFrame?: number | null;
-  hasGeneratedSegment?: boolean;
-};
+videoPlayback?: VideoSegmentPlayback;
 
 showOnlyGeneratedPart?: boolean;
 }

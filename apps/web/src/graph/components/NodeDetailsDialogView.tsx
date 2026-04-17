@@ -317,12 +317,14 @@ export function NodeDetailsDialogView({
             ) : props.videoUrl ? (
               <>
                 <VideoSegmentPlayer
-                  src={props.videoUrl}
-                  playback={props.videoPlayback}
-                  showOnlyGeneratedPart={props.showOnlyGeneratedPart}
-                  controls
-                  style={{ width: "100%", borderRadius: 8 }}
-                />
+  src={props.videoUrl}
+  playback={props.videoPlayback}
+  showOnlyGeneratedPart={props.showOnlyGeneratedPart}
+  autoPlay
+  muted
+  controls
+  style={{ width: "100%", borderRadius: 8 }}
+/>
                 {props.videoFile?.filename && (
                   <Typography variant="caption" color="text.secondary">
                     {props.videoFile.filename}

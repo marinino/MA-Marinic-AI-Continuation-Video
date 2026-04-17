@@ -525,29 +525,15 @@ export type TransitionEvaluation = {
   };
 };
 
-export type ClipGeneratedPlaybackInfo = {
-  fps: number | null;
-  totalFrames: number | null;
-  generatedFrames: number | null;
-  generatedStartFrame: number | null;
-  hasGeneratedSegment: boolean;
+
+
+export type VideoSegmentPlayback = {
+  generatedFrames: number;
 };
 
 export type ClipSlot = {
   id: string | null;
   label?: string | null;
   videoUrl?: string | null;
-  playback?: {
-    totalFrames?: number | null;
-    generatedStartFrame?: number | null;
-    hasGeneratedSegment?: boolean;
-    generatedFrames?: number | null;
-  };
-};
-
-export type VideoSegmentPlayback = {
-  fps?: number
-  totalFrames?: number | null;
-  generatedStartFrame?: number | null;
-  hasGeneratedSegment?: boolean;
+  playback?: VideoSegmentPlayback;
 };

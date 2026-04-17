@@ -211,7 +211,7 @@ export async function openTimelineInResolve(projectId: string, filename: string)
 
 export async function evaluateTransitions(
   projectId: string,
-  frameCount = 5
+  frameCount = 20
 ): Promise<{
   evaluations: Record<string, TransitionEvaluation>;
   debug: any;

@@ -3,10 +3,10 @@ import type { Edge as RFEdge, Node as RFNode } from "reactflow";
 import {
   BranchNodeLike,
   BranchTimelineStep,
-  ClipGeneratedPlaybackInfo,
   ParameterHistoryMap,
   SimpleReal,
   TransitionPair,
+  VideoSegmentPlayback,
 } from "../types/ui";
 
 export function resolveEditIdForClipId(project: Project, clipId: string): string | null {
@@ -386,94 +386,36 @@ export function collectParamTimelineForClip(
 }
 
 
-export function getClipGeneratedPlaybackInfo(
+export function getVideoSegmentPlaybackForClip(
   clipId: string,
   nodes: RFNode[],
   edges: RFEdge[]
-): ClipGeneratedPlaybackInfo {
-  const timeline = collectParamTimelineForClip(clipId, nodes, edges);
+): VideoSegmentPlayback | undefined {
+  const FPS = 16;
 
-  const currentStep = [...timeline]
-    .reverse()
-    .find((step) => step.kind === "params" && step.clipNodeId === clipId);
+  const nodesById = new Map(nodes.map((n) => [n.id, n]));
+  const incoming = buildIncomingMap(edges);
 
+  const clipNode = nodesById.get(clipId);
+  if (!clipNode || clipNode.type !== "clip") return undefined;
+
+  const incomingEdge = incoming.get(clipId);
+  if (!incomingEdge) return undefined;
+
+  const sourceNode = nodesById.get(incomingEdge.source);
+  if (!sourceNode || sourceNode.type !== "params") return undefined;
+
+  const data = (sourceNode.data as any) ?? {};
   const generatedFrames =
-    currentStep && typeof currentStep.frames === "number" && Number.isFinite(currentStep.frames)
-      ? currentStep.frames
-      : null;
+    typeof data.generatedFrames === "number"
+      ? data.generatedFrames
+      : typeof data.length === "number"
+        ? data.length
+        : 0;
 
-  const clipNode = nodes.find((n) => n.id === clipId);
-  const clipData = (clipNode?.data as any) ?? {};
-
-  const fps =
-    typeof clipData.fps === "number" && Number.isFinite(clipData.fps) && clipData.fps > 0
-      ? clipData.fps
-      : null;
-
-  const totalFrames =
-    typeof clipData.totalFrames === "number" &&
-    Number.isFinite(clipData.totalFrames) &&
-    clipData.totalFrames > 0
-      ? clipData.totalFrames
-      : null;
-
-  if (
-    generatedFrames == null ||
-    totalFrames == null ||
-    generatedFrames <= 0 ||
-    totalFrames <= 0
-  ) {
-    return {
-      fps,
-      totalFrames,
-      generatedFrames,
-      generatedStartFrame: null,
-      hasGeneratedSegment: false,
-    };
-  }
-
-  const clampedGeneratedFrames = Math.min(generatedFrames, totalFrames);
-  const generatedStartFrame = Math.max(0, totalFrames - clampedGeneratedFrames);
+  if (generatedFrames <= 0) return undefined;
 
   return {
-    fps,
-    totalFrames,
-    generatedFrames: clampedGeneratedFrames,
-    generatedStartFrame,
-    hasGeneratedSegment: true,
+    generatedFrames,
   };
-}
-
-export function getVideoTotalFrames(file: File, fps = 16): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const video = document.createElement("video");
-
-    const cleanup = () => {
-      URL.revokeObjectURL(url);
-      video.removeAttribute("src");
-      video.load();
-    };
-
-    video.preload = "metadata";
-    video.src = url;
-
-    video.onloadedmetadata = () => {
-      const duration = video.duration;
-
-      cleanup();
-
-      if (!Number.isFinite(duration) || duration <= 0) {
-        reject(new Error("Could not read video duration."));
-        return;
-      }
-
-      resolve(Math.max(1, Math.round(duration * fps)));
-    };
-
-    video.onerror = () => {
-      cleanup();
-      reject(new Error("Failed to load video metadata."));
-    };
-  });
 }
