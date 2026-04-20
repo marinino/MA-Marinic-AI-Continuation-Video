@@ -34,7 +34,6 @@ type UseManualTimelineImportArgs = {
   setErrorDialog: React.Dispatch<React.SetStateAction<ErrorDialogState>>;
 };
 
-
 function getBaselineStoredTimelineFilenameForClip(project: Project, clipId: string): string | null {
   const editId = (() => {
     const clip = project.nodes.find((n) => n.id === clipId) as any;
@@ -92,7 +91,7 @@ export function useManualTimelineImport({
 
     try {
       // 1) Uploads
-const storedVideo: StoredMediaFile = await comfyUploadVideo(editedVideoFile);
+      const storedVideo: StoredMediaFile = await comfyUploadVideo(editedVideoFile);
 
       const baseline = getBaselineStoredTimelineFilenameForClip(project, fromClipId);
 
@@ -201,8 +200,6 @@ const storedVideo: StoredMediaFile = await comfyUploadVideo(editedVideoFile);
           videoStatus: "done",
           videoOpened: false,
           producedByEditId: editId,
-       
-
         } as any,
         draggable: true,
       };

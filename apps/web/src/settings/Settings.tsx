@@ -34,7 +34,7 @@ type SettingsProps = {
   setShowOnlyChangedParameters: (value: boolean) => void;
   loopComparisonVideos: boolean;
   setLoopComparisonVideos: (value: boolean) => void;
-    showOnlyGeneratedPart: boolean;
+  showOnlyGeneratedPart: boolean;
   setShowOnlyGeneratedPart: (value: boolean) => void;
 };
 
@@ -60,7 +60,7 @@ export function Settings({
   loopComparisonVideos,
   setLoopComparisonVideos,
   showOnlyGeneratedPart,
-  setShowOnlyGeneratedPart
+  setShowOnlyGeneratedPart,
 }: SettingsProps) {
   return (
     <Dialog

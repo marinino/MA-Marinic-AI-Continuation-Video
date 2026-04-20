@@ -1,11 +1,17 @@
-import { Box, IconButton, Typography, Divider, Button, FormControlLabel, Switch } from "@mui/material";
+import {
+  Box,
+  IconButton,
+  Typography,
+  Divider,
+  Button,
+  FormControlLabel,
+  Switch,
+} from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { BranchTimelineSegment, ClipSlot } from "../types/ui";
 import { ClipBranchTimeline } from "./ClipBranchTimeline";
 import { VideoSegmentPlayer } from "./VideoSegmentPlayer";
-
-
 
 export function ClipSelectionSidebar({
   open,
@@ -20,7 +26,7 @@ export function ClipSelectionSidebar({
   canCompare,
   loopVideos,
   onToggleLoopVideos,
-  showOnlyGeneratedPart
+  showOnlyGeneratedPart,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -58,44 +64,38 @@ export function ClipSelectionSidebar({
           }}
         >
           <Box
-  sx={{
-    px: 2,
-    pt: 2,
-    pb: 1,
-    display: "flex",
-    flexDirection: "column",
-    gap: 1.5,
-  }}
->
-  <Box
-    sx={{
-      display: "flex",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: 2,
-    }}
-  >
-   
-
-
-
-    <Button
-      variant="contained"
-      onClick={onCompare}
-      disabled={!canCompare}
-      sx={{ flexShrink: 0, alignSelf: "flex-start" }}
-    >
-      Compare
-    </Button>
-        <FormControlLabel
-    control={<Switch checked={loopVideos} onChange={onToggleLoopVideos} />}
-    label="Loop videos"
-    sx={{ ml: 0 }}
-  />
-  </Box>
-
-  
-</Box>
+            sx={{
+              px: 2,
+              pt: 2,
+              pb: 1,
+              display: "flex",
+              flexDirection: "column",
+              gap: 1.5,
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: 2,
+              }}
+            >
+              <Button
+                variant="contained"
+                onClick={onCompare}
+                disabled={!canCompare}
+                sx={{ flexShrink: 0, alignSelf: "flex-start" }}
+              >
+                Compare
+              </Button>
+              <FormControlLabel
+                control={<Switch checked={loopVideos} onChange={onToggleLoopVideos} />}
+                label="Loop videos"
+                sx={{ ml: 0 }}
+              />
+            </Box>
+          </Box>
 
           <Box
             sx={{
@@ -171,28 +171,26 @@ export function ClipSelectionSidebar({
                       >
                         {slot.videoUrl ? (
                           <VideoSegmentPlayer
-  src={slot.videoUrl}
-  playback={slot.playback}
-  showOnlyGeneratedPart={showOnlyGeneratedPart}
-  autoPlay
-  loop={loopVideos}
-  muted
-  controls={!loopVideos}
-  style={{
-    width: "100%",
-    maxHeight: 220,
-    display: "block",
-    objectFit: "contain",
-  }}
-/>
+                            src={slot.videoUrl}
+                            playback={slot.playback}
+                            showOnlyGeneratedPart={showOnlyGeneratedPart}
+                            autoPlay
+                            loop={loopVideos}
+                            muted
+                            controls={!loopVideos}
+                            style={{
+                              width: "100%",
+                              maxHeight: 220,
+                              display: "block",
+                              objectFit: "contain",
+                            }}
+                          />
                         ) : (
                           <Typography variant="body2" color="grey.400">
                             No preview available
                           </Typography>
                         )}
                       </Box>
-
-                   
 
                       <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
                         {slot.label ?? "Unnamed Clip"}

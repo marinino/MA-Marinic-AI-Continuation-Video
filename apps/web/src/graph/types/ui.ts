@@ -525,8 +525,6 @@ export type TransitionEvaluation = {
   };
 };
 
-
-
 export type VideoSegmentPlayback = {
   generatedFrames: number;
 };

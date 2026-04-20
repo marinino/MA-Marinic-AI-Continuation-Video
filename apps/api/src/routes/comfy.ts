@@ -48,8 +48,6 @@ function parseFraction(value?: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-
-
 async function ensureCopiedToInput(file: { filename: string; subfolder?: string; type?: string }) {
   const filename = safeBasename(file.filename);
   const sub = safeBasename(file.subfolder ?? "");
@@ -260,30 +258,27 @@ export async function comfyRoutes(app: FastifyInstance) {
     return { prompt_id: data.prompt_id, client_id };
   });
 
-app.post("/comfy/upload", async (req, reply) => {
-  const file = await (req as any).file();
-  if (!file) return reply.code(400).send({ error: "missing_file" });
+  app.post("/comfy/upload", async (req, reply) => {
+    const file = await (req as any).file();
+    if (!file) return reply.code(400).send({ error: "missing_file" });
 
-  const orig = safeBasename(file.filename);
-  const ext = safeExt(orig);
-  if (!ext) return reply.code(400).send({ error: "unsupported_filetype" });
+    const orig = safeBasename(file.filename);
+    const ext = safeExt(orig);
+    if (!ext) return reply.code(400).send({ error: "unsupported_filetype" });
 
-  const unique = `${Date.now()}_${nanoid()}${ext}`;
-  const dstPath = path.join(COMFY_INPUT_DIR, unique);
+    const unique = `${Date.now()}_${nanoid()}${ext}`;
+    const dstPath = path.join(COMFY_INPUT_DIR, unique);
 
-  await fs.mkdir(COMFY_INPUT_DIR, { recursive: true });
+    await fs.mkdir(COMFY_INPUT_DIR, { recursive: true });
 
-  await pipeline(file.file, (await import("node:fs")).createWriteStream(dstPath));
+    await pipeline(file.file, (await import("node:fs")).createWriteStream(dstPath));
 
+    const stored = {
+      filename: unique,
+      subfolder: "",
+      type: "input",
+    };
 
-
-  const stored = {
-    filename: unique,
-    subfolder: "",
-    type: "input",
-   
-  };
-
-  return reply.send(stored);
-});
+    return reply.send(stored);
+  });
 }

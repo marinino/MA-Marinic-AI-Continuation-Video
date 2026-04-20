@@ -385,7 +385,6 @@ export function collectParamTimelineForClip(
   return steps.reverse();
 }
 
-
 export function getVideoSegmentPlaybackForClip(
   clipId: string,
   nodes: RFNode[],

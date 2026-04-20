@@ -82,7 +82,7 @@ export interface NodeDetailsDialogProps {
     compareHistory: ParameterHistoryMap;
   };
 
-videoPlayback?: VideoSegmentPlayback;
+  videoPlayback?: VideoSegmentPlayback;
 
-showOnlyGeneratedPart?: boolean;
+  showOnlyGeneratedPart?: boolean;
 }

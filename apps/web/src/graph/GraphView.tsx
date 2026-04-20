@@ -83,7 +83,6 @@ import {
   getSimpleFromParentClip,
   collectParamTimelineForClip,
   getVideoSegmentPlaybackForClip,
-
 } from "./graph_helpers/selectors";
 import { useManualTimelineImport } from "./hooks/useManualTimelineImport";
 import { DeleteNodeDialog } from "./dialogs/DeleteNodeDialog";
@@ -1196,8 +1195,6 @@ export function GraphView(props: {
 
   const detailsNodeData = detailsNode?.data as any | undefined;
 
-
-
   const sidebarNode = useMemo(() => {
     if (!g.clickedNodeId) return null;
     return nodesForUI.find((n) => n.id === g.clickedNodeId) ?? null;
@@ -1354,14 +1351,14 @@ export function GraphView(props: {
   }, [detailsNode?.id, nodesForUI, g.rfEdges]);
 
   const detailsVideoPlayback = useMemo(() => {
-  if (!detailsNode || detailsNode.type !== "clip") return undefined;
+    if (!detailsNode || detailsNode.type !== "clip") return undefined;
 
-  return getVideoSegmentPlaybackForClip(
-    detailsNode.id,
-    nodesForUI as RFNode[],
-    g.rfEdges as RFEdge[]
-  );
-}, [detailsNode, nodesForUI, g.rfEdges]);
+    return getVideoSegmentPlaybackForClip(
+      detailsNode.id,
+      nodesForUI as RFNode[],
+      g.rfEdges as RFEdge[]
+    );
+  }, [detailsNode, nodesForUI, g.rfEdges]);
 
   const sharedNodeDetailsProps = useMemo(() => {
     if (!sidebarNode || sidebarNode.type !== "params") return null;
@@ -1512,14 +1509,12 @@ export function GraphView(props: {
           id,
           type: "clip",
           position: { x: 50, y: 80 },
-        data: {
-  label: "Root Clip",
-  videoFile: file,
-  videoStatus: "done",
-  videoOpened: false,
-  totalFrames: 81,
-
-
+          data: {
+            label: "Root Clip",
+            videoFile: file,
+            videoStatus: "done",
+            videoOpened: false,
+            totalFrames: 81,
           } as any,
           draggable: true,
         };
@@ -1560,20 +1555,20 @@ export function GraphView(props: {
     setRootUploadStatus("Uploading…");
 
     try {
-const stored = await comfyUploadVideo(rootUploadFile);
+      const stored = await comfyUploadVideo(rootUploadFile);
 
       const id = nanoid();
       const rootClip: RFNode = {
         id,
         type: "clip",
         position: { x: 50, y: 80 },
-       data: {
-  label: "Root Clip",
-  videoFile: stored,
-  videoStatus: "done",
-  videoOpened: false,
-totalFrames: 0,
-} as any,
+        data: {
+          label: "Root Clip",
+          videoFile: stored,
+          videoStatus: "done",
+          videoOpened: false,
+          totalFrames: 0,
+        } as any,
         draggable: true,
       };
 
@@ -1833,27 +1828,27 @@ totalFrames: 0,
               draggable: true,
             };
 
-const parentNode = prevNodes.find((n) => n.id === parentId);
-const parentTotalFrames =
-  typeof (parentNode?.data as any)?.totalFrames === "number"
-    ? (parentNode?.data as any).totalFrames
-    : 0;
+            const parentNode = prevNodes.find((n) => n.id === parentId);
+            const parentTotalFrames =
+              typeof (parentNode?.data as any)?.totalFrames === "number"
+                ? (parentNode?.data as any).totalFrames
+                : 0;
 
-const newTotalFrames = parentTotalFrames + length;
+            const newTotalFrames = parentTotalFrames + length;
 
-const clipNode: RFNode = {
-  id: newClipId,
-  type: "clip",
-  position: clipPos,
-  data: {
-    label: "Generated Clip",
-    videoFile: file,
-    videoStatus: "done",
-    videoOpened: false,
-totalFrames: newTotalFrames,
-  } as any,
-  draggable: true,
-};
+            const clipNode: RFNode = {
+              id: newClipId,
+              type: "clip",
+              position: clipPos,
+              data: {
+                label: "Generated Clip",
+                videoFile: file,
+                videoStatus: "done",
+                videoOpened: false,
+                totalFrames: newTotalFrames,
+              } as any,
+              draggable: true,
+            };
 
             const nextNodes = [...prevNodes, paramNode, clipNode];
 
@@ -1895,7 +1890,7 @@ totalFrames: newTotalFrames,
     setImportVideoStatus("Uploading…");
 
     try {
-const stored = await comfyUploadVideo(importVideoFile);
+      const stored = await comfyUploadVideo(importVideoFile);
 
       const importId = nanoid();
       const clipId = nanoid();
@@ -2003,7 +1998,7 @@ const stored = await comfyUploadVideo(importVideoFile);
               videoFile: stored,
               videoStatus: "done",
               videoOpened: false,
-totalFrames: 0,
+              totalFrames: 0,
             } as any,
             draggable: true,
           };
@@ -2424,8 +2419,8 @@ totalFrames: 0,
         type={(detailsNode?.type as "clip" | "params" | "edit" | "import") ?? "clip"}
         d={(detailsEffectiveDelta as any) ?? {}}
         videoUrl={(detailsNodeData?.videoUrl as string | null | undefined) ?? null}
-          videoPlayback={detailsVideoPlayback}
-  showOnlyGeneratedPart={props.showOnlyGeneratedPart}
+        videoPlayback={detailsVideoPlayback}
+        showOnlyGeneratedPart={props.showOnlyGeneratedPart}
         videoFile={detailsNodeData?.videoFile}
         videoStatus={detailsNodeData?.videoStatus}
         metaSummary={detailsNodeData?.metaSummaryData}

@@ -28,13 +28,15 @@ export function VideoSegmentPlayer({
   const generatedFrames = playback?.generatedFrames ?? 0;
   const fps = 16;
 
-  const shouldSeekToGeneratedPart =
+  const shouldClampToGeneratedPart =
     showOnlyGeneratedPart && generatedFrames > 0 && Number.isFinite(fps) && fps > 0;
 
-  const targetGeneratedDuration = useMemo(() => {
-    if (!shouldSeekToGeneratedPart) return 0;
+  const useCustomLoop = loop && shouldClampToGeneratedPart;
+
+  const generatedDuration = useMemo(() => {
+    if (!shouldClampToGeneratedPart) return 0;
     return generatedFrames / fps;
-  }, [shouldSeekToGeneratedPart, generatedFrames, fps]);
+  }, [shouldClampToGeneratedPart, generatedFrames, fps]);
 
   useEffect(() => {
     const video = ref.current;
@@ -42,33 +44,54 @@ export function VideoSegmentPlayer({
 
     didInitialSeekRef.current = false;
 
+    const getGeneratedStartTime = () => {
+      const duration = video.duration;
+      if (!Number.isFinite(duration) || duration <= 0) return 0;
+      return Math.max(0, duration - generatedDuration);
+    };
+
     const applyInitialSeek = () => {
       if (!video || didInitialSeekRef.current) return;
-
-      if (!shouldSeekToGeneratedPart) {
+      if (!shouldClampToGeneratedPart) {
         didInitialSeekRef.current = true;
         return;
       }
 
-      const duration = video.duration;
-      if (!Number.isFinite(duration) || duration <= 0) return;
-
-      const startTime = Math.max(0, duration - targetGeneratedDuration);
-
-      console.log("Video debug:", {
-        src,
-        duration,
-        generatedFrames,
-        fps,
-        targetGeneratedDuration,
-        startTime,
-      });
+      const startTime = getGeneratedStartTime();
 
       try {
         video.currentTime = startTime;
         didInitialSeekRef.current = true;
       } catch (err) {
-        console.error("Failed to set currentTime", err);
+        console.error("Failed to set initial currentTime", err);
+      }
+    };
+
+    const handleEnded = () => {
+      if (!shouldClampToGeneratedPart) return;
+
+      const startTime = getGeneratedStartTime();
+
+      try {
+        video.currentTime = startTime;
+
+        if (loop) {
+          const p = video.play();
+          if (p && typeof p.catch === "function") {
+            p.catch(() => {});
+          }
+        }
+      } catch {}
+    };
+
+    const handleSeeking = () => {
+      if (!shouldClampToGeneratedPart) return;
+      const startTime = getGeneratedStartTime();
+
+      if (video.currentTime < startTime) {
+        try {
+          video.currentTime = startTime;
+        } catch {}
       }
     };
 
@@ -76,18 +99,24 @@ export function VideoSegmentPlayer({
       applyInitialSeek();
     } else {
       video.addEventListener("loadedmetadata", applyInitialSeek, { once: true });
-      return () => {
-        video.removeEventListener("loadedmetadata", applyInitialSeek);
-      };
     }
-  }, [src, shouldSeekToGeneratedPart, targetGeneratedDuration, generatedFrames, fps]);
+
+    video.addEventListener("ended", handleEnded);
+    video.addEventListener("seeking", handleSeeking);
+
+    return () => {
+      video.removeEventListener("loadedmetadata", applyInitialSeek);
+      video.removeEventListener("ended", handleEnded);
+      video.removeEventListener("seeking", handleSeeking);
+    };
+  }, [src, shouldClampToGeneratedPart, generatedDuration]);
 
   return (
     <video
       ref={ref}
       src={src}
       autoPlay={autoPlay}
-      loop={loop}
+      loop={useCustomLoop ? false : loop}
       muted={muted}
       playsInline
       controls={controls}
