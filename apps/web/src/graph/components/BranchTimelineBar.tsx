@@ -17,7 +17,7 @@ export function BranchTimelineBar({
   timeline: BranchTimelineResponse | null;
   loading: boolean;
   error: string | null;
-  onJumpToNode: (nodeId: string) => void;
+  onJumpToNode: (nodeId: string, trackKey: "clips" | "sources") => void;
 }) {
   return (
     <Box

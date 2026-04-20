@@ -7,7 +7,7 @@ export function TimelineTrack({
   onJumpToNode,
 }: {
   track: BranchTimelineTrack;
-  onJumpToNode: (nodeId: string) => void;
+  onJumpToNode: (nodeId: string, trackKey: "clips" | "sources") => void;
 }) {
   return (
     <Box sx={{ mb: 2 }}>
@@ -20,7 +20,7 @@ export function TimelineTrack({
           <TimelineSegmentView
             key={segment.id}
             segment={segment}
-            onClick={() => onJumpToNode(segment.nodeId)}
+            onClick={() => onJumpToNode(segment.nodeId, track.key)}
           />
         ))}
       </Box>

@@ -165,6 +165,10 @@ export function GraphView(props: {
     targetNodeId: string;
     requestKey: number;
   } | null;
+  externalOpenDetailsRequest?: {
+    nodeId: string;
+    requestKey: number;
+  } | null;
 }) {
   // ---------- reactflow instance ----------
   const rf = useReactFlow();
@@ -541,6 +545,18 @@ export function GraphView(props: {
 
     selectNode(sourceNodeId);
   }, [props.externalCompareRequest?.requestKey]);
+
+  useEffect(() => {
+    if (!props.externalOpenDetailsRequest) return;
+
+    const { nodeId } = props.externalOpenDetailsRequest;
+
+    selectNode(nodeId);
+    setDetailsNodeId(nodeId);
+    setDetailsOpen(true);
+
+    setActionDialogOpen(false);
+  }, [props.externalOpenDetailsRequest?.requestKey]);
 
   useEffect(() => {
     setCategoryVisibility((prev) => {

@@ -143,6 +143,11 @@ export default function App({
     requestKey: number;
   } | null>(null);
 
+  const [externalOpenDetailsRequest, setExternalOpenDetailsRequest] = useState<{
+    nodeId: string;
+    requestKey: number;
+  } | null>(null);
+
   const selectedNodeId = project?.uiState?.selectedNodeId ?? null;
 
   const canCompareClips = clipCompareSlots.filter((x) => x.id).length >= 2;
@@ -287,7 +292,7 @@ export default function App({
     });
   };
 
-  const handleJumpToTimelineNode = (nodeId: string) => {
+  const handleJumpToTimelineNode = (nodeId: string, trackKey: "clips" | "sources") => {
     setProject((prev) => {
       if (!prev) return prev;
 
@@ -299,6 +304,13 @@ export default function App({
         },
       };
     });
+
+    if (trackKey === "clips") {
+      setExternalOpenDetailsRequest({
+        nodeId,
+        requestKey: Date.now(),
+      });
+    }
   };
 
   const handleOpenTimelineCompare = () => {
@@ -703,6 +715,7 @@ export default function App({
                   activeClipPick={activeClipPick}
                   onClipPicked={handleClipPickedFromGraph}
                   externalCompareRequest={externalCompareRequest}
+                  externalOpenDetailsRequest={externalOpenDetailsRequest}
                   transitionEvaluations={transitionEvaluations}
                   showOnlyGeneratedPart={showOnlyGeneratedPart}
                 />
