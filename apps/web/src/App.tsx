@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Project } from "@ma/shared";
-import { createProject, saveProject, loadProject, evaluateTransitions } from "./api";
+import type { BranchTimelineResponse, Project } from "@ma/shared";
+import {
+  createProject,
+  saveProject,
+  loadProject,
+  evaluateTransitions,
+  getBranchTimeline,
+} from "./api";
 import { GraphView } from "./graph/GraphView";
 import {
   AppBar,
@@ -41,6 +47,7 @@ import {
   getVideoSegmentPlaybackForClip,
 } from "./graph/graph_helpers/selectors";
 import BugReportIcon from "@mui/icons-material/BugReport";
+import { BranchTimelineBar } from "./graph/components/BranchTimelineBar";
 
 type ColorMode = "light" | "dark";
 
@@ -65,6 +72,12 @@ export default function App({
   const [transitionEvaluations, setTransitionEvaluations] = useState<
     Record<string, TransitionEvaluation>
   >({});
+
+  const [isBottomTimelineOpen, setIsBottomTimelineOpen] = useState(true);
+
+  const [branchTimeline, setBranchTimeline] = useState<BranchTimelineResponse | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
 
   const initialSettings = loadSettings();
 
@@ -129,6 +142,8 @@ export default function App({
     targetNodeId: string;
     requestKey: number;
   } | null>(null);
+
+  const selectedNodeId = project?.uiState?.selectedNodeId ?? null;
 
   const canCompareClips = clipCompareSlots.filter((x) => x.id).length >= 2;
 
@@ -272,6 +287,20 @@ export default function App({
     });
   };
 
+  const handleJumpToTimelineNode = (nodeId: string) => {
+    setProject((prev) => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        uiState: {
+          ...(prev.uiState ?? {}),
+          selectedNodeId: nodeId,
+        },
+      };
+    });
+  };
+
   const handleOpenTimelineCompare = () => {
     const filledSlots = clipCompareSlots
       .map((slot, index) => ({ slot, index }))
@@ -296,6 +325,42 @@ export default function App({
       requestKey: Date.now(),
     });
   };
+
+  useEffect(() => {
+    if (!project?.id || !selectedNodeId) {
+      setBranchTimeline(null);
+      setTimelineError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    setTimelineLoading(true);
+    setTimelineError(null);
+
+    getBranchTimeline(project.id, selectedNodeId)
+      .then((data) => {
+        if (!cancelled) {
+          setBranchTimeline(data);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("timeline load failed", err);
+          setTimelineError(err?.message ?? "Failed to load timeline");
+          setBranchTimeline(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setTimelineLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [project?.id, selectedNodeId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -610,28 +675,48 @@ export default function App({
               flex: 1,
               minWidth: 0,
               minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
             }}
           >
-            <ReactFlowProvider>
-              <GraphView
-                project={project}
-                onChange={onChange}
-                showEdgeLabels={showEdgeLabels}
-                highlightUnseenEnabled={highlightUnseenEnabled}
-                notesEnabled={notesEnabled}
-                showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
-                graphCardContentMode={graphCardContentMode}
-                restrictCategories={restrictCategories}
-                graphCardDisplayMode={graphCardDisplayMode}
-                showOnlyChangedParameters={showOnlyChangedParameters}
-                onSidebarDataChange={setSidebarData}
-                activeClipPick={activeClipPick}
-                onClipPicked={handleClipPickedFromGraph}
-                externalCompareRequest={externalCompareRequest}
-                transitionEvaluations={transitionEvaluations}
-                showOnlyGeneratedPart={showOnlyGeneratedPart}
-              />
-            </ReactFlowProvider>
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                minWidth: 0,
+              }}
+            >
+              <ReactFlowProvider>
+                <GraphView
+                  project={project}
+                  onChange={onChange}
+                  showEdgeLabels={showEdgeLabels}
+                  highlightUnseenEnabled={highlightUnseenEnabled}
+                  notesEnabled={notesEnabled}
+                  showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
+                  graphCardContentMode={graphCardContentMode}
+                  restrictCategories={restrictCategories}
+                  graphCardDisplayMode={graphCardDisplayMode}
+                  showOnlyChangedParameters={showOnlyChangedParameters}
+                  onSidebarDataChange={setSidebarData}
+                  activeClipPick={activeClipPick}
+                  onClipPicked={handleClipPickedFromGraph}
+                  externalCompareRequest={externalCompareRequest}
+                  transitionEvaluations={transitionEvaluations}
+                  showOnlyGeneratedPart={showOnlyGeneratedPart}
+                />
+              </ReactFlowProvider>
+            </Box>
+
+            <BranchTimelineBar
+              open={isBottomTimelineOpen}
+              onToggle={() => setIsBottomTimelineOpen((prev) => !prev)}
+              timeline={branchTimeline}
+              loading={timelineLoading}
+              error={timelineError}
+              onJumpToNode={handleJumpToTimelineNode}
+            />
           </Box>
 
           {/* RIGHT SIDEBAR */}

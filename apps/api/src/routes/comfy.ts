@@ -9,6 +9,7 @@ import fs from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { probeVideoMetadata } from "../utils/ffmpeg";
 
 const COMFY_URL = process.env.COMFY_URL ?? "http://127.0.0.1:8188";
 const COMFY_WS = COMFY_URL.replace(/^http/, "ws");
@@ -273,10 +274,15 @@ export async function comfyRoutes(app: FastifyInstance) {
 
     await pipeline(file.file, (await import("node:fs")).createWriteStream(dstPath));
 
-    const stored = {
+    const meta = await probeVideoMetadata(dstPath);
+
+    const stored: StoredMediaFile = {
       filename: unique,
       subfolder: "",
       type: "input",
+      fps: meta.fps,
+      durationSec: meta.durationSec,
+      totalFrames: meta.totalFrames,
     };
 
     return reply.send(stored);

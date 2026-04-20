@@ -8,6 +8,7 @@ import fs from "node:fs/promises";
 import { nanoid } from "nanoid";
 import { StoredMediaFile } from "@ma/shared";
 import { execFile } from "node:child_process";
+import { probeVideoMetadata } from "../utils/ffmpeg";
 
 type ClipSnap = {
   id: string;
@@ -615,7 +616,16 @@ export async function timelineRoutes(app: FastifyInstance) {
         // copy (schnell & simpel)
         await fs.copyFile(finalClip?.mediaFilePath, dstPath);
 
-        storedFromTimeline = { filename: unique, subfolder: "", type: "input" };
+        const meta = await probeVideoMetadata(dstPath);
+
+        storedFromTimeline = {
+          filename: unique,
+          subfolder: "",
+          type: "input",
+          fps: meta.fps,
+          durationSec: meta.durationSec,
+          totalFrames: meta.totalFrames,
+        };
       } catch (e: any) {
         req.log.warn(
           { err: e?.message, mediaFilePath: finalClip.mediaFilePath },

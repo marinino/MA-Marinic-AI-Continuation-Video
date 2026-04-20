@@ -6,6 +6,13 @@ export const BaseNodeSchema = z.object({
   id: z.string(),
   type: NodeTypeSchema,
   position: z.object({ x: z.number(), y: z.number() }),
+  parentId: z.string().optional(),
+});
+
+export const VideoMetaSchema = z.object({
+  fps: z.number().optional(),
+  durationSec: z.number().optional(),
+  totalFrames: z.number().optional(),
 });
 
 export const ParamNodeDataSchema = z
@@ -30,28 +37,6 @@ export const ParamNodeDataSchema = z
     error: z.string().optional(),
     note: z.string().optional(),
     isHidden: z.boolean().optional(),
-  })
-  .passthrough();
-
-export const EditNodeDataSchema = z
-  .object({
-    label: z.string(),
-    tool: z.string().optional(),
-    notes: z.string().optional(),
-    note: z.string().optional(),
-    isHidden: z.boolean().optional(),
-
-    // optional: strukturierter Platz für Timeline-Import
-    timeline: z
-      .object({
-        snapshot: z.any().optional(),
-        changelog: z.any().optional(),
-        importedAt: z.string().optional(),
-        fileName: z.string().optional(),
-        storedTimelineFilename: z.string(),
-        version: z.string().optional(),
-      })
-      .optional(),
   })
   .passthrough();
 
@@ -95,14 +80,47 @@ export const ClipNodeDataSchema = z
     mediaId: z.string().optional(),
     durationSec: z.number().optional(),
 
-    // ✅ neu: comfy outputs persistieren
     videoStatus: z.enum(["idle", "generating", "done", "error"]).optional(),
     videoUrl: z.string().optional(),
     videoFile: StoredMediaFileSchema.optional(),
 
+    generatedFrames: z.number().optional(),
+
     videoOpened: z.boolean().optional(),
     note: z.string().optional(),
     isHidden: z.boolean().optional(),
+  })
+  .passthrough();
+
+export type StoredMediaFile = z.infer<typeof StoredMediaFileSchema>;
+export type Project = z.infer<typeof ProjectSchema>;
+export type Node = z.infer<typeof NodeSchema>;
+export type Edge = z.infer<typeof EdgeSchema>;
+export type NodeType = z.infer<typeof NodeTypeSchema>;
+export type EdgeType = z.infer<typeof EdgeTypeSchema>;
+
+export const EditNodeDataSchema = z
+  .object({
+    label: z.string(),
+    tool: z.string().optional(),
+    notes: z.string().optional(),
+
+    videoFile: StoredMediaFileSchema.optional(),
+    durationSec: z.number().optional(),
+
+    note: z.string().optional(),
+    isHidden: z.boolean().optional(),
+
+    timeline: z
+      .object({
+        snapshot: z.any().optional(),
+        changelog: z.any().optional(),
+        importedAt: z.string().optional(),
+        fileName: z.string().optional(),
+        storedTimelineFilename: z.string(),
+        version: z.string().optional(),
+      })
+      .optional(),
   })
   .passthrough();
 
@@ -129,10 +147,3 @@ export const ProjectSchema = z.object({
     }),
   }),
 });
-
-export type StoredMediaFile = z.infer<typeof StoredMediaFileSchema>;
-export type Project = z.infer<typeof ProjectSchema>;
-export type Node = z.infer<typeof NodeSchema>;
-export type Edge = z.infer<typeof EdgeSchema>;
-export type NodeType = z.infer<typeof NodeTypeSchema>;
-export type EdgeType = z.infer<typeof EdgeTypeSchema>;

@@ -1,4 +1,4 @@
-import type { Project, StoredMediaFile } from "@ma/shared";
+import type { BranchTimelineResponse, Project, StoredMediaFile } from "@ma/shared";
 import {
   ComfyStartVideoInput,
   ComfyStartVideoResult,
@@ -228,4 +228,15 @@ export async function evaluateTransitions(
   }
 
   return await res.json();
+}
+
+export async function getBranchTimeline(
+  projectId: string,
+  nodeId: string
+): Promise<BranchTimelineResponse> {
+  const res = await fetch(`/api/projects/${projectId}/timeline/${nodeId}`);
+  if (!res.ok) {
+    throw new Error("Failed to load timeline");
+  }
+  return res.json();
 }

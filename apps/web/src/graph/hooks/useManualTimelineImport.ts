@@ -169,6 +169,8 @@ export function useManualTimelineImport({
           tool: "resolve",
           parentClipId: fromClipId,
           outClipId,
+          videoFile: storedVideo,
+          durationSec: storedVideo.durationSec,
           export: {
             expectedBasename,
             status: "imported",
@@ -200,6 +202,7 @@ export function useManualTimelineImport({
           videoStatus: "done",
           videoOpened: false,
           producedByEditId: editId,
+          durationSec: storedVideo.durationSec,
         } as any,
         draggable: true,
       };

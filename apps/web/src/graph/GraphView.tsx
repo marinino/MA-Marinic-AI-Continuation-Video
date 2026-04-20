@@ -1568,6 +1568,7 @@ export function GraphView(props: {
           videoStatus: "done",
           videoOpened: false,
           totalFrames: 0,
+          durationSec: stored.durationSec,
         } as any,
         draggable: true,
       };
@@ -1985,6 +1986,8 @@ export function GraphView(props: {
               label: "Imported Video",
               importedFileName: stored.filename,
               parentClipId: parentId,
+              videoFile: stored,
+              durationSec: stored.durationSec,
             } as any,
             draggable: true,
           };
