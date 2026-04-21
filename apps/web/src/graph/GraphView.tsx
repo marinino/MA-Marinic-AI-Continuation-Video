@@ -1067,32 +1067,41 @@ export function GraphView(props: {
     const precomputedNodesById = new Map(basePrecomputedNodes.map((n) => [n.id, n]));
 
     const finalNodes = basePrecomputedNodes.map((n) => {
-      if (n.type !== "params") return n;
+      let nextNode = n;
 
-      const branchSteps = collectParamBranchSteps(n.id, precomputedNodesById, edges);
-      const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
-        minSteps: 5,
-        minCategoryDeltaAbs: 1,
-        minParamDeltaAbs: 0.01,
-        minStreak: 5,
-        recencyWindow: 15,
-        categoryLabels,
-      });
+      if (n.type === "params") {
+        const branchSteps = collectParamBranchSteps(n.id, precomputedNodesById, edges);
+        const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
+          minSteps: 5,
+          minCategoryDeltaAbs: 1,
+          minParamDeltaAbs: 0.01,
+          minStreak: 5,
+          recencyWindow: 15,
+          categoryLabels,
+        });
 
-      const parameterHistory = buildParameterHistoryFromBranchSteps(
-        branchSteps,
-        precomputedNodesById
-      );
+        const parameterHistory = buildParameterHistoryFromBranchSteps(
+          branchSteps,
+          precomputedNodesById
+        );
+
+        nextNode = {
+          ...n,
+          data: {
+            ...(n.data as any),
+            branchSuggestion,
+            parameterHistory,
+          },
+        };
+      }
 
       return {
-        ...n,
-        data: {
-          ...(n.data as any),
-          branchSuggestion,
-          parameterHistory,
-        },
+        ...nextNode,
+        selected: nextNode.id === (props.project.uiState?.selectedNodeId ?? null),
       };
     });
+
+    return finalNodes;
 
     return finalNodes;
   }, [g.nodesWithRootFlag, g.rfEdges, categoryLabels]);

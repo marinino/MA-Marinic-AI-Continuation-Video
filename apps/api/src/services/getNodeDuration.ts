@@ -1,4 +1,5 @@
-import type { Node, StoredMediaFile } from "@ma/shared";
+import type { Node, Project, StoredMediaFile } from "@ma/shared";
+import { getParentNode } from "./graphHelpers";
 
 const GENERATED_FPS = 16;
 
@@ -25,26 +26,37 @@ function getVideoFile(node: Node): StoredMediaFile | undefined {
   return isStoredMediaFile(node.data.videoFile) ? node.data.videoFile : undefined;
 }
 
-function getParentNode(node: Node, nodeMap: Map<string, Node>): Node | null {
-  if (!node.parentId) return null;
-  return nodeMap.get(node.parentId) ?? null;
+function getGeneratedFramesFromClipParent(
+  node: Node,
+  project: Project,
+  nodeMap: Map<string, Node>
+): number | null {
+  if (node.type !== "clip") return null;
+
+  const parent = getParentNode(node, project, nodeMap);
+  if (parent?.type !== "params") return null;
+
+  if (typeof parent.data.generatedFrames === "number" && parent.data.generatedFrames > 0) {
+    return parent.data.generatedFrames;
+  }
+
+  return null;
 }
 
-function isGeneratedClip(node: Node, nodeMap: Map<string, Node>): boolean {
-  if (node.type !== "clip") return false;
-
-  const parent = getParentNode(node, nodeMap);
-  return parent?.type === "params";
+function isGeneratedClip(node: Node, project: Project, nodeMap: Map<string, Node>): boolean {
+  return getGeneratedFramesFromClipParent(node, project, nodeMap) !== null;
 }
 
-export function getNodeDurationFrames(node: Node, nodeMap: Map<string, Node>): number {
+export function getNodeDurationFrames(
+  node: Node,
+  project: Project,
+  nodeMap: Map<string, Node>
+): number {
   if (node.type === "params") return 0;
 
-  // generierter clip -> generatedFrames ist die Wahrheit
-  if (isGeneratedClip(node, nodeMap)) {
-    if (typeof node.data.generatedFrames === "number" && node.data.generatedFrames > 0) {
-      return node.data.generatedFrames;
-    }
+  const generatedFrames = getGeneratedFramesFromClipParent(node, project, nodeMap);
+  if (generatedFrames !== null) {
+    return generatedFrames;
   }
 
   const videoFile = getVideoFile(node);
@@ -74,15 +86,16 @@ export function getNodeDurationFrames(node: Node, nodeMap: Map<string, Node>): n
   return 0;
 }
 
-export function getNodeDurationSec(node: Node, nodeMap: Map<string, Node>): number {
-  // generierter clip -> fest 16 fps
-  if (isGeneratedClip(node, nodeMap)) {
-    if (typeof node.data.generatedFrames === "number" && node.data.generatedFrames > 0) {
-      return node.data.generatedFrames / GENERATED_FPS;
-    }
+export function getNodeDurationSec(
+  node: Node,
+  project: Project,
+  nodeMap: Map<string, Node>
+): number {
+  const generatedFrames = getGeneratedFramesFromClipParent(node, project, nodeMap);
+  if (generatedFrames !== null) {
+    return generatedFrames / GENERATED_FPS;
   }
 
-  // echte Videos -> echte Dauer bevorzugen
   if (
     (node.type === "clip" || node.type === "import" || node.type === "edit") &&
     typeof node.data.durationSec === "number" &&
@@ -106,6 +119,14 @@ export function getNodeDurationSec(node: Node, nodeMap: Map<string, Node>): numb
     return videoFile.totalFrames / videoFile.fps;
   }
 
-  const frames = getNodeDurationFrames(node, nodeMap);
+  const frames = getNodeDurationFrames(node, project, nodeMap);
   return frames > 0 ? frames / GENERATED_FPS : 0;
+}
+
+export function isGeneratedTimelineClip(
+  node: Node,
+  project: Project,
+  nodeMap: Map<string, Node>
+): boolean {
+  return isGeneratedClip(node, project, nodeMap);
 }

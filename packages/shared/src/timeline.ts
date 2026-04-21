@@ -1,6 +1,6 @@
 export type TimelineStatus = "valid" | "deprecated";
 
-export type TimelineVisualKind = "clip" | "import" | "edit";
+export type TimelineVisualKind = "clip" | "import" | "edit" | "params";
 
 export type TimelineSourceKind = "parent-clip" | "import-anchor" | "edit-anchor";
 
@@ -25,6 +25,7 @@ export type TimelineSegment = {
   isResetAnchor: boolean;
 
   parentNodeId?: string | null;
+  isRoot?: boolean;
 };
 
 export type BranchTimelineTrack = {
