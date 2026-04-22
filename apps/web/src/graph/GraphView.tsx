@@ -9,7 +9,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-import type { Edge, Node, Project, StoredMediaFile } from "@ma/shared";
+import { buildNodeMap, getBranchEdgeIds, getBranchNodeIds, getBranchPathThroughSelected, type Edge, type Node, type Project, type StoredMediaFile } from "@ma/shared";
 import { useReactFlow } from "reactflow";
 import type { ReactFlowInstance } from "reactflow";
 
@@ -913,6 +913,26 @@ export function GraphView(props: {
     [g, props.onChange]
   );
 
+    const highlightedBranch = useMemo(() => {
+    const selectedNodeId = props.project.uiState?.selectedNodeId ?? null;
+    if (!selectedNodeId) {
+      return {
+        branchPath: [],
+        edgeIds: new Set<string>(),
+        nodeIds: new Set<string>(),
+      };
+    }
+
+    const nodeMap = buildNodeMap(props.project);
+    const branchPath = getBranchPathThroughSelected(selectedNodeId, props.project, nodeMap);
+
+    return {
+      branchPath,
+      edgeIds: getBranchEdgeIds(branchPath, props.project),
+      nodeIds: getBranchNodeIds(branchPath),
+    };
+  }, [props.project, props.project.uiState?.selectedNodeId]);
+
   const nodesForUI = useMemo(() => {
     const nodes = g.nodesWithRootFlag as Node[];
     const edges = g.rfEdges as Edge[];
@@ -1095,16 +1115,19 @@ export function GraphView(props: {
         };
       }
 
-      return {
+            return {
         ...nextNode,
         selected: nextNode.id === (props.project.uiState?.selectedNodeId ?? null),
+        data: {
+          ...((nextNode.data as any) ?? {}),
+          isTimelineNode: highlightedBranch.nodeIds.has(nextNode.id),
+        },
       };
     });
 
     return finalNodes;
 
-    return finalNodes;
-  }, [g.nodesWithRootFlag, g.rfEdges, categoryLabels]);
+  }, [g.nodesWithRootFlag, g.rfEdges, categoryLabels, highlightedBranch.nodeIds]);
 
   const edgesForUI = useMemo(() => {
     const nodeById = new Map(nodesForUI.map((n) => [n.id, n]));
@@ -1114,29 +1137,29 @@ export function GraphView(props: {
       const targetNode = nodeById.get(edge.target);
 
       const isParamToClip = sourceNode?.type === "params" && targetNode?.type === "clip";
-      if (!isParamToClip) return edge;
+      const evaluation = isParamToClip ? props.transitionEvaluations[edge.target] : undefined;
 
-      const evaluation = props.transitionEvaluations[edge.target];
-      if (!evaluation) return edge;
-
-      const score = evaluation.overallScore;
-      const strokeWidth = scoreToStrokeWidth(score);
+      const score = evaluation?.overallScore;
+      const strokeWidth =
+        typeof score === "number" ? scoreToStrokeWidth(score) : (edge.data as any)?.strokeWidth;
 
       return {
         ...edge,
         data: {
           ...(edge.data as any),
+          isTimelineEdge: highlightedBranch.edgeIds.has(edge.id),
           transitionScore: score,
-          transitionLabel: evaluation.label,
-          appearanceScore: evaluation.appearanceScore,
-          motionScore: evaluation.motionScore,
-          boundaryJumpScore: evaluation.boundaryJumpScore,
+          transitionLabel: evaluation?.label,
+          appearanceScore: evaluation?.appearanceScore,
+          motionScore: evaluation?.motionScore,
+          boundaryJumpScore: evaluation?.boundaryJumpScore,
           strokeWidth,
-          scoreColorHint: scoreToEdgeColor(score, ""),
+          scoreColorHint:
+            typeof score === "number" ? scoreToEdgeColor(score, "") : (edge.data as any)?.scoreColorHint,
         },
       };
     });
-  }, [g.rfEdges, nodesForUI, props.transitionEvaluations]);
+  }, [g.rfEdges, nodesForUI, props.transitionEvaluations, highlightedBranch.edgeIds]);
 
   const compareSelector = useMemo(() => {
     if (!compareSourceNodeId || !compareTargetNodeId) return undefined;
@@ -1878,6 +1901,8 @@ export function GraphView(props: {
 
             const nextNodes = [...prevNodes, paramNode, clipNode];
 
+            g.commit(nextNodes, nextEdges);
+
             props.onChange((prevProject) => {
               // commit via fromRF inside hook
               // but easiest: call commit now
@@ -1891,7 +1916,7 @@ export function GraphView(props: {
             });
 
             // commit graph
-            g.commit(nextNodes, nextEdges);
+
             centerOnNode(rfInstance, newClipId, { onAfter: vp.saveViewport });
 
             return nextNodes;

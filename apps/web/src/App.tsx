@@ -148,6 +148,10 @@ export default function App({
     requestKey: number;
   } | null>(null);
 
+  const [lastSavedRevision, setLastSavedRevision] = useState(0);
+  const [timelineSelectedNodeId, setTimelineSelectedNodeId] = useState<string | null>(null);
+  const saveSeqRef = useRef(0);
+
   const selectedNodeId = project?.uiState?.selectedNodeId ?? null;
 
   const canCompareClips = clipCompareSlots.filter((x) => x.id).length >= 2;
@@ -339,7 +343,7 @@ export default function App({
   };
 
   useEffect(() => {
-    if (!project?.id || !selectedNodeId) {
+    if (!project?.id || !timelineSelectedNodeId) {
       setBranchTimeline(null);
       setTimelineError(null);
       return;
@@ -350,7 +354,7 @@ export default function App({
     setTimelineLoading(true);
     setTimelineError(null);
 
-    getBranchTimeline(project.id, selectedNodeId)
+    getBranchTimeline(project.id, timelineSelectedNodeId)
       .then((data) => {
         if (!cancelled) {
           setBranchTimeline(data);
@@ -372,7 +376,7 @@ export default function App({
     return () => {
       cancelled = true;
     };
-  }, [project?.id, selectedNodeId]);
+  }, [project?.id, lastSavedRevision, timelineSelectedNodeId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -384,7 +388,10 @@ export default function App({
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
             const loaded = await withTimeout(loadProject(savedId), 1500);
-            if (!cancelled) setProject(loaded);
+            if (!cancelled) {
+              setProject(loaded);
+              setTimelineSelectedNodeId(loaded.uiState?.selectedNodeId ?? null);
+            }
             return;
           } catch (err: any) {
             // wenn du status sauber hast: nur bei 404 löschen
@@ -403,6 +410,7 @@ export default function App({
       const p = await withTimeout(createProject("Demo Project"), 1500);
       if (!cancelled) {
         setProject(p);
+        setTimelineSelectedNodeId(p.uiState?.selectedNodeId ?? null);
         localStorage.setItem(STORAGE_ACTIVE_PROJECT, p.id);
       }
     })().catch((e) => {
@@ -451,11 +459,24 @@ export default function App({
 
   useEffect(() => {
     if (!project) return;
-    if (!dirtyRef.current) return; // ✅ nur speichern wenn geändert
-    const t = window.setTimeout(() => {
-      saveProject(project);
-      dirtyRef.current = false; // ✅ wieder “clean”
+    if (!dirtyRef.current) return;
+
+    const t = window.setTimeout(async () => {
+      const seq = ++saveSeqRef.current;
+
+      try {
+        await saveProject(project);
+
+        if (saveSeqRef.current !== seq) return;
+
+        dirtyRef.current = false;
+        setLastSavedRevision((x) => x + 1);
+        setTimelineSelectedNodeId(project.uiState?.selectedNodeId ?? null);
+      } catch (err) {
+        console.error("save project failed", err);
+      }
     }, 500);
+
     return () => window.clearTimeout(t);
   }, [project]);
 
@@ -472,6 +493,7 @@ export default function App({
       const p = await withTimeout(createProject(trimmed), 1500);
       localStorage.setItem(STORAGE_ACTIVE_PROJECT, p.id);
       setProject(p);
+      setTimelineSelectedNodeId(p.uiState?.selectedNodeId ?? null);
       setNewDialogOpen(false);
     } catch (e) {
       console.error("create new project failed", e);
@@ -589,10 +611,18 @@ export default function App({
               </Tooltip>
               <Tooltip title={"Save"}>
                 <IconButton
-                  onClick={() => {
+                  onClick={async () => {
                     if (projectRef.current) {
-                      saveProject(projectRef.current);
-                      dirtyRef.current = false;
+                      try {
+                        await saveProject(projectRef.current);
+                        dirtyRef.current = false;
+                        setLastSavedRevision((x) => x + 1);
+                        setTimelineSelectedNodeId(
+                          projectRef.current.uiState?.selectedNodeId ?? null
+                        );
+                      } catch (err) {
+                        console.error("manual save failed", err);
+                      }
                     }
                   }}
                   sx={{ mr: 1 }}
@@ -797,9 +827,9 @@ export default function App({
         open={loadOpen}
         onClose={() => setLoadOpen(false)}
         onLoaded={(p) => {
-          // ✅ set + persist active
           localStorage.setItem(STORAGE_ACTIVE_PROJECT, p.id);
           setProject(p);
+          setTimelineSelectedNodeId(p.uiState?.selectedNodeId ?? null);
         }}
       />
 

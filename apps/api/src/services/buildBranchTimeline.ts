@@ -10,7 +10,7 @@ import type {
 
 import { getNodeDurationFrames, getNodeDurationSec } from "./getNodeDuration";
 import { isGeneratedClipNode, isResetNode, isVisibleTimelineNode } from "./classifyNode";
-import { buildNodeMap, getBranchPathThroughSelected, getParentNode } from "./graphHelpers";
+import { buildNodeMap, getBranchPathThroughSelected, getParentNode } from "@ma/shared";
 
 function getNodeLabel(node: Node): string {
   return node.data.label ?? node.id;
@@ -170,30 +170,11 @@ export function buildBranchTimeline(
     };
   }
 
-  const activePath = getActivePathNodes(project);
-  const derivedBranchPath = getBranchPathThroughSelected(selectedNodeId, project, nodeMap);
+  const branchPath = getBranchPathThroughSelected(selectedNodeId, project, nodeMap);
 
-  const branchPath =
-    activePath.length > 0 &&
-    activePath.some((node) => node.id === selectedNodeId) &&
-    activePath.length >= derivedBranchPath.length
-      ? activePath
-      : derivedBranchPath;
+  const timelineBase = branchPath;
 
-  const selectedIndexInBranch = branchPath.findIndex((node) => node.id === selectedNodeId);
-  const lastResetIndexInBranch = findLastResetIndex(branchPath);
-
-  const timelineBase =
-    lastResetIndexInBranch >= 0 ? branchPath.slice(lastResetIndexInBranch) : branchPath;
-
-  const visibleNodes = timelineBase.filter(isVisibleTimelineNode);
-
-  const blockingReset =
-    selectedIndexInBranch >= 0
-      ? (branchPath.slice(selectedIndexInBranch + 1).find((node) => isResetNode(node)) ?? null)
-      : null;
-
-  const clipTrackNodes = visibleNodes.filter((node) => node.type === "clip");
+  const clipTrackNodes = timelineBase.filter((node) => node.type === "clip");
 
   const totalDurationFrames = clipTrackNodes.reduce(
     (sum, node) => sum + getNodeDurationFrames(node, project, nodeMap),
@@ -208,10 +189,9 @@ export function buildBranchTimeline(
   const clipSegments = buildClipSegments(clipTrackNodes, totalDurationFrames, project, nodeMap);
   const sourceSegments = buildSourceSegments(clipTrackNodes, totalDurationFrames, project, nodeMap);
 
-  const resetAnchorNodeId =
-    lastResetIndexInBranch >= 0
-      ? (branchPath[lastResetIndexInBranch]?.id ?? null)
-      : (branchPath[0]?.id ?? null);
+  const resetAnchorNodeId = branchPath[0]?.id ?? null;
+
+
 
   for (const seg of clipSegments) {
     if (seg.nodeId === resetAnchorNodeId) {
@@ -240,14 +220,11 @@ export function buildBranchTimeline(
 
   return {
     selectedNodeId,
-    status: blockingReset ? "deprecated" : "valid",
-    reason: blockingReset
-      ? "A later import/edit node exists in the active branch and resets temporal continuity."
-      : undefined,
+    status: "valid",
     totalDurationFrames,
     totalDurationSec,
     resetAnchorNodeId,
-    blockingNodeId: blockingReset?.id ?? null,
+    blockingNodeId: null,
     tracks,
   };
 }

@@ -1,4 +1,5 @@
-import type { Edge, Node, Project } from "@ma/shared";
+import { Edge, Project, Node } from "./schema";
+
 
 export function getTopmostAncestor(
   selectedNodeId: string,
@@ -52,22 +53,43 @@ export function getAncestorChainInclusive(
   return chain.reverse();
 }
 
+function compareNodesByLowerPosition(a: Node, b: Node): number {
+  const ay = a.position?.y ?? 0;
+  const by = b.position?.y ?? 0;
+
+  if (ay !== by) return by - ay; // weiter unten zuerst
+
+  const ax = a.position?.x ?? 0;
+  const bx = b.position?.x ?? 0;
+
+  return bx - ax; // optional: weiter rechts zuerst
+}
+
+function getLowestChild(nodeId: string, project: Project): Node | null {
+  const children = getChildNodes(nodeId, project);
+  if (children.length === 0) return null;
+
+  return [...children].sort(compareNodesByLowerPosition)[0] ?? null;
+}
+
 export function getForwardChainInclusive(
   startNodeId: string,
   project: Project,
   nodeMap: Map<string, Node>
 ): Node[] {
   const chain: Node[] = [];
+  const visited = new Set<string>();
+
   let current = nodeMap.get(startNodeId) ?? null;
 
-  while (current) {
+  while (current && !visited.has(current.id)) {
     chain.push(current);
+    visited.add(current.id);
 
-    const children = getChildNodes(current.id, project);
+    const next = getLowestChild(current.id, project);
+    if (!next) break;
 
-    if (children.length !== 1) break;
-
-    current = children[0];
+    current = next;
   }
 
   return chain;
@@ -82,4 +104,28 @@ export function getBranchPathThroughSelected(
   const forward = getForwardChainInclusive(selectedNodeId, project, nodeMap);
 
   return [...ancestors.slice(0, -1), ...forward];
+}
+
+// graphHelpers.ts
+export function getBranchEdgeIds(
+  branchPath: { id: string }[],
+  project: Project
+): Set<string> {
+  const ids = new Set<string>();
+
+  for (let i = 0; i < branchPath.length - 1; i++) {
+    const sourceId = branchPath[i].id;
+    const targetId = branchPath[i + 1].id;
+
+    const edge = project.edges.find((e) => e.source === sourceId && e.target === targetId);
+    if (edge) {
+      ids.add(edge.id);
+    }
+  }
+
+  return ids;
+}
+
+export function getBranchNodeIds(branchPath: { id: string }[]): Set<string> {
+  return new Set(branchPath.map((node) => node.id));
 }

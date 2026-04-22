@@ -90,8 +90,10 @@ export function ClipSelectionSidebar({
                 Compare
               </Button>
               <FormControlLabel
-                control={<Switch checked={loopVideos} onChange={onToggleLoopVideos} />}
-                label="Loop videos"
+                control={
+                  <Switch checked={loopVideos} onChange={onToggleLoopVideos} color="success" />
+                }
+                label={loopVideos ? "Loop ON" : "Loop OFF"}
                 sx={{ ml: 0 }}
               />
             </Box>

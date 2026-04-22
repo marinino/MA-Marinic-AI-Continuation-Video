@@ -22,6 +22,7 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
   const text = (data as any)?.label ?? "";
   const kind: EdgeKind = (data as any)?.label ?? "";
   const showLabel: boolean = (data as any)?.showLabel ?? true;
+  const isTimelineEdge: boolean = (data as any)?.isTimelineEdge ?? false;
 
   const transitionScore: number | undefined = (data as any)?.transitionScore;
   const transitionLabel: string | undefined = (data as any)?.transitionLabel;
@@ -44,10 +45,29 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
   const edgeColor = scoreToEdgeColor(transitionScore, fallbackColor);
   const strokeWidth = scoreToStrokeWidth(transitionScore);
 
+  const highlightColor =
+    theme.palette.mode === "dark"
+      ? theme.palette.warning.light
+      : theme.palette.warning.main;
+
   const labelText = typeof transitionScore === "number" ? `${text} · ${transitionScore}` : text;
 
   return (
     <>
+      {isTimelineEdge && (
+        <BaseEdge
+          path={edgePath}
+          markerEnd={undefined}
+          style={{
+            stroke: highlightColor,
+            strokeWidth: strokeWidth + 6,
+            opacity: 0.95,
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+          }}
+        />
+      )}
+
       <BaseEdge
         path={edgePath}
         markerEnd={markerEnd}
@@ -71,7 +91,8 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
               py: 0.25,
               borderRadius: 1.5,
               border: 1,
-              borderColor: edgeColor,
+              borderColor: isTimelineEdge ? highlightColor : edgeColor,
+              boxShadow: isTimelineEdge ? 2 : 0,
               whiteSpace: "nowrap",
             }}
             title={

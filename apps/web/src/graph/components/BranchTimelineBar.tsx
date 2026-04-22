@@ -41,7 +41,19 @@ export function BranchTimelineBar({
           py: 1,
         }}
       >
-        <Typography variant="subtitle2">Timeline</Typography>
+        <IconButton onClick={onToggle} size="small">
+          {open ? <ExpandMoreIcon /> : <ExpandLessIcon />}
+        </IconButton>
+        <Typography
+          sx={{
+            transformOrigin: "center",
+            whiteSpace: "nowrap",
+            fontSize: 20,
+            lineHeight: 1,
+          }}
+        >
+          {open ? "COLLAPSE" : "TIMELINE"}
+        </Typography>
         <IconButton onClick={onToggle} size="small">
           {open ? <ExpandMoreIcon /> : <ExpandLessIcon />}
         </IconButton>

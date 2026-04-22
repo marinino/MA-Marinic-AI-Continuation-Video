@@ -62,7 +62,7 @@ export function TimelineSegmentView({
           minWidth: 24,
           height: 40,
           border: borderStyle,
-          borderColor: segment.isResetAnchor ? "warning.main" : colors.border,
+          borderColor: colors.border,
           bgcolor: colors.bg,
           color: "text.primary",
           borderRadius: 1,

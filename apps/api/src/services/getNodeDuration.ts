@@ -1,5 +1,5 @@
 import type { Node, Project, StoredMediaFile } from "@ma/shared";
-import { getParentNode } from "./graphHelpers";
+import { getParentNode } from "@ma/shared";
 
 const GENERATED_FPS = 16;
 
