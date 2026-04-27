@@ -47,14 +47,6 @@ function resolveComfyVideoFilePath(videoFile: any): string | null {
     ? path.join(baseDir, subfolder, filename)
     : path.join(baseDir, filename);
 
-  console.log("trying comfy path", {
-    filename,
-    subfolder,
-    type,
-    candidate,
-    exists: fs.existsSync(candidate),
-  });
-
   return existingFile(candidate);
 }
 
@@ -66,7 +58,6 @@ export function getVideoPathForClip(project: Project, clipId: string): string | 
 
   const fromVideoFile = resolveComfyVideoFilePath(d.videoFile);
   if (fromVideoFile) {
-    console.log("resolved from videoFile", clipId, fromVideoFile);
     return fromVideoFile;
   }
 
@@ -106,11 +97,6 @@ export function getVideoPathForClip(project: Project, clipId: string): string | 
       if (found) return found;
     }
   }
-
-  console.log("could not resolve video path", {
-    clipId,
-    videoFile: d.videoFile ?? null,
-  });
 
   return null;
 }

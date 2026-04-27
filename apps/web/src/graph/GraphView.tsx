@@ -9,7 +9,16 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-import { buildNodeMap, getBranchEdgeIds, getBranchNodeIds, getBranchPathThroughSelected, type Edge, type Node, type Project, type StoredMediaFile } from "@ma/shared";
+import {
+  buildNodeMap,
+  getBranchEdgeIds,
+  getBranchNodeIds,
+  getBranchPathThroughSelected,
+  type Edge,
+  type Node,
+  type Project,
+  type StoredMediaFile,
+} from "@ma/shared";
 import { useReactFlow } from "reactflow";
 import type { ReactFlowInstance } from "reactflow";
 
@@ -176,21 +185,11 @@ export function GraphView(props: {
   const vp = useViewport(props.project.id, rfInstance);
 
   // ---------- graph state ----------
+
   const g = useProjectGraph({
     project: props.project,
     onChange: props.onChange,
     showEdgeLabels: props.showEdgeLabels,
-
-    onAdd: (nodeId: string) => {
-      // selection persistieren
-      props.onChange((prev) => ({
-        ...prev,
-        uiState: { ...(prev.uiState ?? {}), selectedNodeId: nodeId },
-      }));
-
-      // local selection (hook synced from project uiState anyway)
-      setActionDialogOpen(true);
-    },
   });
 
   const markVideoOpened = useCallback(
@@ -233,10 +232,6 @@ export function GraphView(props: {
   // ✅ inject onAdd handler for the "+" button inside nodes
 
   // keep selection in project uiState (same behavior)
-  useEffect(() => {
-    const sel = props.project.uiState?.selectedNodeId ?? null;
-    g.setClickedNodeId(sel);
-  }, [props.project.uiState?.selectedNodeId]);
 
   // ---------- viewport ----------
 
@@ -327,6 +322,10 @@ export function GraphView(props: {
 
   const [categoryVisibility, setCategoryVisibility] = useState<Record<string, boolean>>(() =>
     loadCategoryVisibility()
+  );
+
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(
+    props.project.uiState?.selectedNodeId ?? null
   );
 
   const [formulaWeights, setFormulaWeights] = useState<FormulaWeights>(() => loadFormulaWeights());
@@ -901,20 +900,23 @@ export function GraphView(props: {
     requestAnimationFrame(vp.saveViewport);
   }, [deleteTargetId, deleteTargetIds, g, props.onChange, vp.saveViewport]);
 
+  const setClickedNodeId = g.setClickedNodeId;
+
   const selectNode = useCallback(
     (nodeId: string) => {
-      g.setClickedNodeId(nodeId);
-
-      props.onChange((prev) => ({
-        ...prev,
-        uiState: { ...(prev.uiState ?? {}), selectedNodeId: nodeId },
-      }));
+      setClickedNodeId(nodeId);
+      setSelectedNodeId(nodeId);
     },
-    [g, props.onChange]
+    [setClickedNodeId]
   );
 
-    const highlightedBranch = useMemo(() => {
-    const selectedNodeId = props.project.uiState?.selectedNodeId ?? null;
+  console.time("render GraphView");
+
+  useEffect(() => {
+    console.timeEnd("render GraphView");
+  });
+
+  const highlightedBranch = useMemo(() => {
     if (!selectedNodeId) {
       return {
         branchPath: [],
@@ -931,9 +933,9 @@ export function GraphView(props: {
       edgeIds: getBranchEdgeIds(branchPath, props.project),
       nodeIds: getBranchNodeIds(branchPath),
     };
-  }, [props.project, props.project.uiState?.selectedNodeId]);
+  }, [props.project, selectedNodeId]);
 
-  const nodesForUI = useMemo(() => {
+  const baseNodesForUI = useMemo(() => {
     const nodes = g.nodesWithRootFlag as Node[];
     const edges = g.rfEdges as Edge[];
 
@@ -1084,50 +1086,20 @@ export function GraphView(props: {
     });
 
     // 2) Jetzt mit den vorberechneten Nodes branchSuggestion + parameterHistory berechnen
-    const precomputedNodesById = new Map(basePrecomputedNodes.map((n) => [n.id, n]));
 
-    const finalNodes = basePrecomputedNodes.map((n) => {
-      let nextNode = n;
+    return basePrecomputedNodes;
+  }, [g.nodesWithRootFlag, g.rfEdges, categoryLabels]);
 
-      if (n.type === "params") {
-        const branchSteps = collectParamBranchSteps(n.id, precomputedNodesById, edges);
-        const branchSuggestion = detectParamWeightSuggestion(branchSteps, {
-          minSteps: 5,
-          minCategoryDeltaAbs: 1,
-          minParamDeltaAbs: 0.01,
-          minStreak: 5,
-          recencyWindow: 15,
-          categoryLabels,
-        });
-
-        const parameterHistory = buildParameterHistoryFromBranchSteps(
-          branchSteps,
-          precomputedNodesById
-        );
-
-        nextNode = {
-          ...n,
-          data: {
-            ...(n.data as any),
-            branchSuggestion,
-            parameterHistory,
-          },
-        };
-      }
-
-            return {
-        ...nextNode,
-        selected: nextNode.id === (props.project.uiState?.selectedNodeId ?? null),
-        data: {
-          ...((nextNode.data as any) ?? {}),
-          isTimelineNode: highlightedBranch.nodeIds.has(nextNode.id),
-        },
-      };
-    });
-
-    return finalNodes;
-
-  }, [g.nodesWithRootFlag, g.rfEdges, categoryLabels, highlightedBranch.nodeIds]);
+  const nodesForUI = useMemo(() => {
+    return baseNodesForUI.map((n) => ({
+      ...n,
+      selected: n.id === selectedNodeId,
+      data: {
+        ...(n.data as any),
+        isTimelineNode: highlightedBranch.nodeIds.has(n.id),
+      },
+    }));
+  }, [baseNodesForUI, selectedNodeId, highlightedBranch.nodeIds]);
 
   const edgesForUI = useMemo(() => {
     const nodeById = new Map(nodesForUI.map((n) => [n.id, n]));
@@ -1155,7 +1127,9 @@ export function GraphView(props: {
           boundaryJumpScore: evaluation?.boundaryJumpScore,
           strokeWidth,
           scoreColorHint:
-            typeof score === "number" ? scoreToEdgeColor(score, "") : (edge.data as any)?.scoreColorHint,
+            typeof score === "number"
+              ? scoreToEdgeColor(score, "")
+              : (edge.data as any)?.scoreColorHint,
         },
       };
     });
@@ -1489,7 +1463,16 @@ export function GraphView(props: {
       } as any)
   );
 
+  const lastNodeIdRef = useRef<string | null>(null);
+
   useEffect(() => {
+    const currentId = sidebarNode?.id ?? null;
+
+    // Nur feuern wenn sich der Node wirklich geändert hat
+    if (lastNodeIdRef.current === currentId) return;
+
+    lastNodeIdRef.current = currentId;
+
     const isParamsNode = sidebarNode?.type === "params";
 
     props.onSidebarDataChange?.({
@@ -1511,22 +1494,9 @@ export function GraphView(props: {
       notesEnabled: props.notesEnabled,
       onChangeNote: isParamsNode ? setSidebarLocalNote : () => {},
       onSaveNote: isParamsNode ? handleSaveSidebarNote : () => {},
-      selectedNodeId: sidebarNode?.id ?? null,
+      selectedNodeId: currentId,
     });
-  }, [
-    props.onSidebarDataChange,
-    sidebarNode,
-    sidebarNodeData,
-    sidebarComputed,
-    orderedSliderItems,
-    clipLogic,
-    sidebarDetailsLogic.parameterItems,
-    sidebarParamAnalysis,
-    sharedNodeDetailsProps,
-    sidebarLocalNote,
-    handleSaveSidebarNote,
-    props.notesEnabled,
-  ]);
+  }, [sidebarNode?.id]);
 
   // ---------- Root create ----------
   function createRoot() {
@@ -2113,6 +2083,8 @@ export function GraphView(props: {
     if (node.type === "clip" || node.type === "edit" || node.type === "import") {
       setActionDialogOpen(true);
     }
+
+    requestAnimationFrame(() => {});
   };
 
   const graphUI = useMemo(
@@ -2268,8 +2240,16 @@ export function GraphView(props: {
           onNodesChange={g.onNodesChange}
           onEdgesChange={g.onEdgesChange}
           onNodeClick={onNodeClick}
-          onNodeDragStop={() => {
-            g.commit();
+          onNodeDragStop={(_, node) => {
+            g.setRfNodes((prev) => {
+              const next = prev.map((n) =>
+                n.id === node.id ? { ...n, position: node.position } : n
+              );
+
+              g.commit(next, g.rfEdges);
+              return next;
+            });
+
             requestAnimationFrame(vp.saveViewport);
           }}
           onMove={vp.scheduleSaveViewport}

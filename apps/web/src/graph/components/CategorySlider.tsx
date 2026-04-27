@@ -18,8 +18,6 @@ export const CategorySlider = React.memo(function CategorySlider(props: {
     props.onChange?.(Array.isArray(v) ? v[0] : v);
   };
 
-  console.log(readonly);
-
   return (
     <Box sx={props.sx}>
       <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>

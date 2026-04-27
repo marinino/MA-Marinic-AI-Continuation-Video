@@ -46,9 +46,7 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
   const strokeWidth = scoreToStrokeWidth(transitionScore);
 
   const highlightColor =
-    theme.palette.mode === "dark"
-      ? theme.palette.warning.light
-      : theme.palette.warning.main;
+    theme.palette.mode === "dark" ? theme.palette.warning.light : theme.palette.warning.main;
 
   const labelText = typeof transitionScore === "number" ? `${text} · ${transitionScore}` : text;
 

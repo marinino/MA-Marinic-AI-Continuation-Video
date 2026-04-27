@@ -132,7 +132,6 @@ export async function probeVideoMetadata(videoPath: string): Promise<VideoMetada
       totalFrames: Number.isFinite(totalFrames) ? totalFrames : undefined,
     };
   } catch (err) {
-    console.warn("probeVideoMetadata failed", { videoPath, err });
     return {};
   }
 }

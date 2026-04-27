@@ -4,9 +4,6 @@ export function runPythonJson<T>(scriptPath: string, payload: unknown): Promise<
   return new Promise((resolve, reject) => {
     const pythonBin = process.env.PYTHON_BIN || "python3";
 
-    console.log("runPythonJson pythonBin =", pythonBin);
-    console.log("runPythonJson scriptPath =", scriptPath);
-
     const child = spawn(pythonBin, [scriptPath], {
       stdio: ["pipe", "pipe", "pipe"],
     });

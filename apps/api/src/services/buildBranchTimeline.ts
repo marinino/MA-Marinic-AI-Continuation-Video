@@ -191,8 +191,6 @@ export function buildBranchTimeline(
 
   const resetAnchorNodeId = branchPath[0]?.id ?? null;
 
-
-
   for (const seg of clipSegments) {
     if (seg.nodeId === resetAnchorNodeId) {
       seg.isResetAnchor = true;

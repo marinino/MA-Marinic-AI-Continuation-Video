@@ -62,9 +62,7 @@ export function VideoSegmentPlayer({
       try {
         video.currentTime = startTime;
         didInitialSeekRef.current = true;
-      } catch (err) {
-        console.error("Failed to set initial currentTime", err);
-      }
+      } catch (err) {}
     };
 
     const handleEnded = () => {

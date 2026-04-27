@@ -8,10 +8,9 @@ type Args = {
   project: Project;
   onChange: (updater: Project | ((prev: Project) => Project)) => void;
   showEdgeLabels: boolean;
-  onAdd?: (nodeId: string) => void;
 };
 
-export function useProjectGraph({ project, onChange, showEdgeLabels, onAdd }: Args) {
+export function useProjectGraph({ project, onChange, showEdgeLabels }: Args) {
   const [{ nodes: initialNodes, edges: initialEdges }] = useState(() =>
     toRF(project, showEdgeLabels)
   );
@@ -24,10 +23,22 @@ export function useProjectGraph({ project, onChange, showEdgeLabels, onAdd }: Ar
   );
 
   useEffect(() => {
+    setRfEdges((prev) =>
+      prev.map((e) => ({
+        ...e,
+        data: {
+          ...(e.data as any),
+          showLabel: showEdgeLabels,
+        },
+      }))
+    );
+  }, [showEdgeLabels, setRfEdges]);
+
+  useEffect(() => {
     const next = toRF(project, showEdgeLabels);
     setRfNodes(next.nodes);
     setRfEdges(next.edges);
-  }, [project.id, showEdgeLabels, setRfNodes, setRfEdges]);
+  }, [project.id]);
 
   const commit = (nodes = rfNodes, edges = rfEdges) => {
     onChange((prev) => fromRF(prev, nodes, edges));
@@ -43,17 +54,21 @@ export function useProjectGraph({ project, onChange, showEdgeLabels, onAdd }: Ar
 
     return rfNodes.map((n) => {
       const isRoot = n.type === "clip" && !incomingTargets.has(n.id);
+      const oldData = (n.data as any) ?? {};
+
+      if (oldData.isRoot === isRoot) {
+        return n;
+      }
 
       return {
         ...n,
         data: {
-          ...(n.data as any),
+          ...oldData,
           isRoot,
-          onAdd: (nodeId: string) => onAdd?.(nodeId),
         },
       };
     });
-  }, [rfNodes, rfEdges, onAdd]);
+  }, [rfNodes, rfEdges]);
 
   return {
     rfNodes,

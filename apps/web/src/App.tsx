@@ -38,6 +38,7 @@ import { CategoryScoresSidebar } from "./graph/components/CategoryScoresSidebar"
 import {
   BrachSuggestion,
   CompareTimelineOption,
+  ErrorDialogState,
   TransitionEvaluation,
   VideoSegmentPlayback,
 } from "./graph/types/ui";
@@ -48,6 +49,7 @@ import {
 } from "./graph/graph_helpers/selectors";
 import BugReportIcon from "@mui/icons-material/BugReport";
 import { BranchTimelineBar } from "./graph/components/BranchTimelineBar";
+import { ErrorDialog } from "./graph/dialogs/ErrorDialog";
 
 type ColorMode = "light" | "dark";
 
@@ -62,6 +64,7 @@ export default function App({
 }) {
   const [project, setProject] = useState<Project | null>(null);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
+  const [errorDialog, setErrorDialog] = useState<ErrorDialogState | null>(null);
 
   const [legendOpen, setLegendOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
@@ -333,7 +336,13 @@ export default function App({
     const leftLastParam = [...leftOptions].reverse().find((x) => !!x.paramNodeId) ?? null;
     const rightLastParam = [...rightOptions].reverse().find((x) => !!x.paramNodeId) ?? null;
 
-    if (!leftLastParam?.paramNodeId || !rightLastParam?.paramNodeId) return;
+    if (!leftLastParam?.paramNodeId || !rightLastParam?.paramNodeId) {
+      setErrorDialog({
+        title: "Comparison not possible",
+        message: "Both branches need to contain at least one parameter node",
+      });
+      return;
+    }
 
     setExternalCompareRequest({
       sourceNodeId: leftLastParam.paramNodeId,
@@ -362,7 +371,6 @@ export default function App({
       })
       .catch((err) => {
         if (!cancelled) {
-          console.error("timeline load failed", err);
           setTimelineError(err?.message ?? "Failed to load timeline");
           setBranchTimeline(null);
         }
@@ -414,7 +422,6 @@ export default function App({
         localStorage.setItem(STORAGE_ACTIVE_PROJECT, p.id);
       }
     })().catch((e) => {
-      console.error(e);
       // letzte Rettung: wenn wirklich alles schiefgeht, nicht hängen bleiben
       if (!cancelled) setProject(null);
     });
@@ -472,9 +479,7 @@ export default function App({
         dirtyRef.current = false;
         setLastSavedRevision((x) => x + 1);
         setTimelineSelectedNodeId(project.uiState?.selectedNodeId ?? null);
-      } catch (err) {
-        console.error("save project failed", err);
-      }
+      } catch (err) {}
     }, 500);
 
     return () => window.clearTimeout(t);
@@ -496,7 +501,6 @@ export default function App({
       setTimelineSelectedNodeId(p.uiState?.selectedNodeId ?? null);
       setNewDialogOpen(false);
     } catch (e) {
-      console.error("create new project failed", e);
     } finally {
       setCreating(false);
     }
@@ -596,7 +600,6 @@ export default function App({
                           `pairs=${result.debug?.pairCount ?? 0}, evals=${Object.keys(result.evaluations ?? {}).length}, skipped=${result.debug?.skipped?.length ?? 0}`
                         );
                       } catch (err) {
-                        console.error("transition evaluation failed", err);
                       } finally {
                         setEvaluatingTransitions(false);
                       }
@@ -620,9 +623,7 @@ export default function App({
                         setTimelineSelectedNodeId(
                           projectRef.current.uiState?.selectedNodeId ?? null
                         );
-                      } catch (err) {
-                        console.error("manual save failed", err);
-                      }
+                      } catch (err) {}
                     }
                   }}
                   sx={{ mr: 1 }}
@@ -867,6 +868,8 @@ export default function App({
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ErrorDialog error={errorDialog} onClose={() => setErrorDialog(null)} />
     </>
   );
 }

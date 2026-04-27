@@ -172,7 +172,7 @@ export function useComfyJobs() {
                 : j
             )
           );
-          console.error(msg);
+
           job.onError?.(msg);
         }
 
@@ -218,7 +218,7 @@ export function useComfyJobs() {
             j.id === jobId ? { ...j, status: "error", progressText: "WebSocket error." } : j
           )
         );
-        console.error(e);
+
         job.onError?.(e);
       };
     } catch (e: any) {

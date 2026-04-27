@@ -260,7 +260,6 @@ export function useManualTimelineImport({
       setEditedVideoFile(null);
       setManualEditDraft(null);
     } catch (e: any) {
-      console.error(e);
       setErrorDialog({
         title: "Upload error",
         message: "Timeline upload failed: " + (e?.message ?? String(e)),

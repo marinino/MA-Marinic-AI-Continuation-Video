@@ -3,8 +3,9 @@ import { Handle, NodeProps, Position } from "reactflow";
 import TuneIcon from "@mui/icons-material/Tune";
 import { NodeCard } from "./Node";
 import GraphUIContext from "../contexts/GraphUIContext";
+import React from "react";
 
-export function ParamNode(props: NodeProps<any>) {
+export const ParamNode = React.memo(function ParamNode(props: NodeProps<any>) {
   const ui = useContext(GraphUIContext);
   if (!ui) throw new Error("GraphUIContext missing");
 
@@ -66,4 +67,4 @@ export function ParamNode(props: NodeProps<any>) {
       />
     </div>
   );
-}
+});

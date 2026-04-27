@@ -91,8 +91,6 @@ export async function evaluateProjectTransitions(
     process.env.TRANSITION_EVAL_SCRIPT ||
     path.resolve(__dirname, "../../../../scripts/transition_eval.py");
 
-  console.log("transition eval scriptPath", scriptPath);
-
   for (const pair of pairs) {
     try {
       const parentVideoPath = getVideoPathForClip(project, pair.parentClipId);

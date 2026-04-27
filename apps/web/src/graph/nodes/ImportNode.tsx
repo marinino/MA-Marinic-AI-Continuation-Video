@@ -3,8 +3,9 @@ import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { NodeCard } from "./Node";
 import { useContext } from "react";
 import GraphUIContext from "../contexts/GraphUIContext";
+import React from "react";
 
-export function ImportNode(props: NodeProps<any>) {
+export const ImportNode = React.memo(function ImportNode(props: NodeProps<any>) {
   const ui = useContext(GraphUIContext);
   if (!ui) throw new Error("GraphUIContext missing");
 
@@ -35,4 +36,4 @@ export function ImportNode(props: NodeProps<any>) {
       />
     </div>
   );
-}
+});

@@ -3,8 +3,9 @@ import { NodeProps, Handle, Position } from "reactflow";
 import MovieIcon from "@mui/icons-material/Movie";
 import { NodeCard } from "./Node";
 import GraphUIContext from "../contexts/GraphUIContext";
+import React from "react";
 
-export function ClipNode(props: NodeProps<any>) {
+export const ClipNode = React.memo(function ClipNode(props: NodeProps<any>) {
   const ui = useContext(GraphUIContext);
   if (!ui) throw new Error("GraphUIContext missing");
 
@@ -39,4 +40,4 @@ export function ClipNode(props: NodeProps<any>) {
       />
     </div>
   );
-}
+});

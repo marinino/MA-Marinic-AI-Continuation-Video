@@ -105,7 +105,6 @@ export function useDavinciTimeline(args: {
         throw new Error(`Open failed (${res.status}): ${txt || res.statusText}`);
       }
     } catch (e) {
-      console.error(e);
       setErrorDialog({
         title: "Could not open",
         message: "Could not open timeline in Resolve",

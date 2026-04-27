@@ -5,8 +5,9 @@ import { parsedChangelogLines } from "../../utils/parseTimelineChangelog";
 import ContentCutIcon from "@mui/icons-material/ContentCut";
 import { useContext } from "react";
 import GraphUIContext from "../contexts/GraphUIContext";
+import React from "react";
 
-export function EditNode(props: NodeProps<any>) {
+export const EditNode = React.memo(function EditNode(props: NodeProps<any>) {
   const ui = useContext(GraphUIContext);
   if (!ui) throw new Error("GraphUIContext missing");
   const summaryLines: string[] = props.data?.summaryLines ?? [];
@@ -59,4 +60,4 @@ export function EditNode(props: NodeProps<any>) {
       </NodeCard>
     </div>
   );
-}
+});

@@ -1,6 +1,5 @@
 import { Edge, Project, Node } from "./schema";
 
-
 export function getTopmostAncestor(
   selectedNodeId: string,
   project: Project,
@@ -107,10 +106,7 @@ export function getBranchPathThroughSelected(
 }
 
 // graphHelpers.ts
-export function getBranchEdgeIds(
-  branchPath: { id: string }[],
-  project: Project
-): Set<string> {
+export function getBranchEdgeIds(branchPath: { id: string }[], project: Project): Set<string> {
   const ids = new Set<string>();
 
   for (let i = 0; i < branchPath.length - 1; i++) {
