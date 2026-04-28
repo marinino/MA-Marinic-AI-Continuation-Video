@@ -542,3 +542,9 @@ export type ParamDeltaCacheEntry = {
   categoryScoreDeltas: any;
   promptChanged: boolean;
 };
+
+export type InfoSlide = {
+  title: string;
+  image?: string;
+  content: React.ReactNode;
+};

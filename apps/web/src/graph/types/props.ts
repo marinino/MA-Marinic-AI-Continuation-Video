@@ -154,4 +154,6 @@ export interface NodeCardProps {
   isComparePicking?: boolean;
   compareSourceNodeId?: string | null;
   onSelectNode?: (nodeId: string) => void;
+  activeClipPick?: { slotIndex: number } | null;
+  onPickClipNode?: (clip: { id: string; label?: string | null; videoUrl?: string | null }) => void;
 }

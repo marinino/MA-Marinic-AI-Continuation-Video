@@ -1045,6 +1045,8 @@ export function GraphView(props: {
         graphCardContentMode: props.graphCardContentMode,
         graphCardDisplayMode: props.graphCardDisplayMode,
         showOnlyChangedParameters: props.showOnlyChangedParameters,
+        activeClipPick: props.activeClipPick ?? null,
+        onPickClipNode: props.onClipPicked,
       };
 
       // ---------- clip ----------
@@ -1227,6 +1229,8 @@ export function GraphView(props: {
     showAllCategories,
     isComparePicking,
     compareSourceNodeId,
+    props.activeClipPick,
+    props.onClipPicked,
   ]);
 
   const handleInit = useCallback((instance: ReactFlowInstance) => {

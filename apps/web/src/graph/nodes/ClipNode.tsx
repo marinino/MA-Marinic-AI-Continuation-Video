@@ -36,6 +36,8 @@ export const ClipNode = React.memo(function ClipNode(props: NodeProps<any>) {
         notesEnabled={d.notesEnabled}
         onOpenDetails={d.onOpenDetails}
         onSelectNode={d.onSelectNode}
+        activeClipPick={d.activeClipPick}
+        onPickClipNode={d.onPickClipNode}
       />
     </div>
   );

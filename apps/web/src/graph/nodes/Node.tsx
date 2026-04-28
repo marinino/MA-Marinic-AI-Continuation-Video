@@ -24,8 +24,25 @@ export function NodeCardInner(props: NodeCardProps) {
   const shouldHighlightUnseen = props.type === "clip" && !props.videoOpened && !props.selected;
 
   const handleOpen = React.useCallback(() => {
+    if (props.activeClipPick && props.type === "clip") {
+      props.onPickClipNode?.({
+        id: props.nodeId,
+        label: props.title ?? null,
+        videoUrl: props.videoUrl ?? null,
+      });
+      return;
+    }
+
     props.onOpenDetails?.(props.nodeId);
-  }, [props.onOpenDetails, props.nodeId]);
+  }, [
+    props.activeClipPick,
+    props.type,
+    props.onPickClipNode,
+    props.nodeId,
+    props.title,
+    props.videoUrl,
+    props.onOpenDetails,
+  ]);
 
   return (
     <>
