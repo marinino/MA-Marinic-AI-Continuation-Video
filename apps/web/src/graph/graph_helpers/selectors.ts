@@ -8,6 +8,7 @@ import {
   TransitionPair,
   VideoSegmentPlayback,
 } from "../types/ui";
+import { useEffect, useRef } from "react";
 
 export function resolveEditIdForClipId(project: Project, clipId: string): string | null {
   const clip = project.nodes.find((n) => n.id === clipId) as any;
@@ -417,4 +418,14 @@ export function getVideoSegmentPlaybackForClip(
   return {
     generatedFrames,
   };
+}
+
+export function useLatestRef<T>(value: T) {
+  const ref = useRef(value);
+
+  useEffect(() => {
+    ref.current = value;
+  }, [value]);
+
+  return ref;
 }

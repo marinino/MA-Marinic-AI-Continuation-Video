@@ -535,3 +535,10 @@ export type ClipSlot = {
   videoUrl?: string | null;
   playback?: VideoSegmentPlayback;
 };
+
+export type ParamDeltaCacheEntry = {
+  key: string;
+  deltas: any;
+  categoryScoreDeltas: any;
+  promptChanged: boolean;
+};

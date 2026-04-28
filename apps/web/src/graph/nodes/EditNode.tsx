@@ -1,15 +1,14 @@
 import { Handle, NodeProps, Position } from "reactflow";
 import { NodeCard } from "./Node";
-import { Stack, Typography, Chip, Box } from "@mui/material";
-import { parsedChangelogLines } from "../../utils/parseTimelineChangelog";
+import { Stack, Chip } from "@mui/material";
+
 import ContentCutIcon from "@mui/icons-material/ContentCut";
-import { useContext } from "react";
-import GraphUIContext from "../contexts/GraphUIContext";
+
 import React from "react";
 
+const editIcon = <ContentCutIcon fontSize="small" />;
+
 export const EditNode = React.memo(function EditNode(props: NodeProps<any>) {
-  const ui = useContext(GraphUIContext);
-  if (!ui) throw new Error("GraphUIContext missing");
   const summaryLines: string[] = props.data?.summaryLines ?? [];
 
   function checkInSummary(
@@ -35,22 +34,22 @@ export const EditNode = React.memo(function EditNode(props: NodeProps<any>) {
 
       <NodeCard
         nodeId={props.id}
-        icon={<ContentCutIcon fontSize="small" />}
+        icon={editIcon}
         title="Edit"
         type="edit"
         isRoot={false}
         selected={props.selected}
         metaSummary={props.data?.metaSummary}
         note={props.data?.note}
-        onSaveNote={ui?.onSaveNote}
-        onDelete={ui?.onDelete}
+        onSaveNote={props.data?.onSaveNote}
+        onDelete={props.data?.onDelete}
         canDelete={!props.data?.isRoot}
-        onHide={ui?.onHide}
+        onHide={props.data?.onHide}
         canHide={!props.data?.isRoot}
-        highlightUnseenEnabled={ui?.highlightUnseenEnabled}
-        notesEnabled={ui?.notesEnabled}
-        onOpenDetails={ui?.onOpenDetails}
-        onSelectNode={ui.onSelectNode}
+        highlightUnseenEnabled={props.data?.highlightUnseenEnabled}
+        notesEnabled={props.data?.notesEnabled}
+        onOpenDetails={props.data?.onOpenDetails}
+        onSelectNode={props.data.onSelectNode}
       >
         <Stack gap={1} mt={1}>
           {checkInSummary("clip_added", summaryLines) && <Chip label="Added clip" />}

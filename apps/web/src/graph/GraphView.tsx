@@ -32,9 +32,6 @@ import {
   comfyStartV2V,
   comfyUploadVideo,
   openInResolve,
-  openTimelineInResolve,
-  resolveExportTimeline,
-  uploadTimelineFile,
   comfyBuildVideoUrl,
 } from "../api";
 import { parsedChangelogLines } from "../utils/parseTimelineChangelog";
@@ -44,18 +41,12 @@ import { useProjectGraph } from "./hooks/useProjectGraph";
 import { useViewport } from "./hooks/useViewport";
 import { useV2VSliders } from "./hooks/useV2VSliders";
 import {
-  sliderToIntRange,
-  sliderToRange,
   deriveV2VParamsFromSimple,
-  useCategoryScores,
   getScoreRanges,
   computeAllScores,
   numDelta,
-  scoreDelta,
   buildScoreDeltaMap,
   useCategoryIds,
-  deltaChipSx,
-  fmt,
 } from "./hooks/useV2VParams";
 import { useDavinciTimeline } from "./hooks/useDaVinciTimeline";
 import { useComfyJobs } from "./hooks/useComfyJobs"; // IMPORTANT: needs to call onSuccess(file)!
@@ -74,7 +65,7 @@ import { StatusDot } from "./components/StatusDot";
 import { JobsPanel } from "./components/JobsPanel";
 
 // MUI
-import { Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Paper, Stack } from "@mui/material";
 import {
   centerOnNode,
   countBranches,
@@ -92,6 +83,7 @@ import {
   getSimpleFromParentClip,
   collectParamTimelineForClip,
   getVideoSegmentPlaybackForClip,
+  useLatestRef,
 } from "./graph_helpers/selectors";
 import { useManualTimelineImport } from "./hooks/useManualTimelineImport";
 import { DeleteNodeDialog } from "./dialogs/DeleteNodeDialog";
@@ -117,6 +109,7 @@ import {
   GraphCardContentMode,
   GraphCardDisplayMode,
   OrderedSliderItem,
+  ParamDeltaCacheEntry,
   StandardCategoryKey,
   TransitionEvaluation,
 } from "./types/ui";
@@ -124,10 +117,9 @@ import { buildCompareCategoryDeltas, buildCompareDelta } from "./graph_helpers/c
 import { NodeDetailsDialog } from "./dialogs/NodeDetailsDialog";
 import { DEFAULT_FORMULA_WEIGHTS, DEFAULT_BASE_ORDER } from "./graph_helpers/presets";
 import { ImportVideoDialog } from "./dialogs/ImportVideoDialog";
-import { CategoryScoresSidebar } from "./components/CategoryScoresSidebar";
+
 import { useClipDialogLogic } from "./graph_helpers/clipDialogLogic";
 import { useNodeDetailsDialog } from "./hooks/useNodeDetailsDialogLogic";
-import GraphUIContext from "./contexts/GraphUIContext";
 
 // edgeTypes
 const edgeTypes = { labeled: LabeledEdge };
@@ -199,7 +191,6 @@ export function GraphView(props: {
           n.id === nodeId ? { ...n, data: { ...(n.data as any), videoOpened: true } } : n
         );
 
-        // ✅ commit muss den "next" state bekommen
         g.setRfEdges((prevE) => {
           g.commit(next, prevE);
           return prevE;
@@ -208,7 +199,7 @@ export function GraphView(props: {
         return next;
       });
     },
-    [g]
+    [g.setRfNodes, g.setRfEdges, g.commit]
   );
 
   const saveNodeNote = useCallback(
@@ -226,7 +217,7 @@ export function GraphView(props: {
         return next;
       });
     },
-    [g]
+    [g.setRfNodes, g.setRfEdges, g.commit]
   );
 
   // ✅ inject onAdd handler for the "+" button inside nodes
@@ -910,11 +901,16 @@ export function GraphView(props: {
     [setClickedNodeId]
   );
 
-  console.time("render GraphView");
+  const renderStartRef = useRef(0);
+  renderStartRef.current = performance.now();
 
   useEffect(() => {
-    console.timeEnd("render GraphView");
+    console.log("render GraphView", Math.round(performance.now() - renderStartRef.current), "ms");
   });
+
+  const projectNodeMap = useMemo(() => {
+    return buildNodeMap(props.project);
+  }, [props.project.nodes]);
 
   const highlightedBranch = useMemo(() => {
     if (!selectedNodeId) {
@@ -925,15 +921,99 @@ export function GraphView(props: {
       };
     }
 
-    const nodeMap = buildNodeMap(props.project);
-    const branchPath = getBranchPathThroughSelected(selectedNodeId, props.project, nodeMap);
+    const branchPath = getBranchPathThroughSelected(selectedNodeId, props.project, projectNodeMap);
 
     return {
       branchPath,
       edgeIds: getBranchEdgeIds(branchPath, props.project),
       nodeIds: getBranchNodeIds(branchPath),
     };
-  }, [props.project, selectedNodeId]);
+  }, [selectedNodeId, props.project.nodes, props.project.edges, projectNodeMap]);
+
+  const activeClipPickRef = useLatestRef(props.activeClipPick);
+  const selectNodeRef = useLatestRef(selectNode);
+  const markVideoOpenedRef = useLatestRef(markVideoOpened);
+  const saveNodeNoteRef = useLatestRef(saveNodeNote);
+  const handleDeleteNodeRef = useLatestRef(handleDeleteNode);
+  const handleHideNodeRef = useLatestRef(handleHideNode);
+  const handleOpenDetailsRef = useLatestRef(handleOpenDetails);
+  const handleStartCompareRef = useLatestRef(handleStartCompare);
+
+  const graphActions = useMemo(
+    () => ({
+      onAdd: (nodeId: string) => {
+        if (activeClipPickRef.current !== null) return;
+        selectNodeRef.current(nodeId);
+        setActionDialogOpen(true);
+      },
+      onVideoOpened: (nodeId: string) => markVideoOpenedRef.current(nodeId),
+      onSaveNote: (nodeId: string, note: string) => saveNodeNoteRef.current(nodeId, note),
+      onDelete: (nodeId: string) => handleDeleteNodeRef.current(nodeId),
+      onHide: (nodeId: string) => handleHideNodeRef.current(nodeId),
+      onOpenDetails: (nodeId: string) => handleOpenDetailsRef.current(nodeId),
+      onStartCompare: (nodeId: string) => handleStartCompareRef.current(nodeId),
+      onSelectNode: (nodeId: string) => selectNodeRef.current(nodeId),
+    }),
+    []
+  );
+
+  const deltaCacheRef = useRef(new Map<string, ParamDeltaCacheEntry>());
+
+  function scoreKey(scores: any): string {
+    if (!scores) return "";
+
+    return Object.keys(scores)
+      .sort()
+      .map((k) => `${k}:${scores[k]}`)
+      .join("|");
+  }
+
+  function paramDeltaKey(nodeId: string, cur: any, prevParamsId: string | null, prev: any): string {
+    return [
+      nodeId,
+      prevParamsId ?? "",
+      cur.prompt ?? "",
+      prev?.prompt ?? "",
+
+      cur.highNoiseCfg,
+      prev?.highNoiseCfg,
+      cur.lowNoiseCfg,
+      prev?.lowNoiseCfg,
+
+      cur.highNoiseShift,
+      prev?.highNoiseShift,
+      cur.lowNoiseShift,
+      prev?.lowNoiseShift,
+
+      cur.highNoiseModelStrength,
+      prev?.highNoiseModelStrength,
+      cur.lowNoiseModelStrength,
+      prev?.lowNoiseModelStrength,
+
+      cur.highNoiseSteps,
+      prev?.highNoiseSteps,
+      cur.lowNoiseSteps,
+      prev?.lowNoiseSteps,
+
+      cur.highNoiseStartStep,
+      prev?.highNoiseStartStep,
+      cur.lowNoiseStartStep,
+      prev?.lowNoiseStartStep,
+
+      cur.highNoiseEndStep,
+      prev?.highNoiseEndStep,
+      cur.lowNoiseEndStep,
+      prev?.lowNoiseEndStep,
+
+      cur.displayTotalSteps,
+      prev?.displayTotalSteps,
+      cur.displayLowStepPct,
+      prev?.displayLowStepPct,
+
+      scoreKey(cur.categoryScores),
+      scoreKey(prev?.categoryScores),
+    ].join("§");
+  }
 
   const baseNodesForUI = useMemo(() => {
     const nodes = g.nodesWithRootFlag as Node[];
@@ -949,7 +1029,22 @@ export function GraphView(props: {
       const injectedCommon = {
         ...baseData,
         videoOpened: Boolean(baseData?.videoOpened),
-        categoryLabels,
+
+        onAdd: graphActions.onAdd,
+        onVideoOpened: graphActions.onVideoOpened,
+        onSaveNote: graphActions.onSaveNote,
+        onDelete: graphActions.onDelete,
+        onHide: graphActions.onHide,
+        onOpenDetails: graphActions.onOpenDetails,
+        onStartCompare: graphActions.onStartCompare,
+        onSelectNode: graphActions.onSelectNode,
+
+        highlightUnseenEnabled: props.highlightUnseenEnabled,
+        notesEnabled: props.notesEnabled,
+        showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
+        graphCardContentMode: props.graphCardContentMode,
+        graphCardDisplayMode: props.graphCardDisplayMode,
+        showOnlyChangedParameters: props.showOnlyChangedParameters,
       };
 
       // ---------- clip ----------
@@ -1026,61 +1121,89 @@ export function GraphView(props: {
       const prevParamsId = findPrevParamsId(n.id, rawNodesById, incoming);
       const prevParamsData = prevParamsId ? (rawNodesById.get(prevParamsId)?.data as any) : null;
 
-      const curPrompt = injectedCommon.prompt ?? "";
-      const prevPrompt = prevParamsData?.prompt ?? "";
+      const cacheKey = paramDeltaKey(n.id, injectedCommon, prevParamsId, prevParamsData);
+      const cached = deltaCacheRef.current.get(n.id);
 
-      const promptChanged =
-        typeof curPrompt === "string" &&
-        typeof prevPrompt === "string" &&
-        curPrompt.trim() !== prevPrompt.trim();
+      let finalDeltas: any = null;
+      let finalCategoryScoreDeltas: any = null;
+      let finalPromptChanged = false;
 
-      const deltas = prevParamsData
-        ? {
-            highNoiseCfg: numDelta(injectedCommon, prevParamsData, "highNoiseCfg"),
-            lowNoiseCfg: numDelta(injectedCommon, prevParamsData, "lowNoiseCfg"),
+      if (cached?.key === cacheKey) {
+        finalDeltas = cached.deltas;
+        finalCategoryScoreDeltas = cached.categoryScoreDeltas;
+        finalPromptChanged = cached.promptChanged;
+      } else {
+        const curPrompt = injectedCommon.prompt ?? "";
+        const prevPrompt = prevParamsData?.prompt ?? "";
 
-            highNoiseShift: numDelta(injectedCommon, prevParamsData, "highNoiseShift"),
-            lowNoiseShift: numDelta(injectedCommon, prevParamsData, "lowNoiseShift"),
+        finalPromptChanged =
+          typeof curPrompt === "string" &&
+          typeof prevPrompt === "string" &&
+          curPrompt.trim() !== prevPrompt.trim();
 
-            highNoiseModelStrength: numDelta(
-              injectedCommon,
-              prevParamsData,
-              "highNoiseModelStrength"
-            ),
-            lowNoiseModelStrength: numDelta(
-              injectedCommon,
-              prevParamsData,
-              "lowNoiseModelStrength"
-            ),
+        finalDeltas = prevParamsData
+          ? {
+              highNoiseCfg: numDelta(injectedCommon, prevParamsData, "highNoiseCfg"),
+              lowNoiseCfg: numDelta(injectedCommon, prevParamsData, "lowNoiseCfg"),
 
-            highNoiseSteps: numDelta(injectedCommon, prevParamsData, "highNoiseSteps"),
-            lowNoiseSteps: numDelta(injectedCommon, prevParamsData, "lowNoiseSteps"),
+              highNoiseShift: numDelta(injectedCommon, prevParamsData, "highNoiseShift"),
+              lowNoiseShift: numDelta(injectedCommon, prevParamsData, "lowNoiseShift"),
 
-            highNoiseStartStep: numDelta(injectedCommon, prevParamsData, "highNoiseStartStep"),
-            lowNoiseStartStep: numDelta(injectedCommon, prevParamsData, "lowNoiseStartStep"),
+              highNoiseModelStrength: numDelta(
+                injectedCommon,
+                prevParamsData,
+                "highNoiseModelStrength"
+              ),
+              lowNoiseModelStrength: numDelta(
+                injectedCommon,
+                prevParamsData,
+                "lowNoiseModelStrength"
+              ),
 
-            highNoiseEndStep: numDelta(injectedCommon, prevParamsData, "highNoiseEndStep"),
-            lowNoiseEndStep: numDelta(injectedCommon, prevParamsData, "lowNoiseEndStep"),
-            displayTotalSteps: numDelta(injectedCommon, prevParamsData, "displayTotalSteps"),
-            displayLowStepPct: numDelta(injectedCommon, prevParamsData, "displayLowStepPct"),
-          }
-        : null;
+              highNoiseSteps: numDelta(injectedCommon, prevParamsData, "highNoiseSteps"),
+              lowNoiseSteps: numDelta(injectedCommon, prevParamsData, "lowNoiseSteps"),
 
-      const curScores = injectedCommon.categoryScores;
-      const prevScores = prevParamsData?.categoryScores;
+              highNoiseStartStep: numDelta(injectedCommon, prevParamsData, "highNoiseStartStep"),
+              lowNoiseStartStep: numDelta(injectedCommon, prevParamsData, "lowNoiseStartStep"),
 
-      const categoryScoreDeltas =
-        curScores && prevScores ? buildScoreDeltaMap(curScores, prevScores) : null;
+              highNoiseEndStep: numDelta(injectedCommon, prevParamsData, "highNoiseEndStep"),
+              lowNoiseEndStep: numDelta(injectedCommon, prevParamsData, "lowNoiseEndStep"),
+
+              displayTotalSteps: numDelta(injectedCommon, prevParamsData, "displayTotalSteps"),
+              displayLowStepPct: numDelta(injectedCommon, prevParamsData, "displayLowStepPct"),
+            }
+          : null;
+
+        const curScores = injectedCommon.categoryScores;
+        const prevScores = prevParamsData?.categoryScores;
+
+        finalCategoryScoreDeltas =
+          curScores && prevScores ? buildScoreDeltaMap(curScores, prevScores) : null;
+
+        deltaCacheRef.current.set(n.id, {
+          key: cacheKey,
+          deltas: finalDeltas,
+          categoryScoreDeltas: finalCategoryScoreDeltas,
+          promptChanged: finalPromptChanged,
+        });
+      }
 
       return {
         ...n,
         hidden: Boolean(baseData?.isHidden),
         data: {
           ...injectedCommon,
+          categoryLabels,
           prevParamsId,
-          paramDeltas: deltas,
-          categoryScoreDeltas,
-          promptChanged,
+          paramDeltas: finalDeltas,
+          categoryScoreDeltas: finalCategoryScoreDeltas,
+          promptChanged: finalPromptChanged,
+
+          categoryVisibility,
+          onSetCategoryVisible: setCategoryVisible,
+          onShowAllCategories: showAllCategories,
+          isComparePicking,
+          compareSourceNodeId,
         },
       };
     });
@@ -1088,25 +1211,129 @@ export function GraphView(props: {
     // 2) Jetzt mit den vorberechneten Nodes branchSuggestion + parameterHistory berechnen
 
     return basePrecomputedNodes;
-  }, [g.nodesWithRootFlag, g.rfEdges, categoryLabels]);
+  }, [
+    g.nodesWithRootFlag,
+    g.rfEdges,
+    categoryLabels,
+    graphActions,
+    props.highlightUnseenEnabled,
+    props.notesEnabled,
+    props.showWeightSuggestionsEnabled,
+    props.graphCardContentMode,
+    props.graphCardDisplayMode,
+    props.showOnlyChangedParameters,
+    categoryVisibility,
+    setCategoryVisible,
+    showAllCategories,
+    isComparePicking,
+    compareSourceNodeId,
+  ]);
+
+  const handleInit = useCallback((instance: ReactFlowInstance) => {
+    setRfInstance(instance);
+  }, []);
+
+  const handleNodeClick: NodeMouseHandler = useCallback(
+    (_evt, node) => {
+      if (props.activeClipPick && node.type === "clip") {
+        const nodeData = node.data as any;
+
+        props.onClipPicked?.({
+          id: node.id,
+          label: nodeData?.label ?? null,
+          videoUrl: nodeData?.videoUrl ?? null,
+        });
+
+        setActionDialogOpen(false);
+        setDetailsOpen(false);
+        return;
+      }
+
+      if (isComparePicking && compareSourceNodeId) {
+        finishComparePick(node.id);
+        return;
+      }
+
+      selectNode(node.id);
+
+      if (node.type === "clip" || node.type === "edit" || node.type === "import") {
+        setActionDialogOpen(true);
+      }
+    },
+    [
+      props.activeClipPick,
+      props.onClipPicked,
+      isComparePicking,
+      compareSourceNodeId,
+      finishComparePick,
+      selectNode,
+    ]
+  );
+
+  const handleNodeDragStop = useCallback(
+    (_: any, node: RFNode) => {
+      g.setRfNodes((prev) => {
+        const next = prev.map((n) => (n.id === node.id ? { ...n, position: node.position } : n));
+
+        g.commit(next, g.rfEdges);
+        return next;
+      });
+
+      requestAnimationFrame(vp.saveViewport);
+    },
+    [g.setRfNodes, g.commit, g.rfEdges, vp.saveViewport]
+  );
+
+  const baseNodesById = useMemo(() => {
+    return new Map(baseNodesForUI.map((n) => [n.id, n]));
+  }, [baseNodesForUI]);
+
+  const nodesForUICacheRef = useRef(new Map<string, RFNode>());
 
   const nodesForUI = useMemo(() => {
-    return baseNodesForUI.map((n) => ({
-      ...n,
-      selected: n.id === selectedNodeId,
-      data: {
-        ...(n.data as any),
-        isTimelineNode: highlightedBranch.nodeIds.has(n.id),
-      },
-    }));
-  }, [baseNodesForUI, selectedNodeId, highlightedBranch.nodeIds]);
+    const prevCache = nodesForUICacheRef.current;
+    const nextCache = new Map<string, RFNode>();
+
+    const nextNodes = baseNodesForUI.map((n) => {
+      const prev = prevCache.get(n.id);
+      const isTimelineNode = highlightedBranch.nodeIds.has(n.id);
+      const prevData = prev?.data as any;
+
+      if (
+        prev &&
+        prevData?.isTimelineNode === isTimelineNode &&
+        prevData?.__baseDataRef === n.data
+      ) {
+        nextCache.set(n.id, prev);
+        return prev;
+      }
+
+      const next: RFNode = {
+        ...n,
+        data: {
+          ...(n.data as any),
+          isTimelineNode,
+          __baseDataRef: n.data,
+        },
+      };
+
+      nextCache.set(n.id, next);
+      return next;
+    });
+
+    nodesForUICacheRef.current = nextCache;
+    return nextNodes;
+  }, [baseNodesForUI, highlightedBranch.nodeIds]);
+
+  const edgesForUICacheRef = useRef(new Map<string, RFEdge>());
 
   const edgesForUI = useMemo(() => {
-    const nodeById = new Map(nodesForUI.map((n) => [n.id, n]));
+    const prevCache = edgesForUICacheRef.current;
+    const nextCache = new Map<string, RFEdge>();
 
-    return g.rfEdges.map((edge) => {
-      const sourceNode = nodeById.get(edge.source);
-      const targetNode = nodeById.get(edge.target);
+    const nextEdges = g.rfEdges.map((edge) => {
+      const sourceNode = baseNodesById.get(edge.source);
+      const targetNode = baseNodesById.get(edge.target);
 
       const isParamToClip = sourceNode?.type === "params" && targetNode?.type === "clip";
       const evaluation = isParamToClip ? props.transitionEvaluations[edge.target] : undefined;
@@ -1115,11 +1342,31 @@ export function GraphView(props: {
       const strokeWidth =
         typeof score === "number" ? scoreToStrokeWidth(score) : (edge.data as any)?.strokeWidth;
 
-      return {
+      const isTimelineEdge = highlightedBranch.edgeIds.has(edge.id);
+      const prev = prevCache.get(edge.id);
+      const prevData = prev?.data as any;
+
+      if (
+        prev &&
+        prevData?.__baseEdgeRef === edge &&
+        prevData?.isTimelineEdge === isTimelineEdge &&
+        prevData?.transitionScore === score &&
+        prevData?.transitionLabel === evaluation?.label &&
+        prevData?.appearanceScore === evaluation?.appearanceScore &&
+        prevData?.motionScore === evaluation?.motionScore &&
+        prevData?.boundaryJumpScore === evaluation?.boundaryJumpScore &&
+        prevData?.strokeWidth === strokeWidth
+      ) {
+        nextCache.set(edge.id, prev);
+        return prev;
+      }
+
+      const next: RFEdge = {
         ...edge,
         data: {
           ...(edge.data as any),
-          isTimelineEdge: highlightedBranch.edgeIds.has(edge.id),
+          __baseEdgeRef: edge,
+          isTimelineEdge,
           transitionScore: score,
           transitionLabel: evaluation?.label,
           appearanceScore: evaluation?.appearanceScore,
@@ -1132,8 +1379,14 @@ export function GraphView(props: {
               : (edge.data as any)?.scoreColorHint,
         },
       };
+
+      nextCache.set(edge.id, next);
+      return next;
     });
-  }, [g.rfEdges, nodesForUI, props.transitionEvaluations, highlightedBranch.edgeIds]);
+
+    edgesForUICacheRef.current = nextCache;
+    return nextEdges;
+  }, [g.rfEdges, baseNodesById, props.transitionEvaluations, highlightedBranch.edgeIds]);
 
   const compareSelector = useMemo(() => {
     if (!compareSourceNodeId || !compareTargetNodeId) return undefined;
@@ -1193,11 +1446,16 @@ export function GraphView(props: {
     };
   }, [compareSourceNodeId, compareTargetNodeId, nodesForUI, g.rfEdges]);
 
+  const sidebarNode = useMemo(() => {
+    if (!g.clickedNodeId) return null;
+    return baseNodesById.get(g.clickedNodeId) ?? null;
+  }, [g.clickedNodeId, baseNodesById]);
+
   const compareParameterHistory = useMemo(() => {
     if (compareModeSource !== "sidebar") return undefined;
     if (!compareSourceNodeId || !compareTargetNodeId) return undefined;
 
-    const nodes = nodesForUI as RFNode[];
+    const nodes = baseNodesForUI as RFNode[];
     const edges = g.rfEdges as RFEdge[];
     const nodesById = new Map(nodes.map((n) => [n.id, n]));
 
@@ -1208,19 +1466,14 @@ export function GraphView(props: {
       baseHistory: buildParameterHistoryFromBranchSteps(baseBranchSteps, nodesById),
       compareHistory: buildParameterHistoryFromBranchSteps(compareBranchSteps, nodesById),
     };
-  }, [compareModeSource, compareSourceNodeId, compareTargetNodeId, nodesForUI, g.rfEdges]);
+  }, [compareModeSource, compareSourceNodeId, compareTargetNodeId, baseNodesForUI, g.rfEdges]);
 
   const detailsNode = useMemo(() => {
     if (!detailsNodeId) return null;
-    return nodesForUI.find((n) => n.id === detailsNodeId) ?? null;
-  }, [detailsNodeId, nodesForUI]);
+    return baseNodesById.get(detailsNodeId) ?? null;
+  }, [detailsNodeId, baseNodesById]);
 
   const detailsNodeData = detailsNode?.data as any | undefined;
-
-  const sidebarNode = useMemo(() => {
-    if (!g.clickedNodeId) return null;
-    return nodesForUI.find((n) => n.id === g.clickedNodeId) ?? null;
-  }, [g.clickedNodeId, nodesForUI]);
 
   const compareBaseNode = useMemo(() => {
     if (!compareTargetNodeId) return null;
@@ -1331,7 +1584,7 @@ export function GraphView(props: {
   const sidebarParamAnalysis = useMemo(() => {
     if (!sidebarNode || sidebarNode.type !== "params") return null;
 
-    const nodes = nodesForUI as RFNode[];
+    const nodes = baseNodesForUI as RFNode[];
     const edges = g.rfEdges as Edge[];
     const nodesById = new Map(nodes.map((n) => [n.id, n]));
 
@@ -1348,12 +1601,12 @@ export function GraphView(props: {
       }),
       parameterHistory: buildParameterHistoryFromBranchSteps(branchSteps, nodesById),
     };
-  }, [sidebarNode?.id, nodesForUI, g.rfEdges]);
+  }, [sidebarNode?.id, baseNodesForUI, g.rfEdges, categoryLabels]);
 
   const detailsParamAnalysis = useMemo(() => {
     if (!detailsNode || detailsNode.type !== "params") return null;
 
-    const nodes = nodesForUI as RFNode[];
+    const nodes = baseNodesForUI as RFNode[];
     const edges = g.rfEdges as Edge[];
     const nodesById = new Map(nodes.map((n) => [n.id, n]));
 
@@ -1370,17 +1623,17 @@ export function GraphView(props: {
       }),
       parameterHistory: buildParameterHistoryFromBranchSteps(branchSteps, nodesById),
     };
-  }, [detailsNode?.id, nodesForUI, g.rfEdges]);
+  }, [detailsNode?.id, baseNodesForUI, g.rfEdges, categoryLabels]);
 
   const detailsVideoPlayback = useMemo(() => {
     if (!detailsNode || detailsNode.type !== "clip") return undefined;
 
     return getVideoSegmentPlaybackForClip(
       detailsNode.id,
-      nodesForUI as RFNode[],
+      baseNodesForUI as RFNode[],
       g.rfEdges as RFEdge[]
     );
-  }, [detailsNode, nodesForUI, g.rfEdges]);
+  }, [detailsNode?.id, detailsNode?.type, baseNodesForUI, g.rfEdges]);
 
   const sharedNodeDetailsProps = useMemo(() => {
     if (!sidebarNode || sidebarNode.type !== "params") return null;
@@ -2087,62 +2340,6 @@ export function GraphView(props: {
     requestAnimationFrame(() => {});
   };
 
-  const graphUI = useMemo(
-    () => ({
-      onAdd: (nodeId: string) => {
-        if (props.activeClipPick !== null) return;
-        selectNode(nodeId);
-        setActionDialogOpen(true);
-      },
-      onVideoOpened: markVideoOpened,
-      onSaveNote: saveNodeNote,
-      onDelete: handleDeleteNode,
-      onHide: handleHideNode,
-      onOpenDetails: handleOpenDetails,
-      onStartCompare: handleStartCompare,
-      onSelectNode: selectNode,
-
-      notesEnabled: props.notesEnabled,
-      highlightUnseenEnabled: props.highlightUnseenEnabled,
-      showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
-      graphCardContentMode: props.graphCardContentMode,
-      graphCardDisplayMode: props.graphCardDisplayMode,
-      showOnlyChangedParameters: props.showOnlyChangedParameters,
-
-      categoryVisibility,
-      onSetCategoryVisible: setCategoryVisible,
-      onShowAllCategories: showAllCategories,
-
-      isComparePicking,
-      compareSourceNodeId,
-
-      activeClipPick: props.activeClipPick ?? null,
-      onPickClipNode: props.onClipPicked,
-    }),
-    [
-      selectNode,
-      markVideoOpened,
-      saveNodeNote,
-      handleDeleteNode,
-      handleHideNode,
-      handleOpenDetails,
-      handleStartCompare,
-      props.notesEnabled,
-      props.highlightUnseenEnabled,
-      props.showWeightSuggestionsEnabled,
-      props.graphCardContentMode,
-      props.graphCardDisplayMode,
-      props.showOnlyChangedParameters,
-      categoryVisibility,
-      setCategoryVisible,
-      showAllCategories,
-      isComparePicking,
-      compareSourceNodeId,
-      props.activeClipPick,
-      props.onClipPicked,
-    ]
-  );
-
   return (
     <div style={{ height: "100%", position: "relative" }}>
       {/* Jobs */}
@@ -2224,41 +2421,30 @@ export function GraphView(props: {
           </Stack>
         </Paper>
       )}
-      <GraphUIContext.Provider value={graphUI}>
-        <ReactFlow
-          onInit={(instance) => setRfInstance(instance)}
-          nodes={nodesForUI}
-          edges={edgesForUI}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          nodesDraggable
-          nodesConnectable={false}
-          elementsSelectable
-          deleteKeyCode={null}
-          panOnDrag={[1, 2]}
-          zoomOnScroll
-          onNodesChange={g.onNodesChange}
-          onEdgesChange={g.onEdgesChange}
-          onNodeClick={onNodeClick}
-          onNodeDragStop={(_, node) => {
-            g.setRfNodes((prev) => {
-              const next = prev.map((n) =>
-                n.id === node.id ? { ...n, position: node.position } : n
-              );
 
-              g.commit(next, g.rfEdges);
-              return next;
-            });
-
-            requestAnimationFrame(vp.saveViewport);
-          }}
-          onMove={vp.scheduleSaveViewport}
-          onMoveEnd={vp.saveViewport}
-        >
-          <Background />
-          <Controls />
-        </ReactFlow>
-      </GraphUIContext.Provider>
+      <ReactFlow
+        onlyRenderVisibleElements
+        onInit={handleInit}
+        nodes={nodesForUI}
+        edges={edgesForUI}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        nodesDraggable
+        nodesConnectable={false}
+        elementsSelectable
+        deleteKeyCode={null}
+        panOnDrag={[1, 2]}
+        zoomOnScroll
+        onNodesChange={g.onNodesChange}
+        onEdgesChange={g.onEdgesChange}
+        onNodeClick={handleNodeClick}
+        onNodeDragStop={handleNodeDragStop}
+        onMove={vp.scheduleSaveViewport}
+        onMoveEnd={vp.saveViewport}
+      >
+        <Background />
+        <Controls />
+      </ReactFlow>
 
       {/* dialogs */}
       <ActionDialog

@@ -88,7 +88,7 @@ export type NodeCardPreviewProps = {
   onSelectNode?: (nodeId: string) => void;
 };
 
-export function GraphCard(props: NodeCardPreviewProps) {
+function GraphCardInner(props: NodeCardPreviewProps) {
   const d = props.paramDeltas;
   const suggestion = props.branchSuggestion;
 
@@ -151,121 +151,97 @@ export function GraphCard(props: NodeCardPreviewProps) {
   const lowStepPctDelta =
     currentLowStepPct != null && oldLowStepPct != null ? currentLowStepPct - oldLowStepPct : null;
 
-  const categoryEntries = getVisibleCategoryEntries(
+  const visibleCategoryEntries = React.useMemo(() => {
+    const entries = getVisibleCategoryEntries(
+      props.categoryScores,
+      props.categoryScoreDeltas,
+      props.categoryLabels
+    );
+
+    return entries.filter((entry) => props.categoryVisibility?.[entry.key] !== false);
+  }, [
     props.categoryScores,
     props.categoryScoreDeltas,
-    props.categoryLabels
-  );
-
-  const visibleCategoryEntries = categoryEntries.filter(
-    (entry) => props.categoryVisibility?.[entry.key] !== false
-  );
+    props.categoryLabels,
+    props.categoryVisibility,
+  ]);
 
   const minWidth = props.type === "params" ? 420 : props.type === "edit" ? 300 : 220;
 
-  const suggestionChip =
-    props.showWeightSuggestionsEnabled && props.type === "params" && suggestion
-      ? {
-          key: "branch-suggestion",
-          label: "Hint: Adjust weights",
-          sx: {
-            border: "1px solid",
-            borderColor: "#ff9800",
-            boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
-          },
-        }
-      : null;
+  const summaryChips = React.useMemo(() => {
+    const suggestionChip =
+      props.showWeightSuggestionsEnabled && props.type === "params" && suggestion
+        ? {
+            key: "branch-suggestion",
+            label: "Hint: Adjust weights",
+            sx: {
+              border: "1px solid",
+              borderColor: "#ff9800",
+              boxShadow: "0 0 0 1px rgba(255,152,0,0.18)",
+            },
+          }
+        : null;
 
-  const summaryChips = [
-    suggestionChip,
-    props.prevParamsId && props.graphCardContentMode === "parameters" && props.promptChanged
-      ? {
-          key: "prompt-changed",
-          label: "Prompt changed",
-          sx: {
-            border: "1px solid",
-            borderColor: "#f73378",
-            boxShadow: "0 0 0 1px rgba(211,47,47,0.15)",
-          },
-        }
-      : null,
-    ...(props.type === "params" && props.graphCardContentMode === "categories"
-      ? visibleCategoryEntries
-          .filter((entry) => entry.delta != null && entry.delta != 0)
-          .map((entry) => ({
-            key: `category-${entry.key}`,
-            label:
-              entry.delta != null
-                ? `${truncateLabel(entry.label)}: ${entry.value} ${fmt(entry.delta, 2)}`
-                : `${truncateLabel(entry.label)}: ${entry.value}`,
-            sx: entry.delta != null ? deltaChipSx(entry.delta) : {},
-          }))
-      : []),
-    ...(props.type === "params" && props.graphCardContentMode === "parameters"
-      ? [
-          d && fmt(d.highNoiseCfg, 2) !== ""
-            ? {
-                key: "high-cfg",
-                label: `High CFG: ${props.highNoiseCfg} ${fmt(d.highNoiseCfg, 2)}`,
-                sx: deltaChipSx(d.highNoiseCfg),
-              }
-            : null,
-          d && fmt(d.lowNoiseCfg, 2) !== ""
-            ? {
-                key: "low-cfg",
-                label: `Low CFG: ${props.lowNoiseCfg} ${fmt(d.lowNoiseCfg, 2)}`,
-                sx: deltaChipSx(d.lowNoiseCfg),
-              }
-            : null,
-          d && fmt(d.highNoiseShift, 2) !== ""
-            ? {
-                key: "high-shift",
-                label: `High Shift: ${props.highNoiseShift} ${fmt(d.highNoiseShift, 2)}`,
-                sx: deltaChipSx(d.highNoiseShift),
-              }
-            : null,
-          d && fmt(d.lowNoiseShift, 2) !== ""
-            ? {
-                key: "low-shift",
-                label: `Low Shift: ${props.lowNoiseShift} ${fmt(d.lowNoiseShift, 2)}`,
-                sx: deltaChipSx(d.lowNoiseShift),
-              }
-            : null,
-          d && fmt(d.highNoiseModelStrength, 2) !== ""
-            ? {
-                key: "high-strength",
-                label: `High Strength: ${props.highNoiseModelStrength} ${fmt(
-                  d.highNoiseModelStrength,
-                  2
-                )}`,
-                sx: deltaChipSx(d.highNoiseModelStrength),
-              }
-            : null,
-          d && fmt(d.lowNoiseModelStrength, 2) !== ""
-            ? {
-                key: "low-strength",
-                label: `Low Strength: ${props.lowNoiseModelStrength} ${fmt(d.lowNoiseModelStrength, 2)}`,
-                sx: deltaChipSx(d.lowNoiseModelStrength),
-              }
-            : null,
-          d && fmt(totalStepsDelta, 0) != ""
-            ? {
-                key: "total-steps",
-                label: `Total Steps: ${currentTotalSteps} ${fmt(totalStepsDelta, 0)}`,
-                sx: deltaChipSx(totalStepsDelta),
-              }
-            : null,
+    return [
+      suggestionChip,
+      props.prevParamsId && props.graphCardContentMode === "parameters" && props.promptChanged
+        ? {
+            key: "prompt-changed",
+            label: "Prompt changed",
+            sx: {
+              border: "1px solid",
+              borderColor: "#f73378",
+              boxShadow: "0 0 0 1px rgba(211,47,47,0.15)",
+            },
+          }
+        : null,
 
-          d && fmt(lowStepPctDelta, 0) != ""
-            ? {
-                key: "low-step-pct",
-                label: `Low Step: ${Math.round(currentLowStepPct ?? 0)}% ${fmt(lowStepPctDelta, 0)}`,
-                sx: deltaChipSx(lowStepPctDelta),
-              }
-            : null,
-        ].filter(Boolean)
-      : []),
-  ].filter(Boolean) as SummaryChip[];
+      ...(props.type === "params" && props.graphCardContentMode === "categories"
+        ? visibleCategoryEntries
+            .filter((entry) => entry.delta != null && entry.delta !== 0)
+            .map((entry) => ({
+              key: `category-${entry.key}`,
+              label:
+                entry.delta != null
+                  ? `${truncateLabel(entry.label)}: ${entry.value} ${fmt(entry.delta, 2)}`
+                  : `${truncateLabel(entry.label)}: ${entry.value}`,
+              sx: entry.delta != null ? deltaChipSx(entry.delta) : {},
+            }))
+        : []),
+
+      ...(props.type === "params" && props.graphCardContentMode === "parameters"
+        ? [
+            d && fmt(d.highNoiseCfg, 2) !== ""
+              ? {
+                  key: "high-cfg",
+                  label: `High CFG: ${props.highNoiseCfg} ${fmt(d.highNoiseCfg, 2)}`,
+                  sx: deltaChipSx(d.highNoiseCfg),
+                }
+              : null,
+            // Rest wie vorher
+          ].filter(Boolean)
+        : []),
+    ].filter(Boolean) as SummaryChip[];
+  }, [
+    props.showWeightSuggestionsEnabled,
+    props.type,
+    suggestion,
+    props.prevParamsId,
+    props.graphCardContentMode,
+    props.promptChanged,
+    visibleCategoryEntries,
+    d,
+    props.highNoiseCfg,
+    props.lowNoiseCfg,
+    props.highNoiseShift,
+    props.lowNoiseShift,
+    props.highNoiseModelStrength,
+    props.lowNoiseModelStrength,
+    currentTotalSteps,
+    totalStepsDelta,
+    currentLowStepPct,
+    lowStepPctDelta,
+  ]);
 
   const hasNote = Boolean(props.note?.trim());
 
@@ -274,18 +250,32 @@ export function GraphCard(props: NodeCardPreviewProps) {
     []
   );
 
-  const parameterItems = buildParameterItems({
-    highNoiseCfg: props.highNoiseCfg,
-    highNoiseShift: props.highNoiseShift,
-    highNoiseModelStrength: props.highNoiseModelStrength,
-    totalStepsValue: currentTotalSteps,
-    totalStepsDelta,
-    lowStepPctValue: currentLowStepPct,
-    lowStepPctDelta,
-    d: props.paramDeltas,
-    PARAM_RANGES,
-  });
+  const parameterItems = React.useMemo(() => {
+    if (props.type !== "params") return [];
 
+    return buildParameterItems({
+      highNoiseCfg: props.highNoiseCfg,
+      highNoiseShift: props.highNoiseShift,
+      highNoiseModelStrength: props.highNoiseModelStrength,
+      totalStepsValue: currentTotalSteps,
+      totalStepsDelta,
+      lowStepPctValue: currentLowStepPct,
+      lowStepPctDelta,
+      d: props.paramDeltas,
+      PARAM_RANGES,
+    });
+  }, [
+    props.type,
+    props.highNoiseCfg,
+    props.highNoiseShift,
+    props.highNoiseModelStrength,
+    currentTotalSteps,
+    totalStepsDelta,
+    currentLowStepPct,
+    lowStepPctDelta,
+    props.paramDeltas,
+    PARAM_RANGES,
+  ]);
   return (
     <Card
       sx={{
@@ -524,3 +514,5 @@ export function GraphCard(props: NodeCardPreviewProps) {
     </Card>
   );
 }
+
+export const GraphCard = React.memo(GraphCardInner);

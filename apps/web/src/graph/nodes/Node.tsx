@@ -1,92 +1,19 @@
 import { useTheme } from "@mui/material";
 
 import "reactflow/dist/style.css";
-import { NodeType, StoredMediaFile } from "@ma/shared";
-import { useState } from "react";
 
-import { NodeDetailsDialog } from "../dialogs/NodeDetailsDialog";
 import { GraphCard } from "../components/GraphCard";
 import { ClipNode } from "./ClipNode";
 import { ParamNode } from "./ParamNode";
 import { EditNode } from "./EditNode";
-import {
-  BrachSuggestion,
-  GraphCardContentMode,
-  GraphCardDisplayMode,
-  ParamDelats,
-  ParameterHistoryMap,
-} from "../types/ui";
-import { deltaChipSx } from "../hooks/useV2VParams";
+
 import { ImportNode } from "./ImportNode";
-import { useContext } from "react";
-import GraphUIContext from "../contexts/GraphUIContext";
+
 import { getNodeColors } from "@ma/shared/src/nodeColors";
+import React from "react";
+import { NodeCardProps } from "../types/props";
 
-export function NodeCard(props: {
-  nodeId: string;
-  icon: React.ReactNode;
-  title: string;
-  type: NodeType;
-  isRoot: boolean;
-  selected?: boolean;
-  onAdd?: (nodeId: string) => void;
-  infoText?: string;
-  children?: React.ReactNode;
-  videoUrl?: string | null;
-  videoFile?: StoredMediaFile | null;
-  videoStatus?: string;
-  prompt?: string;
-  metaSummary?: React.ReactNode;
-  highlightUnseenEnabled?: boolean;
-  notesEnabled: boolean;
-  showOnlyChangedParameters?: boolean;
-
-  highNoiseCfg?: number;
-  lowNoiseCfg?: number;
-  highNoiseModelStrength?: number;
-  lowNoiseModelStrength?: number;
-  highNoiseShift?: number;
-  lowNoiseShift?: number;
-  highNoiseSteps?: number;
-  lowNoiseSteps?: number;
-  highNoiseStartStep?: number;
-  lowNoiseStartStep?: number;
-  highNoiseEndStep?: number;
-  lowNoiseEndStep?: number;
-
-  videoOpened?: boolean;
-  onVideoOpened?: (nodeId: string) => void;
-
-  prevParamsId?: string | null;
-  paramDeltas?: ParamDelats;
-
-  promptChanged?: boolean;
-  note?: string;
-  onSaveNote?: (nodeId: string, note: string) => void;
-  onDelete?: (nodeId: string) => void;
-  canDelete?: boolean;
-  onHide?: (nodeId: string) => void;
-  canHide?: boolean;
-  branchSuggestion?: BrachSuggestion;
-  categoryScores?: Record<string, number | null>;
-  categoryScoreDeltas?: Partial<Record<string, number | null>> | null;
-  categoryLabels?: Record<string, string>;
-  categoryVisibility?: Record<string, boolean>;
-  onSetCategoryVisible?: (categoryId: string, visible: boolean) => void;
-  onShowAllCategories?: () => void;
-  showWeightSuggestionsEnabled?: boolean;
-  graphCardContentMode?: GraphCardContentMode;
-  graphCardDisplayMode?: GraphCardDisplayMode;
-  displayTotalSteps?: number;
-  displayLowStepPct?: number;
-  parameterHistory?: ParameterHistoryMap;
-
-  onOpenDetails?: (nodeId: string) => void;
-  onStartCompare?: (nodeId: string) => void;
-  isComparePicking?: boolean;
-  compareSourceNodeId?: string | null;
-  onSelectNode?: (nodeId: string) => void;
-}) {
+export function NodeCardInner(props: NodeCardProps) {
   const theme = useTheme();
 
   const base = getNodeColors(props.type, props.isRoot);
@@ -95,21 +22,11 @@ export function NodeCard(props: {
   const borderColor = base.border;
 
   const shouldHighlightUnseen = props.type === "clip" && !props.videoOpened && !props.selected;
-  const ui = useContext(GraphUIContext);
-  if (!ui) throw new Error("GraphUIContext missing");
 
-  const handleOpen = () => {
-    if (ui.activeClipPick && props.type === "clip") {
-      ui.onPickClipNode?.({
-        id: props.nodeId,
-        label: props.title ?? null,
-        videoUrl: props.videoUrl ?? null,
-      });
-      return;
-    }
-
+  const handleOpen = React.useCallback(() => {
     props.onOpenDetails?.(props.nodeId);
-  };
+  }, [props.onOpenDetails, props.nodeId]);
+
   return (
     <>
       <GraphCard
@@ -174,3 +91,5 @@ export const nodeTypes = {
   edit: EditNode,
   import: ImportNode,
 };
+
+export const NodeCard = React.memo(NodeCardInner);

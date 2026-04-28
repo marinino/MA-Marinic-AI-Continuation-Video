@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Project } from "@ma/shared";
 import type { Edge as RFEdge, Node as RFNode, NodeChange, EdgeChange } from "reactflow";
 import { useNodesState, useEdgesState } from "reactflow";
@@ -40,9 +40,16 @@ export function useProjectGraph({ project, onChange, showEdgeLabels }: Args) {
     setRfEdges(next.edges);
   }, [project.id]);
 
-  const commit = (nodes = rfNodes, edges = rfEdges) => {
-    onChange((prev) => fromRF(prev, nodes, edges));
-  };
+  const commit = useCallback(
+    (nodes = rfNodes, edges = rfEdges) => {
+      onChange((prev) => fromRF(prev, nodes, edges));
+    },
+    [onChange, rfNodes, rfEdges]
+  );
+
+  const onNodesChange = useCallback((c: NodeChange[]) => onNodesChangeRF(c), [onNodesChangeRF]);
+
+  const onEdgesChange = useCallback((c: EdgeChange[]) => onEdgesChangeRF(c), [onEdgesChangeRF]);
 
   const clickedNode = useMemo(() => {
     if (!clickedNodeId) return null;
@@ -75,8 +82,8 @@ export function useProjectGraph({ project, onChange, showEdgeLabels }: Args) {
     rfEdges,
     setRfNodes,
     setRfEdges,
-    onNodesChange: (c: NodeChange[]) => onNodesChangeRF(c),
-    onEdgesChange: (c: EdgeChange[]) => onEdgesChangeRF(c),
+    onNodesChange,
+    onEdgesChange,
     commit,
     clickedNodeId,
     setClickedNodeId,
