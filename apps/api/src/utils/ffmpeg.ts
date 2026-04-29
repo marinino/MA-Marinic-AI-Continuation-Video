@@ -210,3 +210,63 @@ export async function extractBoundaryFrames(
 
   return files;
 }
+
+export async function extractTimelinePreviewFrames(opts: {
+  clipId: string;
+  videoPath: string;
+  outputRoot: string;
+  size?: number;
+}): Promise<{ firstPath: string; lastPath: string }> {
+  const { clipId, videoPath, outputRoot, size = 224 } = opts;
+
+  const safeClipId = clipId.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const outDir = path.join(outputRoot, safeClipId);
+
+  await fs.mkdir(outDir, { recursive: true });
+
+  const firstPath = path.join(outDir, "first.png");
+  const lastPath = path.join(outDir, "last.png");
+
+  const exists = async (p: string) => {
+    try {
+      await fs.access(p);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  if ((await exists(firstPath)) && (await exists(lastPath))) {
+    return { firstPath, lastPath };
+  }
+
+  const vf = [
+    `scale=${size}:${size}:force_original_aspect_ratio=decrease`,
+    `pad=${size}:${size}:(ow-iw)/2:(oh-ih)/2`,
+  ].join(",");
+
+  await run("ffmpeg", [
+    "-y",
+    "-i",
+    videoPath,
+    "-vf",
+    vf,
+    "-frames:v",
+    "1",
+    firstPath,
+  ]);
+
+  await run("ffmpeg", [
+    "-y",
+    "-i",
+    videoPath,
+    "-vf",
+    `reverse,${vf}`,
+    "-frames:v",
+    "1",
+    lastPath,
+  ]);
+
+  return { firstPath, lastPath };
+}
+

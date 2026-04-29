@@ -893,13 +893,21 @@ export function GraphView(props: {
 
   const setClickedNodeId = g.setClickedNodeId;
 
-  const selectNode = useCallback(
-    (nodeId: string) => {
-      setClickedNodeId(nodeId);
-      setSelectedNodeId(nodeId);
-    },
-    [setClickedNodeId]
-  );
+const selectNode = useCallback(
+  (nodeId: string) => {
+    setClickedNodeId(nodeId);
+    setSelectedNodeId(nodeId);
+
+    props.onChange((prev) => ({
+      ...prev,
+      uiState: {
+        ...(prev.uiState ?? {}),
+        selectedNodeId: nodeId,
+      },
+    }));
+  },
+  [setClickedNodeId, props.onChange]
+);
 
   const renderStartRef = useRef(0);
   renderStartRef.current = performance.now();

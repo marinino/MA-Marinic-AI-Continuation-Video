@@ -11,6 +11,9 @@ import type {
 import { getNodeDurationFrames, getNodeDurationSec } from "./getNodeDuration";
 import { isGeneratedClipNode, isResetNode, isVisibleTimelineNode } from "./classifyNode";
 import { buildNodeMap, getBranchPathThroughSelected, getParentNode } from "@ma/shared";
+import { extractTimelinePreviewFrames } from "../utils/ffmpeg";
+import path from "node:path";
+import fs from "node:fs/promises";
 
 function getNodeLabel(node: Node): string {
   return node.data.label ?? node.id;
@@ -41,15 +44,15 @@ function getActivePathNodes(project: Project): Node[] {
   return ids.map((id) => nodeMap.get(id)).filter((node): node is Node => Boolean(node));
 }
 
-function buildClipSegments(
+async function buildClipSegments(
   nodes: Node[],
   totalFrames: number,
   project: Project,
   nodeMap: Map<string, Node>
-): TimelineSegment[] {
+): Promise<TimelineSegment[]> {
   let cursor = 0;
 
-  return nodes.map((node, index) => {
+  return await Promise.all( nodes.map(async (node, index) => {
     const durationFrames = getNodeDurationFrames(node, project, nodeMap);
     const startFrame = cursor;
     const endFrame = cursor + durationFrames;
@@ -57,6 +60,7 @@ function buildClipSegments(
 
     const parent = getParentNode(node, project, nodeMap);
     const isRoot = !parent && node.type === "clip";
+    const frameUrls = await getClipFrameUrls(node);
 
     return {
       id: `clip-${node.id}-${index}`,
@@ -68,6 +72,8 @@ function buildClipSegments(
       startFrame,
       endFrame,
       widthPct: totalFrames > 0 ? (durationFrames / totalFrames) * 100 : 0,
+        firstFrameUrl: frameUrls.firstFrameUrl,
+  lastFrameUrl: frameUrls.lastFrameUrl,
       isGenerated: isGeneratedClipNode(node),
       isImported: node.type === "import",
       isEdited: node.type === "edit",
@@ -75,7 +81,7 @@ function buildClipSegments(
       parentNodeId: parent?.id ?? null,
       isRoot,
     };
-  });
+  }));
 }
 
 function buildSourceSegments(
@@ -147,10 +153,10 @@ function buildSourceSegments(
   });
 }
 
-export function buildBranchTimeline(
+export async function buildBranchTimeline(
   project: Project,
   selectedNodeId: string
-): BranchTimelineResponse {
+): Promise<BranchTimelineResponse> {
   const nodeMap = buildNodeMap(project);
   const selectedNode = nodeMap.get(selectedNodeId);
 
@@ -165,7 +171,6 @@ export function buildBranchTimeline(
       blockingNodeId: null,
       tracks: [
         { key: "clips", label: "Clips", segments: [] },
-        { key: "sources", label: "Sources", segments: [] },
       ],
     };
   }
@@ -186,7 +191,12 @@ export function buildBranchTimeline(
     0
   );
 
-  const clipSegments = buildClipSegments(clipTrackNodes, totalDurationFrames, project, nodeMap);
+const clipSegments = await buildClipSegments(
+  clipTrackNodes,
+  totalDurationFrames,
+  project,
+  nodeMap
+);
   const sourceSegments = buildSourceSegments(clipTrackNodes, totalDurationFrames, project, nodeMap);
 
   const resetAnchorNodeId = branchPath[0]?.id ?? null;
@@ -203,16 +213,11 @@ export function buildBranchTimeline(
     }
   }
 
-  const tracks: [BranchTimelineTrack, BranchTimelineTrack] = [
+  const tracks: [BranchTimelineTrack] = [
     {
       key: "clips",
       label: "Clips",
       segments: clipSegments,
-    },
-    {
-      key: "sources",
-      label: "Sources",
-      segments: sourceSegments,
     },
   ];
 
@@ -225,4 +230,86 @@ export function buildBranchTimeline(
     blockingNodeId: null,
     tracks,
   };
+}
+
+const TIMELINE_FRAME_ROOT = path.join(process.cwd(), "data", "timeline-frames");
+
+async function fileExists(p: string): Promise<boolean> {
+  try {
+    await fs.access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function resolveComfyVideoPath(videoFile: any): Promise<string | null> {
+  if (!videoFile?.filename) return null;
+
+  const filename = videoFile.filename;
+  const subfolder = videoFile.subfolder ?? "";
+  const type = videoFile.type ?? "output";
+
+  const rootsByType: Record<string, string | undefined> = {
+    input: process.env.COMFY_INPUT_DIR,
+    output: process.env.COMFY_OUTPUT_DIR,
+    temp: process.env.COMFY_TEMP_DIR,
+  };
+
+  const candidates = [
+    rootsByType[type] ? path.join(rootsByType[type]!, subfolder, filename) : null,
+    process.env.COMFY_OUTPUT_DIR ? path.join(process.env.COMFY_OUTPUT_DIR, subfolder, filename) : null,
+    process.env.COMFY_INPUT_DIR ? path.join(process.env.COMFY_INPUT_DIR, subfolder, filename) : null,
+    process.env.COMFY_TEMP_DIR ? path.join(process.env.COMFY_TEMP_DIR, subfolder, filename) : null,
+  ].filter((x): x is string => Boolean(x));
+
+  for (const candidate of candidates) {
+    if (await fileExists(candidate)) return candidate;
+  }
+
+  console.warn("video file not found", { videoFile, candidates });
+  return null;
+}
+
+async function getClipFrameUrls(node: Node): Promise<{
+  firstFrameUrl: string | null;
+  lastFrameUrl: string | null;
+}> {
+  const data = node.data as any;
+
+  const videoPath = await resolveComfyVideoPath(data.videoFile);
+
+  if (!videoPath) {
+    return {
+      firstFrameUrl: null,
+      lastFrameUrl: null,
+    };
+  }
+
+  try {
+    await extractTimelinePreviewFrames({
+      clipId: node.id,
+      videoPath,
+      outputRoot: TIMELINE_FRAME_ROOT,
+      size: 224,
+    });
+
+    const safeClipId = node.id.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    return {
+      firstFrameUrl: `/api/timeline-frames/${safeClipId}/first.png`,
+      lastFrameUrl: `/api/timeline-frames/${safeClipId}/last.png`,
+    };
+  } catch (err) {
+    console.error("timeline frame extraction failed", {
+      nodeId: node.id,
+      videoPath,
+      err,
+    });
+
+    return {
+      firstFrameUrl: null,
+      lastFrameUrl: null,
+    };
+  }
 }

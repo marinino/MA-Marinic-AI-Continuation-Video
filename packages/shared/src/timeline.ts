@@ -19,6 +19,9 @@ export type TimelineSegment = {
   endFrame: number;
   widthPct: number;
 
+  firstFrameUrl?: string | null;
+lastFrameUrl?: string | null;
+
   isGenerated: boolean;
   isImported: boolean;
   isEdited: boolean;
@@ -45,5 +48,5 @@ export type BranchTimelineResponse = {
   resetAnchorNodeId: string | null;
   blockingNodeId: string | null;
 
-  tracks: [BranchTimelineTrack, BranchTimelineTrack];
+  tracks: [BranchTimelineTrack];
 };

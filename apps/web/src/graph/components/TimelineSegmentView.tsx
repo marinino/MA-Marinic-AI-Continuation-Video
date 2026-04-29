@@ -1,4 +1,4 @@
-import { ButtonBase, Tooltip, useTheme } from "@mui/material";
+import { Box, ButtonBase, Tooltip, Typography, useTheme } from "@mui/material";
 import type { TimelineSegment } from "@ma/shared";
 
 function getTimelineSegmentColors(segment: TimelineSegment, mode: "light" | "dark") {
@@ -53,30 +53,72 @@ export function TimelineSegmentView({
 
   const colors = getTimelineSegmentColors(segment, theme.palette.mode);
 
-  return (
-    <Tooltip title={`${segment.label} • ${segment.durationSec.toFixed(2)}s`} arrow>
-      <ButtonBase
-        onClick={onClick}
+return (
+  <Tooltip title={`${segment.label} • ${segment.durationSec.toFixed(2)}s`} arrow>
+    <ButtonBase
+      onClick={onClick}
+      sx={{
+        position: "relative",
+        width: `${segment.widthPct}%`,
+        minWidth: 72,
+        height: 48,
+        border: borderStyle,
+        borderColor: colors.border,
+        bgcolor: colors.bg,
+        color: "text.primary",
+        borderRadius: 1,
+        overflow: "hidden",
+        justifyContent: "center",
+        fontWeight: 700,
+      }}
+    >
+      {segment.firstFrameUrl && (
+        <Box
+          component="img"
+          src={segment.firstFrameUrl}
+          alt=""
+          sx={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: 38,
+            height: "100%",
+            objectFit: "cover",
+          }}
+        />
+      )}
+
+      {segment.lastFrameUrl && (
+        <Box
+          component="img"
+          src={segment.lastFrameUrl}
+          alt=""
+          sx={{
+            position: "absolute",
+            right: 0,
+            top: 0,
+            width: 38,
+            height: "100%",
+            objectFit: "cover",
+          }}
+        />
+      )}
+
+      <Typography
+        variant="caption"
         sx={{
-          width: `${segment.widthPct}%`,
-          minWidth: 24,
-          height: 40,
-          border: borderStyle,
-          borderColor: colors.border,
-          bgcolor: colors.bg,
-          color: "text.primary",
-          borderRadius: 1,
-          px: 0.5,
-          fontSize: 12,
+          position: "relative",
+          zIndex: 1,
+          px: 5,
+          fontWeight: 700,
           overflow: "hidden",
           whiteSpace: "nowrap",
           textOverflow: "ellipsis",
-          justifyContent: "center",
-          fontWeight: 700,
         }}
       >
         {segment.label}
-      </ButtonBase>
-    </Tooltip>
-  );
+      </Typography>
+    </ButtonBase>
+  </Tooltip>
+);
 }
