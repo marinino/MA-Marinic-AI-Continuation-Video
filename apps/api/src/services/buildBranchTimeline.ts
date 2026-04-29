@@ -60,7 +60,7 @@ async function buildClipSegments(
 
     const parent = getParentNode(node, project, nodeMap);
     const isRoot = !parent && node.type === "clip";
-    const frameUrls = await getClipFrameUrls(node);
+    const frameUrls = await getClipFrameUrls(node, project, nodeMap);
 
     return {
       id: `clip-${node.id}-${index}`,
@@ -271,11 +271,23 @@ async function resolveComfyVideoPath(videoFile: any): Promise<string | null> {
   return null;
 }
 
-async function getClipFrameUrls(node: Node): Promise<{
+async function getClipFrameUrls(
+  node: Node,
+  project: Project,
+  nodeMap: Map<string, Node>
+): Promise<{
   firstFrameUrl: string | null;
   lastFrameUrl: string | null;
 }> {
   const data = node.data as any;
+
+  const parent = getParentNode(node, project, nodeMap);
+  const parentData = parent?.data as any;
+
+  const generatedFrames =
+    parent?.type === "params" && typeof parentData?.generatedFrames === "number"
+      ? parentData.generatedFrames
+      : undefined;
 
   const videoPath = await resolveComfyVideoPath(data.videoFile);
 
@@ -292,18 +304,24 @@ async function getClipFrameUrls(node: Node): Promise<{
       videoPath,
       outputRoot: TIMELINE_FRAME_ROOT,
       size: 224,
+      generatedFrames,
     });
 
     const safeClipId = node.id.replace(/[^a-zA-Z0-9._-]/g, "_");
 
     return {
-      firstFrameUrl: `/api/timeline-frames/${safeClipId}/first.png`,
+      firstFrameUrl:
+        typeof generatedFrames === "number" && generatedFrames > 0
+          ? `/api/timeline-frames/${safeClipId}/first-generated-${generatedFrames}.png`
+          : `/api/timeline-frames/${safeClipId}/first.png`,
+
       lastFrameUrl: `/api/timeline-frames/${safeClipId}/last.png`,
     };
   } catch (err) {
     console.error("timeline frame extraction failed", {
       nodeId: node.id,
       videoPath,
+      generatedFrames,
       err,
     });
 

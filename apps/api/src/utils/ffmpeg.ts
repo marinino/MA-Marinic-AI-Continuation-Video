@@ -216,16 +216,21 @@ export async function extractTimelinePreviewFrames(opts: {
   videoPath: string;
   outputRoot: string;
   size?: number;
+  generatedFrames?: number;
 }): Promise<{ firstPath: string; lastPath: string }> {
-  const { clipId, videoPath, outputRoot, size = 224 } = opts;
+  const { clipId, videoPath, outputRoot, size = 224, generatedFrames } = opts;
 
   const safeClipId = clipId.replace(/[^a-zA-Z0-9._-]/g, "_");
   const outDir = path.join(outputRoot, safeClipId);
 
   await fs.mkdir(outDir, { recursive: true });
 
-  const firstPath = path.join(outDir, "first.png");
-  const lastPath = path.join(outDir, "last.png");
+const firstPath =
+  typeof generatedFrames === "number" && generatedFrames > 0
+    ? path.join(outDir, `first-generated-${generatedFrames}.png`)
+    : path.join(outDir, "first.png");
+
+const lastPath = path.join(outDir, "last.png");
 
   const exists = async (p: string) => {
     try {
@@ -245,6 +250,20 @@ export async function extractTimelinePreviewFrames(opts: {
     `pad=${size}:${size}:(ow-iw)/2:(oh-ih)/2`,
   ].join(",");
 
+if (typeof generatedFrames === "number" && generatedFrames > 0) {
+  await run("ffmpeg", [
+    "-y",
+    "-i",
+    videoPath,
+    "-vf",
+    `reverse,select='eq(n\\,${generatedFrames - 1})',${vf}`,
+    "-vsync",
+    "0",
+    "-frames:v",
+    "1",
+    firstPath,
+  ]);
+} else {
   await run("ffmpeg", [
     "-y",
     "-i",
@@ -255,6 +274,7 @@ export async function extractTimelinePreviewFrames(opts: {
     "1",
     firstPath,
   ]);
+}
 
   await run("ffmpeg", [
     "-y",
