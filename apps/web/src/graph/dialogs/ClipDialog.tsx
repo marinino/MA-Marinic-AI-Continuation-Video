@@ -393,7 +393,7 @@ export function ClipDialog(p: ClipDialogProps) {
           </ButtonGroup>
         </DialogTitle>
 
-        <DialogContent sx={{ overscrollBehavior: "contain", touchAction: "none" }}>
+        <DialogContent sx={{ overscrollBehavior: "contain" }}>
           {p.tab === "simple" && (
             <Stack spacing={2} sx={{ mt: 1 }}>
               <TextField

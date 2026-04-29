@@ -136,13 +136,51 @@ export async function probeVideoMetadata(videoPath: string): Promise<VideoMetada
   }
 }
 
+export async function extractFramesFromOffset(
+  videoPath: string,
+  count: number,
+  startFrame: number,
+  size = 224
+): Promise<string[]> {
+  const safeName = path.basename(videoPath).replace(/[^a-zA-Z0-9._-]/g, "_");
+  const outDir = await makeTempDir(`transition-offset-${safeName}-`);
+  const pattern = path.join(outDir, "frame-%03d.png");
+
+  const vf = [
+    `select='gte(n\\,${startFrame})'`,
+    `scale=${size}:${size}:force_original_aspect_ratio=decrease`,
+    `pad=${size}:${size}:(ow-iw)/2:(oh-ih)/2`,
+  ].join(",");
+
+  const args = [
+    "-y",
+    "-i",
+    videoPath,
+    "-vf",
+    vf,
+    "-vsync",
+    "0",
+    "-frames:v",
+    String(count),
+    pattern,
+  ];
+
+  await run("ffmpeg", args);
+
+  return (await fs.readdir(outDir))
+    .filter((f) => f.endsWith(".png"))
+    .sort()
+    .map((f) => path.join(outDir, f));
+}
+
 export async function extractBoundaryFrames(
   videoPath: string,
   count: number,
   mode: "first" | "last",
   size = 224
 ): Promise<string[]> {
-  const outDir = await makeTempDir(`transition-${mode}-`);
+  const safeName = path.basename(videoPath).replace(/[^a-zA-Z0-9._-]/g, "_");
+  const outDir = await makeTempDir(`transition-${mode}-${safeName}-`);
   const pattern = path.join(outDir, "frame-%03d.png");
 
   const vf =
@@ -162,6 +200,13 @@ export async function extractBoundaryFrames(
   if (mode === "last") {
     files = files.reverse();
   }
+
+  console.log("extractBoundaryFrames", {
+    videoPath,
+    mode,
+    outDir,
+    files,
+  });
 
   return files;
 }

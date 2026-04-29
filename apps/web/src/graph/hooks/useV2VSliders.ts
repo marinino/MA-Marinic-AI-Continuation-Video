@@ -296,26 +296,26 @@ export function useV2VSliders(formulaWeights: FormulaWeights) {
       const weights = formulaWeights[categoryId];
       if (!weights) return prev;
 
-      return adjustSimpleForScoreTargetGlobal({
+      return adjustSimpleForScoreTargetSoftSafe({
         simple: prev,
         targetScore,
         weights,
         ranges: scoreRanges,
-        clampSimpleWithMode: (s) => clampSimple(simpleSpeedMode, s),
-        projectToSafeRegion: (s) => projectToSafeRegion(s),
+        mode: simpleSpeedMode,
+        presetSpaceSamples,
       });
     });
   };
 
   const setCustomCategoryScore = (weights: CleanWeights, targetScore: number) => {
     setSimple((prev) =>
-      adjustSimpleForScoreTargetGlobal({
+      adjustSimpleForScoreTargetSoftSafe({
         simple: prev,
         targetScore,
         weights,
         ranges: scoreRanges,
-        clampSimpleWithMode: (s) => clampSimple(simpleSpeedMode, s),
-        projectToSafeRegion: (s) => projectToSafeRegion(s),
+        mode: simpleSpeedMode,
+        presetSpaceSamples,
       })
     );
   };
@@ -379,7 +379,7 @@ export function useV2VSliders(formulaWeights: FormulaWeights) {
   }): SimpleReal {
     const { simple, targetScore, weights, ranges, clampSimpleWithMode, projectToSafeRegion } = args;
 
-    let current = projectToSafeRegion(clampSimpleWithMode(simple));
+    let current = clampSimpleWithMode(simple);
     const target = clamp(targetScore, 0, 100);
 
     const featureMap = [
@@ -391,19 +391,20 @@ export function useV2VSliders(formulaWeights: FormulaWeights) {
     ];
 
     let best = current;
-    let bestError = Infinity;
+    let bestErrorAbs = Infinity;
 
     for (let iter = 0; iter < 25; iter++) {
       const values01 = simpleToNormalizedValues(current, ranges);
       const currentScore = Math.round(applyWeights(weights, values01) * 100);
       const error = target - currentScore;
+      const errorAbs = Math.abs(error);
 
-      if (Math.abs(error) < Math.abs(bestError)) {
+      if (errorAbs < bestErrorAbs) {
         best = current;
-        bestError = error;
+        bestErrorAbs = errorAbs;
       }
 
-      if (Math.abs(error) < 1) break;
+      if (errorAbs < 1) break;
 
       let draft = { ...current };
 
@@ -413,7 +414,7 @@ export function useV2VSliders(formulaWeights: FormulaWeights) {
 
         const current01 = values01[entry.weightKey];
         const direction = Math.sign(error) * Math.sign(w);
-        const step01 = Math.min(0.08, (Math.abs(error) / 100) * Math.abs(w) * 0.35);
+        const step01 = Math.min(0.08, (errorAbs / 100) * Math.abs(w) * 0.35);
 
         const next01 = clamp(current01 + direction * step01, 0, 1);
         const denorm = denormalizeSimpleValue(entry.weightKey, next01, ranges);
@@ -422,12 +423,196 @@ export function useV2VSliders(formulaWeights: FormulaWeights) {
       }
 
       draft = clampSimpleWithMode(draft);
-      draft = projectToSafeRegion(draft);
+      //draft = projectToSafeRegion(draft);
       current = clampSimpleWithMode(draft);
     }
 
     return best;
   }
+
+  function adjustSimpleForScoreTargetSoftSafe(args: {
+    simple: SimpleReal;
+    targetScore: number;
+    weights: CleanWeights;
+    ranges: ScoreRanges;
+    mode: SpeedMode;
+    presetSpaceSamples: SimpleReal[];
+  }): SimpleReal {
+    const { simple, targetScore, weights, ranges, mode, presetSpaceSamples } = args;
+
+    const target = clamp(targetScore, 0, 100);
+    const presets = getPresetSliderUnits(mode);
+
+    const scoreOf = (s: SimpleReal) => {
+      const values01 = simpleToNormalizedValues(s, ranges);
+      return Math.round(applyWeights(weights, values01) * 100);
+    };
+
+    const normalizedDistance = (a: SimpleReal, b: SimpleReal) => {
+      return distanceSimple(a, b, ranges);
+    };
+
+    const distanceToPresetSpace = (s: SimpleReal) => {
+      let best = Infinity;
+
+      for (const sample of presetSpaceSamples) {
+        best = Math.min(best, normalizedDistance(s, sample));
+      }
+
+      return best;
+    };
+
+    const featureMap = [
+      { weightKey: "steps" as const, simpleKey: "totalSteps" as const },
+      { weightKey: "ratio" as const, simpleKey: "stepRatioPct" as const },
+      { weightKey: "shift" as const, simpleKey: "highShift" as const },
+      { weightKey: "cfg" as const, simpleKey: "highCfg" as const },
+      { weightKey: "strength" as const, simpleKey: "highStrength" as const },
+    ];
+
+    const start = clampSimple(mode, simple);
+
+    let best = start;
+    let bestCost = Infinity;
+
+    const evaluate = (candidateRaw: SimpleReal) => {
+      const candidate = clampSimple(mode, candidateRaw);
+
+      const scoreError = Math.abs(target - scoreOf(candidate)) / 100;
+      const safeDistance = distanceToPresetSpace(candidate);
+      const movementDistance = normalizedDistance(candidate, start);
+
+      const cost =
+        scoreError * 10 + // Category-Ziel ist am wichtigsten
+        safeDistance * 1.8 + // aber nah an Presets bleiben
+        movementDistance * 0.35; // nicht unnötig wild springen
+
+      if (cost < bestCost) {
+        best = candidate;
+        bestCost = cost;
+      }
+    };
+
+    evaluate(start);
+
+    const currentValues01 = simpleToNormalizedValues(start, ranges);
+    const currentScore = scoreOf(start);
+    const directionToTarget = Math.sign(target - currentScore);
+
+    for (const entry of featureMap) {
+      const w = weights[entry.weightKey] ?? 0;
+      if (!w) continue;
+
+      const direction = directionToTarget * Math.sign(w);
+      if (direction === 0) continue;
+
+      for (let strength = 0.02; strength <= 1.0; strength += 0.02) {
+        const draft = { ...start };
+        const current01 = currentValues01[entry.weightKey];
+
+        const next01 = clamp(current01 + direction * strength, 0, 1);
+        const denorm = denormalizeSimpleValue(entry.weightKey, next01, ranges);
+
+        (draft as any)[entry.simpleKey] = denorm;
+
+        evaluate(draft);
+      }
+    }
+
+    // Kombinationen aus mehreren Parametern
+    for (let amount = 0.02; amount <= 0.6; amount += 0.02) {
+      const draft = { ...start };
+
+      for (const entry of featureMap) {
+        const w = weights[entry.weightKey] ?? 0;
+        if (!w) continue;
+
+        const direction = directionToTarget * Math.sign(w);
+        const current01 = currentValues01[entry.weightKey];
+
+        const next01 = clamp(current01 + direction * amount * Math.abs(w), 0, 1);
+        const denorm = denormalizeSimpleValue(entry.weightKey, next01, ranges);
+
+        (draft as any)[entry.simpleKey] = denorm;
+      }
+
+      evaluate(draft);
+    }
+
+    return best;
+  }
+
+  function generateWeightGrid(count: number, resolution: number): number[][] {
+    const result: number[][] = [];
+
+    function rec(prefix: number[], remaining: number, slotsLeft: number) {
+      if (slotsLeft === 1) {
+        result.push([...prefix, remaining]);
+        return;
+      }
+
+      for (let v = 0; v <= remaining; v++) {
+        rec([...prefix, v], remaining - v, slotsLeft - 1);
+      }
+    }
+
+    rec([], resolution, count);
+    return result;
+  }
+
+  function mixManyPresets(presets: Record<SafeKey, number>[], weights: number[]): SimpleReal {
+    const sum = weights.reduce((a, b) => a + b, 0) || 1;
+
+    const out: SimpleReal = {
+      totalSteps: 0,
+      stepRatioPct: 0,
+      highShift: 0,
+      highCfg: 0,
+      highStrength: 0,
+    };
+
+    presets.forEach((preset, i) => {
+      const w = weights[i] / sum;
+
+      out.totalSteps += preset.totalSteps * w;
+      out.stepRatioPct += preset.stepRatioPct * w;
+      out.highShift += preset.highShift * w;
+      out.highCfg += preset.highCfg * w;
+      out.highStrength += preset.highStrength * w;
+    });
+
+    return out;
+  }
+
+  const presetSpaceSamples = useMemo(() => {
+    const presets = getPresetSliderUnits(simpleSpeedMode);
+
+    const samples: SimpleReal[] = [];
+
+    // Einzelne Presets
+    for (const p of presets) {
+      samples.push(clampSimple(simpleSpeedMode, p as SimpleReal));
+    }
+
+    // Paarweise Kanten
+    for (let i = 0; i < presets.length; i++) {
+      for (let j = i + 1; j < presets.length; j++) {
+        for (let step = 0; step <= 20; step++) {
+          const t = step / 20;
+          samples.push(clampSimple(simpleSpeedMode, mixTwoPresets(presets[i], presets[j], t)));
+        }
+      }
+    }
+
+    // Echte Mischungen über alle Presets
+    const grid = generateWeightGrid(presets.length, 6);
+
+    for (const weights of grid) {
+      samples.push(clampSimple(simpleSpeedMode, mixManyPresets(presets, weights)));
+    }
+
+    return samples;
+  }, [simpleSpeedMode]);
 
   return {
     v2vTab,

@@ -1,10 +1,16 @@
 import type { Project } from "@ma/shared";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
 
 import { getParamTransitionPairs } from "./transitionPairs";
 import { getVideoPathForClip } from "../utils/clipVideoPath";
-import { extractBoundaryFrames } from "../utils/ffmpeg";
+import {
+  extractBoundaryFrames,
+  extractFramesFromOffset,
+  probeVideoMetadata,
+} from "../utils/ffmpeg";
 import { runPythonJson } from "../utils/python";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -65,6 +71,11 @@ export type TransitionEvaluationDebug = {
   }>;
 };
 
+async function fileHash(filePath: string): Promise<string> {
+  const buffer = await fs.readFile(filePath);
+  return crypto.createHash("sha1").update(buffer).digest("hex").slice(0, 12);
+}
+
 export async function evaluateProjectTransitions(
   project: Project,
   opts: { frameCount: number }
@@ -96,12 +107,6 @@ export async function evaluateProjectTransitions(
       const parentVideoPath = getVideoPathForClip(project, pair.parentClipId);
       const childVideoPath = getVideoPathForClip(project, pair.childClipId);
 
-      debug.resolvedVideoPaths.push({
-        childClipId: pair.childClipId,
-        parentVideoPath,
-        childVideoPath,
-      });
-
       if (!parentVideoPath || !childVideoPath) {
         debug.skipped.push({
           childClipId: pair.childClipId,
@@ -115,31 +120,71 @@ export async function evaluateProjectTransitions(
       }
 
       const parentFrames = await extractBoundaryFrames(parentVideoPath, frameCount, "last", 224);
-      const childFrames = await extractBoundaryFrames(childVideoPath, frameCount, "first", 224);
 
-      if (parentFrames.length < frameCount || childFrames.length < frameCount) {
+      const parentMeta = await probeVideoMetadata(parentVideoPath);
+      const childStartFrame = parentMeta.totalFrames ?? frameCount;
+
+      const childFrames = await extractFramesFromOffset(
+        childVideoPath,
+        frameCount,
+        childStartFrame,
+        224
+      );
+
+      const parentFrameHashes = await Promise.all(parentFrames.map(fileHash));
+      const childFrameHashes = await Promise.all(childFrames.map(fileHash));
+
+      debug.resolvedVideoPaths.push({
+        childClipId: pair.childClipId,
+        parentVideoPath,
+        childVideoPath,
+        parentFrames,
+        childFrames,
+        parentFrameHashes,
+        childFrameHashes,
+      } as any);
+
+      console.log("transition frame debug", {
+        parentClipId: pair.parentClipId,
+        paramsNodeId: pair.paramsNodeId,
+        childClipId: pair.childClipId,
+        parentVideoPath,
+        childVideoPath,
+        parentFrames,
+        childFrames,
+        parentFrameHashes,
+        childFrameHashes,
+      });
+
+      const usableFrameCount = Math.min(frameCount, parentFrames.length, childFrames.length);
+
+      if (usableFrameCount < 2) {
         debug.skipped.push({
           childClipId: pair.childClipId,
           reason: "not_enough_frames",
           details: {
             parentFrames: parentFrames.length,
             childFrames: childFrames.length,
-            frameCount,
+            requestedFrameCount: frameCount,
+            usableFrameCount,
           },
         });
         continue;
       }
 
+      const parentFramesUsed = parentFrames.slice(-usableFrameCount);
+      const childFramesUsed = childFrames.slice(0, usableFrameCount);
+
       const metrics = await runPythonJson<PythonTransitionMetrics>(scriptPath, {
-        parentFrames,
-        childFrames,
+        parentFrames: parentFramesUsed,
+        childFrames: childFramesUsed,
       });
 
       evaluations[pair.childClipId] = {
         parentClipId: pair.parentClipId,
         childClipId: pair.childClipId,
         paramsNodeId: pair.paramsNodeId,
-        frameCount,
+        frameCount: usableFrameCount,
         ...metrics,
       };
     } catch (err) {
