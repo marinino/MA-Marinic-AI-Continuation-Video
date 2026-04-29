@@ -12,6 +12,7 @@ import {
   probeVideoMetadata,
 } from "../utils/ffmpeg";
 import { runPythonJson } from "../utils/python";
+import { getGeneratedFramesForParamsNode } from "../utils/paramNodeData";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -119,30 +120,48 @@ export async function evaluateProjectTransitions(
         continue;
       }
 
-      const parentFrames = await extractBoundaryFrames(parentVideoPath, frameCount, "last", 224);
-
       const parentMeta = await probeVideoMetadata(parentVideoPath);
-      const childStartFrame = parentMeta.totalFrames ?? frameCount;
+      const childMeta = await probeVideoMetadata(childVideoPath);
+
+      const parentTotalFrames = parentMeta.totalFrames ?? 0;
+      const childTotalFrames = childMeta.totalFrames ?? 0;
+
+      const generatedFrameCount =
+        getGeneratedFramesForParamsNode(project, pair.paramsNodeId) ?? frameCount;
+
+      const childStartFrame =
+        childTotalFrames > 0
+          ? Math.max(0, childTotalFrames - generatedFrameCount)
+          : parentTotalFrames;
+
+      const expectedContinuationFrames = Math.max(0, childTotalFrames - childStartFrame);
+
+      console.log("transition cut debug", {
+        parentClipId: pair.parentClipId,
+        paramsNodeId: pair.paramsNodeId,
+        childClipId: pair.childClipId,
+
+        parentMeta,
+        childMeta,
+
+        generatedFrameCount,
+        firstPartFramesInChild: childStartFrame,
+        secondPartFramesInChild: expectedContinuationFrames,
+
+        requestedAnalysisFrames: frameCount,
+      });
+
+      const parentFrames = await extractBoundaryFrames(parentVideoPath, frameCount, "last", 224);
 
       const childFrames = await extractFramesFromOffset(
         childVideoPath,
-        frameCount,
+        Math.min(frameCount, generatedFrameCount),
         childStartFrame,
         224
       );
 
       const parentFrameHashes = await Promise.all(parentFrames.map(fileHash));
       const childFrameHashes = await Promise.all(childFrames.map(fileHash));
-
-      debug.resolvedVideoPaths.push({
-        childClipId: pair.childClipId,
-        parentVideoPath,
-        childVideoPath,
-        parentFrames,
-        childFrames,
-        parentFrameHashes,
-        childFrameHashes,
-      } as any);
 
       console.log("transition frame debug", {
         parentClipId: pair.parentClipId,
@@ -157,6 +176,47 @@ export async function evaluateProjectTransitions(
       });
 
       const usableFrameCount = Math.min(frameCount, parentFrames.length, childFrames.length);
+
+      debug.resolvedVideoPaths.push({
+        childClipId: pair.childClipId,
+        parentVideoPath,
+        childVideoPath,
+
+        parentMeta,
+        childMeta,
+
+        firstPartFramesInChild: childStartFrame,
+        secondPartFramesInChild: expectedContinuationFrames,
+
+        requestedAnalysisFrames: frameCount,
+        usableFrameCount,
+
+        parentFrames,
+        childFrames,
+        parentFrameHashes,
+        childFrameHashes,
+      } as any);
+
+      console.log("transition extraction debug", {
+        parentClipId: pair.parentClipId,
+        paramsNodeId: pair.paramsNodeId,
+        childClipId: pair.childClipId,
+
+        cutFrame: childStartFrame,
+
+        parentFramesExtracted: parentFrames.length,
+        childFramesExtractedFromContinuation: childFrames.length,
+
+        expectedContinuationFrames,
+        requestedAnalysisFrames: frameCount,
+        usableFrameCount,
+
+        parentFirstUsed: parentFrames.slice(-usableFrameCount)[0],
+        parentLastUsed: parentFrames.slice(-usableFrameCount).at(-1),
+
+        childFirstUsed: childFrames[0],
+        childLastUsed: childFrames.slice(0, usableFrameCount).at(-1),
+      });
 
       if (usableFrameCount < 2) {
         debug.skipped.push({
