@@ -29,6 +29,8 @@ def mean(values: List[float]) -> float:
         return 0.0
     return float(sum(values) / len(values))
 
+def normalized_mae(img1: np.ndarray, img2: np.ndarray) -> float:
+    return float(np.mean(np.abs(img1 - img2)) / 255.0)
 
 def simple_ssim(img1: np.ndarray, img2: np.ndarray) -> float:
     # Global SSIM approximation, sufficient for first backend MVP
@@ -106,9 +108,9 @@ def score_motion(parent_motion: Dict[str, float], child_motion: Dict[str, float]
     mag_delta = abs(parent_motion["meanMagnitude"] - child_motion["meanMagnitude"])
 
     # Heuristische Normierung für 224x224 boundary frames
-    dx_pen = clamp01(dx_delta / 8.0)
-    dy_pen = clamp01(dy_delta / 8.0)
-    mag_pen = clamp01(mag_delta / 8.0)
+    dx_pen = clamp01(dx_delta / 3.0)
+    dy_pen = clamp01(dy_delta / 3.0)
+    mag_pen = clamp01(mag_delta / 3.0)
 
     penalty = 0.4 * dx_pen + 0.4 * dy_pen + 0.2 * mag_pen
     score = 1.0 - penalty
@@ -121,9 +123,9 @@ def score_motion(parent_motion: Dict[str, float], child_motion: Dict[str, float]
 
 
 def score_to_label(score_100: int) -> str:
-    if score_100 >= 80:
+    if score_100 >= 90:
         return "smooth"
-    if score_100 >= 55:
+    if score_100 >= 70:
         return "moderate"
     return "rough"
 
@@ -146,14 +148,26 @@ def main():
     # Appearance continuity:
     # parent[-5..-1] aligned with child[0..4]
     pairwise_ssims = [
-        simple_ssim(parent_frames[i], child_frames[i])
+        simple_ssim(parent_frames[n - 1 - i], child_frames[i])
         for i in range(n)
     ]
-    appearance_score = mean(pairwise_ssims)
+    appearance_score = 0.6 * mean(pairwise_ssims) + 0.4 * min(pairwise_ssims)
+
+    boundary_motion = compute_flow_stats(parent_frames[-1], child_frames[0])
+
+    boundary_motion_penalty = clamp01(boundary_motion["meanMagnitude"] / 6.0)
+    boundary_motion_score = 1.0 - boundary_motion_penalty
 
     # Boundary jump:
     boundary_ssim = simple_ssim(parent_frames[-1], child_frames[0])
-    boundary_jump_score = boundary_ssim
+    boundary_mae = normalized_mae(parent_frames[-1], child_frames[0])
+    boundary_mae_score = 1.0 - clamp01(boundary_mae * 5.0)
+
+    boundary_jump_score = (
+        0.45 * boundary_ssim +
+        0.35 * boundary_mae_score +
+        0.20 * boundary_motion_score
+    )
 
     # Motion continuity:
     parent_flows = [
@@ -171,9 +185,9 @@ def main():
     motion_score, deltas = score_motion(parent_motion, child_motion)
 
     overall_01 = (
-        0.30 * appearance_score +
-        0.50 * motion_score +
-        0.20 * boundary_jump_score
+        0.15 * appearance_score +
+        0.25 * motion_score +
+        0.60 * boundary_jump_score
     )
 
     overall_score = int(round(overall_01 * 100))
@@ -186,8 +200,13 @@ def main():
         "overallScore": overall_score,
         "label": label,
         "details": {
-            "pairwiseSsimMean": round(appearance_score, 4),
+            "pairwiseSsimMean": round(mean(pairwise_ssims), 4),
+            "pairwiseSsimMin": round(min(pairwise_ssims), 4),
             "boundarySsim": round(boundary_ssim, 4),
+            "boundaryMae": round(boundary_mae, 4),
+            "boundaryMaeScore": round(boundary_mae_score, 4),
+            "boundaryMotionMagnitude": round(boundary_motion["meanMagnitude"], 4),
+            "boundaryMotionScore": round(boundary_motion_score, 4),
 
             "parentMotionDx": round(parent_motion["meanDx"], 4),
             "parentMotionDy": round(parent_motion["meanDy"], 4),
