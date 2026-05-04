@@ -1734,7 +1734,7 @@ const selectNode = useCallback(
     const currentId = sidebarNode?.id ?? null;
 
     // Nur feuern wenn sich der Node wirklich geändert hat
-    if (lastNodeIdRef.current === currentId) return;
+
 
     lastNodeIdRef.current = currentId;
 
@@ -1761,7 +1761,7 @@ const selectNode = useCallback(
       onSaveNote: isParamsNode ? handleSaveSidebarNote : () => {},
       selectedNodeId: currentId,
     });
-  }, [sidebarNode?.id]);
+  }, [sidebarNode?.id, sidebarLocalNote]);
 
   // ---------- Root create ----------
   function createRoot() {

@@ -591,7 +591,7 @@ export default function App({
 
                       try {
                         setEvaluatingTransitions(true);
-                        const result = await evaluateTransitions(project.id, 5);
+                        const result = await evaluateTransitions(project.id, 8);
                         setTransitionEvaluations(result.evaluations);
                         console.log("transition evaluation result", result);
                         console.log("evaluations", result.evaluations);
