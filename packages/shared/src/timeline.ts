@@ -20,7 +20,7 @@ export type TimelineSegment = {
   widthPct: number;
 
   firstFrameUrl?: string | null;
-lastFrameUrl?: string | null;
+  lastFrameUrl?: string | null;
 
   isGenerated: boolean;
   isImported: boolean;

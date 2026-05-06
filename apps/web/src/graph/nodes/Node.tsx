@@ -32,8 +32,6 @@ export function NodeCardInner(props: NodeCardProps) {
       });
       return;
     }
-
-    props.onOpenDetails?.(props.nodeId);
   }, [
     props.activeClipPick,
     props.type,

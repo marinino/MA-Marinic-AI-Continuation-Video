@@ -10,27 +10,22 @@ function getTimelineSegmentColors(segment: TimelineSegment, mode: "light" | "dar
   }
 
   if (segment.label.includes("Generated")) {
-   
-      return mode === "dark"
-        ? { border: "#3f51b5", bg: "rgba(63, 81, 181, 0.18)" }
-        : { border: "#3f51b5", bg: "#E3F2FD" };
+    return mode === "dark"
+      ? { border: "#3f51b5", bg: "rgba(63, 81, 181, 0.18)" }
+      : { border: "#3f51b5", bg: "#E3F2FD" };
   } else if (segment.label.includes("Imported")) {
     return mode === "dark"
-        ? { border: "#00897b", bg: "rgba(0, 137, 123, 0.18)" }
-        : { border: "#00897b", bg: "#E0F2F1" };
-
+      ? { border: "#00897b", bg: "rgba(0, 137, 123, 0.18)" }
+      : { border: "#00897b", bg: "#E0F2F1" };
   } else if (segment.label.includes("Edited")) {
-return mode === "dark"
-        ? { border: "#9c27b0", bg: "rgba(156, 39, 176, 0.18)" }
-        : { border: "#9c27b0", bg: "#F3E5F5" };
-
+    return mode === "dark"
+      ? { border: "#9c27b0", bg: "rgba(156, 39, 176, 0.18)" }
+      : { border: "#9c27b0", bg: "#F3E5F5" };
+  } else {
+    return mode === "dark"
+      ? { border: "#8bc34a", bg: "rgba(139, 195, 74, 0.18)" }
+      : { border: "#8bc34a", bg: "#E8F5E9" };
   }
-   else{
-      return mode === "dark"
-        ? { border: "#8bc34a", bg: "rgba(139, 195, 74, 0.18)" }
-        : { border: "#8bc34a", bg: "#E8F5E9" };
-
-   }
 }
 
 export function TimelineSegmentView({
@@ -51,92 +46,92 @@ export function TimelineSegmentView({
   const colors = getTimelineSegmentColors(segment, theme.palette.mode);
 
   const buttonRef = useRef<HTMLButtonElement | null>(null);
-const [segmentWidthPx, setSegmentWidthPx] = useState(0);
+  const [segmentWidthPx, setSegmentWidthPx] = useState(0);
 
-useEffect(() => {
-  if (!buttonRef.current) return;
+  useEffect(() => {
+    if (!buttonRef.current) return;
 
-  const observer = new ResizeObserver(([entry]) => {
-    setSegmentWidthPx(entry.contentRect.width);
-  });
+    const observer = new ResizeObserver(([entry]) => {
+      setSegmentWidthPx(entry.contentRect.width);
+    });
 
-  observer.observe(buttonRef.current);
+    observer.observe(buttonRef.current);
 
-  return () => observer.disconnect();
-}, []);
+    return () => observer.disconnect();
+  }, []);
 
-const imageWidth = 100;
-const minTextSpace = 80;
+  const imageWidth = 100;
+  const minTextSpace = 80;
 
-const showImages = segmentWidthPx >= imageWidth * 2 + minTextSpace;
+  const showImages = segmentWidthPx >= imageWidth * 2 + minTextSpace;
 
-return (
-  <Tooltip title={`${segment.label} • ${segment.durationSec.toFixed(2)}s`} arrow>
-<ButtonBase
-  ref={buttonRef}
-  onClick={onClick}
-  sx={{
-    position: "relative",
-    width: `${segment.widthPct}%`,
-    minWidth: 72,
-    height: 100,
-    border: borderStyle,
-    borderColor: colors.border,
-    bgcolor: colors.bg,
-    color: "text.primary",
-    borderRadius: 1,
-    overflow: "hidden",
-    justifyContent: "center",
-    fontWeight: 700,
-  }}
->
-     {showImages && segment.firstFrameUrl && (
-  <Box
-    component="img"
-    src={segment.firstFrameUrl}
-    alt=""
-    sx={{
-      position: "absolute",
-      left: 0,
-      top: 0,
-      width: 100,
-      height: "100%",
-      objectFit: "cover",
-    }}
-  />
-)}
+  return (
+    <Tooltip title={`${segment.label} • ${segment.durationSec.toFixed(2)}s`} arrow>
+      <ButtonBase
+        ref={buttonRef}
+        onClick={onClick}
+        sx={{
+          position: "relative",
+          width: `${segment.widthPct}%`,
+          minWidth: 72,
+          height: 100,
+          border: borderStyle,
+          borderColor: colors.border,
+          bgcolor: colors.bg,
+          color: "text.primary",
+          borderRadius: 1,
+          overflow: "hidden",
+          justifyContent: "center",
+          fontWeight: 700,
+        }}
+      >
+        {showImages && segment.firstFrameUrl && (
+          <Box
+            component="img"
+            src={segment.firstFrameUrl}
+            alt=""
+            sx={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              width: 100,
+              height: "100%",
+              objectFit: "cover",
+            }}
+          />
+        )}
 
-{showImages && segment.lastFrameUrl && (
-  <Box
-    component="img"
-    src={segment.lastFrameUrl}
-    alt=""
-    sx={{
-      position: "absolute",
-      right: 0,
-      top: 0,
-      width: 100,
-      height: "100%",
-      objectFit: "cover",
-    }}
-  />
-)}
+        {showImages && segment.lastFrameUrl && (
+          <Box
+            component="img"
+            src={segment.lastFrameUrl}
+            alt=""
+            sx={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              width: 100,
+              height: "100%",
+              objectFit: "cover",
+            }}
+          />
+        )}
 
-    <Typography
-  variant="caption"
-  sx={{
-    position: "relative",
-    zIndex: 1,
-    px: showImages ? "105px" : 1,
-    fontWeight: 700,
-    overflow: "hidden",
-    whiteSpace: "nowrap",
-    textOverflow: "ellipsis",
-  }}
->
-  {segment.label}
-</Typography>
-    </ButtonBase>
-  </Tooltip>
-);
+        <Typography
+          variant="caption"
+          sx={{
+            position: "relative",
+            zIndex: 1,
+            px: showImages ? "105px" : 1,
+            fontWeight: 700,
+            overflow: "hidden",
+            whiteSpace: "nowrap",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {segment.label}
+        </Typography>
+      </ButtonBase>
+    </Tooltip>
+  );
 }

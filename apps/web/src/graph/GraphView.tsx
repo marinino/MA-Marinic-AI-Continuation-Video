@@ -120,6 +120,7 @@ import { ImportVideoDialog } from "./dialogs/ImportVideoDialog";
 
 import { useClipDialogLogic } from "./graph_helpers/clipDialogLogic";
 import { useNodeDetailsDialog } from "./hooks/useNodeDetailsDialogLogic";
+import { NodeDetailsDialogProps } from "./types/props";
 
 // edgeTypes
 const edgeTypes = { labeled: LabeledEdge };
@@ -156,6 +157,8 @@ export function GraphView(props: {
     onChangeNote: (value: string) => void;
     onSaveNote: () => void;
     branchSuggestion: BrachSuggestion | null;
+    nodeDetailsProps: NodeDetailsDialogProps | null;
+    nodeDetailsLogic: any | null;
   }) => void;
   activeClipPick?: {
     slotIndex: number;
@@ -893,21 +896,21 @@ export function GraphView(props: {
 
   const setClickedNodeId = g.setClickedNodeId;
 
-const selectNode = useCallback(
-  (nodeId: string) => {
-    setClickedNodeId(nodeId);
-    setSelectedNodeId(nodeId);
+  const selectNode = useCallback(
+    (nodeId: string) => {
+      setClickedNodeId(nodeId);
+      setSelectedNodeId(nodeId);
 
-    props.onChange((prev) => ({
-      ...prev,
-      uiState: {
-        ...(prev.uiState ?? {}),
-        selectedNodeId: nodeId,
-      },
-    }));
-  },
-  [setClickedNodeId, props.onChange]
-);
+      props.onChange((prev) => ({
+        ...prev,
+        uiState: {
+          ...(prev.uiState ?? {}),
+          selectedNodeId: nodeId,
+        },
+      }));
+    },
+    [setClickedNodeId, props.onChange]
+  );
 
   const renderStartRef = useRef(0);
   renderStartRef.current = performance.now();
@@ -1647,19 +1650,34 @@ const selectNode = useCallback(
     );
   }, [detailsNode?.id, detailsNode?.type, baseNodesForUI, g.rfEdges]);
 
-  const sharedNodeDetailsProps = useMemo(() => {
-    if (!sidebarNode || sidebarNode.type !== "params") return null;
+  const sidebarNodeDetailsProps = useMemo(() => {
+    if (!sidebarNode) return null;
+
+    const isParams = sidebarNode.type === "params";
 
     return {
       open: false,
       onClose: () => {},
       nodeId: sidebarNode.id,
-      type: "params" as const,
-      d: (effectiveDelta as any) ?? {},
+      type: sidebarNode.type as "clip" | "params" | "edit" | "import",
+
+      d: isParams ? ((effectiveDelta as any) ?? {}) : {},
       videoUrl: (sidebarNodeData?.videoUrl as string | null | undefined) ?? null,
+      videoPlayback:
+        sidebarNode.type === "clip"
+          ? getVideoSegmentPlaybackForClip(
+              sidebarNode.id,
+              baseNodesForUI as RFNode[],
+              g.rfEdges as RFEdge[]
+            )
+          : undefined,
+      showOnlyGeneratedPart: props.showOnlyGeneratedPart,
       videoFile: sidebarNodeData?.videoFile,
       videoStatus: sidebarNodeData?.videoStatus,
+
       metaSummary: sidebarNodeData?.metaSummaryData,
+      importedFileName: sidebarNodeData?.importedFileName ?? null,
+
       prompt: sidebarNodeData?.prompt,
       prevParamsId: sidebarNodeData?.prevParamsId,
       highNoiseCfg: sidebarNodeData?.highNoiseCfg,
@@ -1681,39 +1699,42 @@ const selectNode = useCallback(
       categoryLabels: sidebarNodeData?.categoryLabels,
       paramDeltas: sidebarNodeData?.paramDeltas,
       promptChanged: sidebarNodeData?.promptChanged,
-      branchSuggestion: sidebarParamAnalysis?.branchSuggestion,
-      note: sidebarNodeData?.note,
-      onSaveNote: saveNodeNote,
+
+      note: sidebarLocalNote,
+      onChangeNote: setSidebarLocalNote,
+      onSaveNote: handleSaveSidebarNote,
       notesEnabled: props.notesEnabled,
+
       showWeightSuggestionsEnabled: props.showWeightSuggestionsEnabled,
       categoryVisibility,
       onSetCategoryVisible: setCategoryVisible,
       onShowAllCategories: showAllCategories,
-      parameterHistory: sidebarParamAnalysis?.parameterHistory,
-      compareBaseNodeLabel:
-        compareSourceNodeId === sidebarNode.id
-          ? ((compareBaseNodeData?.label as string | undefined) ?? compareTargetNodeId) || null
-          : null,
+
+      branchSuggestion: isParams ? sidebarParamAnalysis?.branchSuggestion : null,
+      parameterHistory: isParams ? sidebarParamAnalysis?.parameterHistory : undefined,
+
+      compareBaseNodeLabel: null,
     };
   }, [
     sidebarNode,
     sidebarNodeData,
     effectiveDelta,
     effectiveCategoryScoreDeltas,
-    saveNodeNote,
+    sidebarLocalNote,
+    handleSaveSidebarNote,
     props.notesEnabled,
     props.showWeightSuggestionsEnabled,
     categoryVisibility,
     setCategoryVisible,
     showAllCategories,
-    compareSourceNodeId,
-    compareTargetNodeId,
-    compareBaseNodeData,
     sidebarParamAnalysis,
+    baseNodesForUI,
+    g.rfEdges,
+    props.showOnlyGeneratedPart,
   ]);
 
   const sidebarDetailsLogic = useNodeDetailsDialog(
-    sharedNodeDetailsProps ??
+    sidebarNodeDetailsProps ??
       ({
         open: false,
         onClose: () => {},
@@ -1735,7 +1756,6 @@ const selectNode = useCallback(
 
     // Nur feuern wenn sich der Node wirklich geändert hat
 
-
     lastNodeIdRef.current = currentId;
 
     const isParamsNode = sidebarNode?.type === "params";
@@ -1752,7 +1772,7 @@ const selectNode = useCallback(
       parameterHistory: isParamsNode ? (sidebarParamAnalysis?.parameterHistory ?? {}) : {},
       branchSuggestion: isParamsNode ? (sidebarParamAnalysis?.branchSuggestion ?? null) : null,
       compareBaseNodeLabel: isParamsNode
-        ? (sharedNodeDetailsProps?.compareBaseNodeLabel ?? null)
+        ? (sidebarNodeDetailsProps?.compareBaseNodeLabel ?? null)
         : null,
       prompt: isParamsNode ? String(sidebarNodeData?.prompt ?? "") : "",
       note: isParamsNode ? sidebarLocalNote : "",
@@ -1760,6 +1780,8 @@ const selectNode = useCallback(
       onChangeNote: isParamsNode ? setSidebarLocalNote : () => {},
       onSaveNote: isParamsNode ? handleSaveSidebarNote : () => {},
       selectedNodeId: currentId,
+      nodeDetailsProps: sidebarNodeDetailsProps,
+      nodeDetailsLogic: sidebarDetailsLogic,
     });
   }, [sidebarNode?.id, sidebarLocalNote]);
 

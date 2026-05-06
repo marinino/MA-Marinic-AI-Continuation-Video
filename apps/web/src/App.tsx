@@ -50,6 +50,7 @@ import {
 import BugReportIcon from "@mui/icons-material/BugReport";
 import { BranchTimelineBar } from "./graph/components/BranchTimelineBar";
 import { ErrorDialog } from "./graph/dialogs/ErrorDialog";
+import { NodeDetailsDialogProps } from "./graph/types/props";
 
 type ColorMode = "light" | "dark";
 
@@ -210,6 +211,8 @@ export default function App({
     selectedNodeId: string | null;
     selectedNodeLabel: string | null;
     selectedNodeType: string | null;
+    nodeDetailsProps: NodeDetailsDialogProps | null;
+    nodeDetailsLogic: any | null;
     computed: any | null;
     orderedSliderItems: any[];
     clipLogic: any;
@@ -226,6 +229,8 @@ export default function App({
     selectedNodeId: null,
     selectedNodeLabel: null,
     selectedNodeType: null,
+    nodeDetailsProps: null,
+    nodeDetailsLogic: null,
     computed: null,
     orderedSliderItems: [],
     clipLogic: null,
@@ -673,61 +678,63 @@ export default function App({
             flexGrow: 1,
             minHeight: 0,
             display: "flex",
+            flexDirection: "column",
             overflow: "hidden",
           }}
         >
-          {/* LEFT SIDEBAR */}
           <Box
             sx={{
-              flex: isCategorySidebarOpen ? "0 0 33%" : "0 0 52px",
-              width: isCategorySidebarOpen ? "33%" : "52px",
-              minWidth: 0,
-              maxWidth: isCategorySidebarOpen ? "33%" : "52px",
-              height: "100%",
-              borderRight: "1px solid",
-              borderColor: "divider",
-              bgcolor: "background.paper",
-              overflow: "hidden",
-              transition: "width 0.2s ease, flex-basis 0.2s ease",
-            }}
-          >
-            <CategoryScoresSidebar
-              open={isCategorySidebarOpen}
-              onToggle={() => setIsCategorySidebarOpen((prev) => !prev)}
-              selectedNodeLabel={sidebarData.selectedNodeLabel}
-              orderedSliderItems={sidebarData.orderedSliderItems}
-              computed={sidebarData.computed}
-              clipLogic={sidebarData.clipLogic}
-              parameterItems={sidebarData.parameterItems}
-              parameterHistory={sidebarData.parameterHistory}
-              compareBaseNodeLabel={sidebarData.compareBaseNodeLabel}
-              prompt={sidebarData.prompt}
-              notesEnabled={sidebarData.notesEnabled}
-              note={sidebarData.note}
-              onChangeNote={sidebarData.onChangeNote}
-              onSaveNote={sidebarData.onSaveNote}
-              branchSuggestion={sidebarData.branchSuggestion}
-              showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
-              selectedNodeType={sidebarData.selectedNodeType}
-            />
-          </Box>
-
-          {/* CENTER GRAPH */}
-          <Box
-            sx={{
-              flex: 1,
-              minWidth: 0,
+              flex: "1 1 0",
               minHeight: 0,
               display: "flex",
-              flexDirection: "column",
               overflow: "hidden",
             }}
           >
+            {/* LEFT SIDEBAR */}
+            <Box
+              sx={{
+                flex: isCategorySidebarOpen ? "0 0 33%" : "0 0 52px",
+                minWidth: 0,
+                maxWidth: isCategorySidebarOpen ? "33%" : "52px",
+                minHeight: 0,
+                display: "flex",
+                flexDirection: "column",
+                borderRight: "1px solid",
+                borderColor: "divider",
+                bgcolor: "background.paper",
+                overflow: "hidden",
+              }}
+            >
+              <CategoryScoresSidebar
+                open={isCategorySidebarOpen}
+                onToggle={() => setIsCategorySidebarOpen((prev) => !prev)}
+                selectedNodeLabel={sidebarData.selectedNodeLabel}
+                orderedSliderItems={sidebarData.orderedSliderItems}
+                computed={sidebarData.computed}
+                clipLogic={sidebarData.clipLogic}
+                parameterItems={sidebarData.parameterItems}
+                parameterHistory={sidebarData.parameterHistory}
+                compareBaseNodeLabel={sidebarData.compareBaseNodeLabel}
+                prompt={sidebarData.prompt}
+                notesEnabled={sidebarData.notesEnabled}
+                note={sidebarData.note}
+                onChangeNote={sidebarData.onChangeNote}
+                onSaveNote={sidebarData.onSaveNote}
+                branchSuggestion={sidebarData.branchSuggestion}
+                showWeightSuggestionsEnabled={showWeightSuggestionsEnabled}
+                selectedNodeType={sidebarData.selectedNodeType}
+                nodeDetailsProps={sidebarData.nodeDetailsProps}
+                nodeDetailsLogic={sidebarData.nodeDetailsLogic}
+              />
+            </Box>
+
+            {/* CENTER GRAPH */}
             <Box
               sx={{
                 flex: 1,
-                minHeight: 0,
                 minWidth: 0,
+                minHeight: 0,
+                overflow: "hidden",
               }}
             >
               <ReactFlowProvider>
@@ -753,47 +760,46 @@ export default function App({
               </ReactFlowProvider>
             </Box>
 
-            <BranchTimelineBar
-              open={isBottomTimelineOpen}
-              onToggle={() => setIsBottomTimelineOpen((prev) => !prev)}
-              timeline={branchTimeline}
-              loading={timelineLoading}
-              error={timelineError}
-              onJumpToNode={handleJumpToTimelineNode}
-            />
+            {/* RIGHT SIDEBAR */}
+            <Box
+              sx={{
+                flex: isRightSidebarOpen ? "0 0 33%" : "0 0 52px",
+                width: isRightSidebarOpen ? "33%" : "52px",
+                minWidth: 0,
+                maxWidth: isRightSidebarOpen ? "33%" : "52px",
+                height: "100%",
+                borderLeft: "1px solid",
+                borderColor: "divider",
+                bgcolor: "background.paper",
+                overflow: "hidden",
+                transition: "width 0.2s ease, flex-basis 0.2s ease",
+              }}
+            >
+              <ClipSelectionSidebar
+                open={isRightSidebarOpen}
+                onToggle={() => setIsRightSidebarOpen((prev) => !prev)}
+                slots={clipCompareSlotsWithPlayback}
+                timelines={clipCompareTimelineSlots}
+                activePickSlot={activeClipPick?.slotIndex ?? null}
+                onPickSlot={handlePickClipSlot}
+                onClearSlot={handleClearClipSlot}
+                onSelectParamNode={handleSelectParamNodeFromTimeline}
+                onCompare={handleOpenTimelineCompare}
+                canCompare={canCompareClips}
+                loopVideos={loopComparisonVideos}
+                onToggleLoopVideos={() => setLoopComparisonVideos((prev) => !prev)}
+                showOnlyGeneratedPart={showOnlyGeneratedPart}
+              />
+            </Box>
           </Box>
-
-          {/* RIGHT SIDEBAR */}
-          <Box
-            sx={{
-              flex: isRightSidebarOpen ? "0 0 33%" : "0 0 52px",
-              width: isRightSidebarOpen ? "33%" : "52px",
-              minWidth: 0,
-              maxWidth: isRightSidebarOpen ? "33%" : "52px",
-              height: "100%",
-              borderLeft: "1px solid",
-              borderColor: "divider",
-              bgcolor: "background.paper",
-              overflow: "hidden",
-              transition: "width 0.2s ease, flex-basis 0.2s ease",
-            }}
-          >
-            <ClipSelectionSidebar
-              open={isRightSidebarOpen}
-              onToggle={() => setIsRightSidebarOpen((prev) => !prev)}
-              slots={clipCompareSlotsWithPlayback}
-              timelines={clipCompareTimelineSlots}
-              activePickSlot={activeClipPick?.slotIndex ?? null}
-              onPickSlot={handlePickClipSlot}
-              onClearSlot={handleClearClipSlot}
-              onSelectParamNode={handleSelectParamNodeFromTimeline}
-              onCompare={handleOpenTimelineCompare}
-              canCompare={canCompareClips}
-              loopVideos={loopComparisonVideos}
-              onToggleLoopVideos={() => setLoopComparisonVideos((prev) => !prev)}
-              showOnlyGeneratedPart={showOnlyGeneratedPart}
-            />
-          </Box>
+          <BranchTimelineBar
+            open={isBottomTimelineOpen}
+            onToggle={() => setIsBottomTimelineOpen((prev) => !prev)}
+            timeline={branchTimeline}
+            loading={timelineLoading}
+            error={timelineError}
+            onJumpToNode={handleJumpToTimelineNode}
+          />
         </Box>
       </Box>
 

@@ -22,14 +22,11 @@ export function BranchTimelineBar({
   return (
     <Box
       sx={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        bottom: 0,
+        flex: "0 0 auto",
         bgcolor: "background.paper",
         borderTop: "1px solid",
         borderColor: "divider",
-        zIndex: 20,
+        overflow: "hidden",
       }}
     >
       <Box

@@ -22,23 +22,17 @@ export async function registerTimelineRoutes(app: FastifyInstance) {
   });
 
   app.get("/timeline-frames/:clipId/:file", async (req, reply) => {
-  const { clipId, file } = req.params as {
-    clipId: string;
-    file: string;
-  };
+    const { clipId, file } = req.params as {
+      clipId: string;
+      file: string;
+    };
 
-  const filePath = path.join(
-    process.cwd(),
-    "data",
-    "timeline-frames",
-    clipId,
-    file
-  );
+    const filePath = path.join(process.cwd(), "data", "timeline-frames", clipId, file);
 
-  if (!fs.existsSync(filePath)) {
-    return reply.code(404).send({ error: "Frame not found" });
-  }
+    if (!fs.existsSync(filePath)) {
+      return reply.code(404).send({ error: "Frame not found" });
+    }
 
-  return reply.type("image/png").send(fs.createReadStream(filePath));
-});
+    return reply.type("image/png").send(fs.createReadStream(filePath));
+  });
 }

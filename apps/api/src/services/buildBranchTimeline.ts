@@ -52,36 +52,38 @@ async function buildClipSegments(
 ): Promise<TimelineSegment[]> {
   let cursor = 0;
 
-  return await Promise.all( nodes.map(async (node, index) => {
-    const durationFrames = getNodeDurationFrames(node, project, nodeMap);
-    const startFrame = cursor;
-    const endFrame = cursor + durationFrames;
-    cursor = endFrame;
+  return await Promise.all(
+    nodes.map(async (node, index) => {
+      const durationFrames = getNodeDurationFrames(node, project, nodeMap);
+      const startFrame = cursor;
+      const endFrame = cursor + durationFrames;
+      cursor = endFrame;
 
-    const parent = getParentNode(node, project, nodeMap);
-    const isRoot = !parent && node.type === "clip";
-    const frameUrls = await getClipFrameUrls(node, project, nodeMap);
+      const parent = getParentNode(node, project, nodeMap);
+      const isRoot = !parent && node.type === "clip";
+      const frameUrls = await getClipFrameUrls(node, project, nodeMap);
 
-    return {
-      id: `clip-${node.id}-${index}`,
-      nodeId: node.id,
-      label: getNodeLabel(node),
-      kind: getVisualKind(node),
-      durationFrames,
-      durationSec: getNodeDurationSec(node, project, nodeMap),
-      startFrame,
-      endFrame,
-      widthPct: totalFrames > 0 ? (durationFrames / totalFrames) * 100 : 0,
+      return {
+        id: `clip-${node.id}-${index}`,
+        nodeId: node.id,
+        label: getNodeLabel(node),
+        kind: getVisualKind(node),
+        durationFrames,
+        durationSec: getNodeDurationSec(node, project, nodeMap),
+        startFrame,
+        endFrame,
+        widthPct: totalFrames > 0 ? (durationFrames / totalFrames) * 100 : 0,
         firstFrameUrl: frameUrls.firstFrameUrl,
-  lastFrameUrl: frameUrls.lastFrameUrl,
-      isGenerated: isGeneratedClipNode(node),
-      isImported: node.type === "import",
-      isEdited: node.type === "edit",
-      isResetAnchor: false,
-      parentNodeId: parent?.id ?? null,
-      isRoot,
-    };
-  }));
+        lastFrameUrl: frameUrls.lastFrameUrl,
+        isGenerated: isGeneratedClipNode(node),
+        isImported: node.type === "import",
+        isEdited: node.type === "edit",
+        isResetAnchor: false,
+        parentNodeId: parent?.id ?? null,
+        isRoot,
+      };
+    })
+  );
 }
 
 function buildSourceSegments(
@@ -169,9 +171,7 @@ export async function buildBranchTimeline(
       totalDurationSec: 0,
       resetAnchorNodeId: null,
       blockingNodeId: null,
-      tracks: [
-        { key: "clips", label: "Clips", segments: [] },
-      ],
+      tracks: [{ key: "clips", label: "Clips", segments: [] }],
     };
   }
 
@@ -191,12 +191,12 @@ export async function buildBranchTimeline(
     0
   );
 
-const clipSegments = await buildClipSegments(
-  clipTrackNodes,
-  totalDurationFrames,
-  project,
-  nodeMap
-);
+  const clipSegments = await buildClipSegments(
+    clipTrackNodes,
+    totalDurationFrames,
+    project,
+    nodeMap
+  );
   const sourceSegments = buildSourceSegments(clipTrackNodes, totalDurationFrames, project, nodeMap);
 
   const resetAnchorNodeId = branchPath[0]?.id ?? null;
@@ -258,8 +258,12 @@ async function resolveComfyVideoPath(videoFile: any): Promise<string | null> {
 
   const candidates = [
     rootsByType[type] ? path.join(rootsByType[type]!, subfolder, filename) : null,
-    process.env.COMFY_OUTPUT_DIR ? path.join(process.env.COMFY_OUTPUT_DIR, subfolder, filename) : null,
-    process.env.COMFY_INPUT_DIR ? path.join(process.env.COMFY_INPUT_DIR, subfolder, filename) : null,
+    process.env.COMFY_OUTPUT_DIR
+      ? path.join(process.env.COMFY_OUTPUT_DIR, subfolder, filename)
+      : null,
+    process.env.COMFY_INPUT_DIR
+      ? path.join(process.env.COMFY_INPUT_DIR, subfolder, filename)
+      : null,
     process.env.COMFY_TEMP_DIR ? path.join(process.env.COMFY_TEMP_DIR, subfolder, filename) : null,
   ].filter((x): x is string => Boolean(x));
 

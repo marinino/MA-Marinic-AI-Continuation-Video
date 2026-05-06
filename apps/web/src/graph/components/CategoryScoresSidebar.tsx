@@ -17,6 +17,8 @@ import { renderOrderedSliderItem } from "./RenderedOrderedSliders";
 import { ParameterBarGroup } from "./ParameterBarGroup";
 import { CompareParameterBarGroup } from "./CompareParameterBarGroup";
 import { BrachSuggestion } from "../types/ui";
+import { NodeDetailsDialogProps } from "../types/props";
+import { NodeDetailsContent } from "./NodeDetailsContent";
 
 type SidebarTab = "categories" | "parameters";
 
@@ -38,6 +40,8 @@ export function CategoryScoresSidebar({
   branchSuggestion,
   showWeightSuggestionsEnabled,
   selectedNodeType,
+  nodeDetailsProps,
+  nodeDetailsLogic,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -56,6 +60,8 @@ export function CategoryScoresSidebar({
   onSaveNote?: () => void;
   branchSuggestion?: BrachSuggestion | null;
   showWeightSuggestionsEnabled: boolean;
+  nodeDetailsProps?: NodeDetailsDialogProps | null;
+  nodeDetailsLogic?: any | null;
 }) {
   const [tab, setTab] = useState<SidebarTab>("categories");
 
@@ -74,7 +80,7 @@ export function CategoryScoresSidebar({
         sx={{
           width: 52,
           flexShrink: 0,
-          height: "100%",
+          alignSelf: "stretch",
           position: "relative",
           borderRight: open ? "1px solid" : "none",
           borderColor: "divider",
@@ -127,14 +133,26 @@ export function CategoryScoresSidebar({
       {open && (
         <Box
           sx={{
+            width: "100%",
             flex: 1,
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
+            minHeight: 0,
             minWidth: 0,
+            overflow: "hidden",
+            display: "flex",
+            bgcolor: "background.paper",
           }}
         >
-          <Box sx={{ px: 2, pt: 2, pb: 1 }}>
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+              px: 2,
+              pt: 2,
+              pb: 1,
+            }}
+          >
             <Typography variant="subtitle2">Node inspection</Typography>
             <Typography variant="caption" color="text.secondary">
               {selectedNodeType === "params"
@@ -142,126 +160,124 @@ export function CategoryScoresSidebar({
                 : "No parameter node selected"}
             </Typography>
 
-            {selectedNodeType === "params" && prompt?.trim() && (
-              <Box sx={{ mt: 1.5 }}>
-                <Typography variant="caption" display="block" sx={{ mb: 0.5, fontWeight: 600 }}>
-                  Prompt
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}
+            {selectedNodeType === "params" ? (
+              <>
+                <Tabs
+                  value={tab}
+                  onChange={(_, value) => setTab(value)}
+                  variant="fullWidth"
+                  sx={{ px: 1 }}
                 >
-                  {prompt}
-                </Typography>
-              </Box>
-            )}
-          </Box>
+                  <Tab value="categories" label="Categories" />
+                  <Tab value="parameters" label="Parameters" />
+                </Tabs>
 
-          <Tabs
-            value={tab}
-            onChange={(_, value) => setTab(value)}
-            variant="fullWidth"
-            sx={{ px: 1 }}
-          >
-            <Tab value="categories" label="Categories" />
-            <Tab value="parameters" label="Parameters" />
-          </Tabs>
-
-          <Box
-            sx={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: "auto",
-              px: 2,
-              py: 1.5,
-            }}
-          >
-            {tab === "categories" ? (
-              !computed ? (
-                <Typography variant="body2" color="text.secondary">
-                  Select a parameter node to inspect category scores.
-                </Typography>
-              ) : (
                 <Box
                   sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 1.25,
-                    width: "100%",
-                    minWidth: 0,
+                    flex: 1,
+                    minHeight: 0,
+                    overflowY: "auto",
+                    px: 2,
+                    py: 1.5,
                   }}
                 >
-                  {orderedSliderItems.map((item) => (
-                    <Box
-                      key={item.id}
-                      sx={{
-                        width: "100%",
-                        minWidth: 0,
-                      }}
-                    >
-                      {renderOrderedSliderItem(
-                        item,
-                        computed,
-                        clipLogic,
-                        () => {},
-                        () => {},
-                        false,
-                        () => {}
-                      )}
-                    </Box>
-                  ))}
+                  {tab === "categories" ? (
+                    !computed ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Select a parameter node to inspect category scores.
+                      </Typography>
+                    ) : (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 1.25,
+                          width: "100%",
+                          minWidth: 0,
+                        }}
+                      >
+                        {orderedSliderItems.map((item) => (
+                          <Box key={item.id} sx={{ width: "100%", minWidth: 0 }}>
+                            {renderOrderedSliderItem(
+                              item,
+                              computed,
+                              clipLogic,
+                              () => {},
+                              () => {},
+                              false,
+                              () => {}
+                            )}
+                          </Box>
+                        ))}
+                      </Box>
+                    )
+                  ) : parameterItems.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      No parameter data available.
+                    </Typography>
+                  ) : (
+                    <ParameterBarGroup
+                      items={parameterItems}
+                      history={parameterHistory}
+                      isFromChip={false}
+                    />
+                  )}
+
+                  {showWeightSuggestionsEnabled && branchSuggestion && (
+                    <>
+                      <Divider sx={{ my: 2 }} />
+                      <Box sx={{ mb: 1.5 }}>
+                        <Typography variant="caption" color="warning.main" sx={{ fontWeight: 600 }}>
+                          Hint: Adjust weights
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {branchSuggestion.message}
+                        </Typography>
+                      </Box>
+                    </>
+                  )}
+
+                  {notesEnabled && (
+                    <>
+                      <Divider sx={{ my: 2 }} />
+                      <Typography variant="caption" display="block" sx={{ mb: 1 }}>
+                        <strong>Notes</strong>
+                      </Typography>
+
+                      <TextField
+                        multiline
+                        minRows={4}
+                        fullWidth
+                        value={note ?? ""}
+                        onChange={(e) => onChangeNote?.(e.target.value)}
+                        placeholder="Add notes for this node..."
+                      />
+
+                      <Button variant="outlined" size="small" onClick={onSaveNote} sx={{ mt: 1 }}>
+                        Save notes
+                      </Button>
+                    </>
+                  )}
                 </Box>
-              )
-            ) : parameterItems.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                No parameter data available.
-              </Typography>
+              </>
             ) : (
-              <ParameterBarGroup
-                items={parameterItems}
-                history={parameterHistory}
-                isFromChip={false}
-              />
-            )}
-
-            {showWeightSuggestionsEnabled && branchSuggestion && (
-              <>
-                <Divider sx={{ my: 2 }} />
-                <Box sx={{ mb: 1.5 }}>
-                  <Typography variant="caption" color="warning.main" sx={{ fontWeight: 600 }}>
-                    Hint: Adjust weights
-                  </Typography>
+              <Box
+                sx={{
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: "auto",
+                  px: 2,
+                  py: 1.5,
+                }}
+              >
+                {nodeDetailsProps && nodeDetailsLogic ? (
+                  <NodeDetailsContent props={nodeDetailsProps} logic={nodeDetailsLogic} dense />
+                ) : (
                   <Typography variant="body2" color="text.secondary">
-                    {branchSuggestion.message}
+                    Select a node to inspect details.
                   </Typography>
-                </Box>
-              </>
-            )}
-
-            {notesEnabled && (
-              <>
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="caption" display="block" sx={{ mb: 1 }}>
-                  <strong>Notes</strong>
-                </Typography>
-
-                <TextField
-                  multiline
-                  minRows={4}
-                  fullWidth
-                  value={note ?? ""}
-                  onChange={(e) => onChangeNote?.(e.target.value)}
-                  placeholder="Add notes for this node..."
-                />
-
-                <Button variant="outlined" size="small" onClick={onSaveNote} sx={{ mt: 1 }}>
-                  Save notes
-                </Button>
-              </>
+                )}
+              </Box>
             )}
           </Box>
         </Box>
