@@ -6,8 +6,8 @@ import { EdgeKind } from "../types/ui";
 import { scoreToEdgeColor, scoreToStrokeWidth } from "../graph_helpers/layout";
 
 export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
-  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd } =
-    props;
+ const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd } =
+  props;
   const theme = useTheme();
 
   const [edgePath, labelX, labelY] = getBezierPath({
@@ -54,26 +54,28 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
     <>
       {isTimelineEdge && (
         <BaseEdge
-          path={edgePath}
-          markerEnd={undefined}
-          style={{
-            stroke: highlightColor,
-            strokeWidth: strokeWidth + 6,
-            opacity: 0.95,
-            strokeLinecap: "round",
-            strokeLinejoin: "round",
-          }}
-        />
+  id={`${id}-timeline-highlight`}
+  path={edgePath}
+  markerEnd={undefined}
+  style={{
+    stroke: highlightColor,
+    strokeWidth: strokeWidth + 6,
+    opacity: 0.95,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+  }}
+/>
       )}
 
-      <BaseEdge
-        path={edgePath}
-        markerEnd={markerEnd}
-        style={{
-          stroke: edgeColor,
-          strokeWidth,
-        }}
-      />
+     <BaseEdge
+  id={id}
+  path={edgePath}
+  markerEnd={markerEnd}
+  style={{
+    stroke: edgeColor,
+    strokeWidth,
+  }}
+/>
 
       {showLabel && (
         <EdgeLabelRenderer>

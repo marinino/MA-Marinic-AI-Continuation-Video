@@ -17,6 +17,15 @@ import { getGeneratedFramesForParamsNode } from "../utils/paramNodeData";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+export type TransitionEvaluationFrame = {
+  index: number;
+  side: "before" | "after";
+  framePath: string;
+  frameUrl: string;
+  label: string;
+  relativeIndex: number;
+};
+
 export type TransitionEvaluation = {
   parentClipId: string;
   childClipId: string;
@@ -26,6 +35,8 @@ export type TransitionEvaluation = {
   appearanceScore: number;
   motionScore: number;
   boundaryJumpScore: number;
+
+  frames: TransitionEvaluationFrame[];
 
   overallScore: number;
   label: "smooth" | "moderate" | "rough";
@@ -50,7 +61,7 @@ export type TransitionEvaluation = {
 
 type PythonTransitionMetrics = Omit<
   TransitionEvaluation,
-  "parentClipId" | "childClipId" | "paramsNodeId" | "frameCount"
+  "parentClipId" | "childClipId" | "paramsNodeId" | "frameCount" | "frames"
 >;
 
 export type TransitionEvaluationDebug = {
@@ -72,9 +83,20 @@ export type TransitionEvaluationDebug = {
   }>;
 };
 
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
+}
+
 async function fileHash(filePath: string): Promise<string> {
   const buffer = await fs.readFile(filePath);
   return crypto.createHash("sha1").update(buffer).digest("hex").slice(0, 12);
+}
+
+function framePathToUrl(filePath: string): string {
+  return `/api/transition-frames?path=${encodeURIComponent(filePath)}`;
 }
 
 export async function evaluateProjectTransitions(
@@ -232,8 +254,45 @@ export async function evaluateProjectTransitions(
         continue;
       }
 
-      const parentFramesUsed = parentFrames.slice(-usableFrameCount);
-      const childFramesUsed = childFrames.slice(0, usableFrameCount);
+const parentFramesUsed = parentFrames.slice(-usableFrameCount);
+const childFramesUsed = childFrames.slice(0, usableFrameCount);
+
+const beforeFrames: TransitionEvaluationFrame[] = parentFramesUsed.map((framePath, index) => {
+  const offset = usableFrameCount - index;
+
+  return {
+    index,
+    side: "before",
+    framePath,
+    frameUrl: framePathToUrl(framePath),
+    relativeIndex: -offset,
+    label:
+      offset === 1
+        ? "Last frame before cut"
+        : `${ordinal(offset)}-to-last frame before cut`,
+  };
+});
+
+const afterFrames: TransitionEvaluationFrame[] = childFramesUsed.map((framePath, index) => {
+  const offset = index + 1;
+
+  return {
+    index: usableFrameCount + index,
+    side: "after",
+    framePath,
+    frameUrl: framePathToUrl(framePath),
+    relativeIndex: offset,
+    label:
+      offset === 1
+        ? "1st frame after cut"
+        : `${ordinal(offset)} frame after cut`,
+  };
+});
+
+const frameViewerFrames: TransitionEvaluationFrame[] = [
+  ...beforeFrames,
+  ...afterFrames,
+];
 
       const metrics = await runPythonJson<PythonTransitionMetrics>(scriptPath, {
         parentFrames: parentFramesUsed,
@@ -245,6 +304,7 @@ export async function evaluateProjectTransitions(
         childClipId: pair.childClipId,
         paramsNodeId: pair.paramsNodeId,
         frameCount: usableFrameCount,
+        frames: frameViewerFrames,
         ...metrics,
       };
     } catch (err) {

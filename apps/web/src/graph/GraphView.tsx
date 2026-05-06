@@ -20,7 +20,7 @@ import {
   type StoredMediaFile,
 } from "@ma/shared";
 import { useReactFlow } from "reactflow";
-import type { ReactFlowInstance } from "reactflow";
+import type { EdgeMouseHandler, ReactFlowInstance } from "reactflow";
 
 // node/edge renderer
 import { nodeTypes } from "./nodes/Node";
@@ -112,6 +112,7 @@ import {
   ParamDeltaCacheEntry,
   StandardCategoryKey,
   TransitionEvaluation,
+  TransitionEvaluationData,
 } from "./types/ui";
 import { buildCompareCategoryDeltas, buildCompareDelta } from "./graph_helpers/compareLogic";
 import { NodeDetailsDialog } from "./dialogs/NodeDetailsDialog";
@@ -121,6 +122,7 @@ import { ImportVideoDialog } from "./dialogs/ImportVideoDialog";
 import { useClipDialogLogic } from "./graph_helpers/clipDialogLogic";
 import { useNodeDetailsDialog } from "./hooks/useNodeDetailsDialogLogic";
 import { NodeDetailsDialogProps } from "./types/props";
+import { FrameViewerModal } from "./dialogs/FrameViewerModal";
 
 // edgeTypes
 const edgeTypes = { labeled: LabeledEdge };
@@ -337,6 +339,8 @@ export function GraphView(props: {
   const [importVideoUploading, setImportVideoUploading] = useState(false);
   const [importVideoStatus, setImportVideoStatus] = useState("");
 
+  const [selectedTransition, setSelectedTransition] = useState<TransitionEvaluationData | null>(null);
+
   const v2v = useV2VSliders(formulaWeights);
 
   const finishComparePick = useCallback(
@@ -540,16 +544,16 @@ export function GraphView(props: {
   }, [props.externalCompareRequest?.requestKey]);
 
   useEffect(() => {
-    if (!props.externalOpenDetailsRequest) return;
+  if (!props.externalOpenDetailsRequest) return;
 
-    const { nodeId } = props.externalOpenDetailsRequest;
+  const { nodeId } = props.externalOpenDetailsRequest;
 
-    selectNode(nodeId);
-    setDetailsNodeId(nodeId);
-    setDetailsOpen(true);
+  selectNode(nodeId);
+  setActionDialogOpen(false);
 
-    setActionDialogOpen(false);
-  }, [props.externalOpenDetailsRequest?.requestKey]);
+  // wichtig: kein Dialog mehr
+  setDetailsOpen(false);
+}, [props.externalOpenDetailsRequest?.requestKey]);
 
   useEffect(() => {
     setCategoryVisibility((prev) => {
@@ -1285,6 +1289,19 @@ export function GraphView(props: {
     ]
   );
 
+const handleEdgeClick: EdgeMouseHandler = useCallback((_evt, edge) => {
+  console.log("EDGE CLICKED", edge.id, edge.data);
+
+  const transition = (edge.data as any)?.transitionEvaluation;
+
+  if (!transition) {
+    console.log("No transition evaluation on this edge");
+    return;
+  }
+
+  setSelectedTransition(transition as any);
+}, []);
+
   const handleNodeDragStop = useCallback(
     (_: any, node: RFNode) => {
       g.setRfNodes((prev) => {
@@ -1370,6 +1387,7 @@ export function GraphView(props: {
         prevData?.appearanceScore === evaluation?.appearanceScore &&
         prevData?.motionScore === evaluation?.motionScore &&
         prevData?.boundaryJumpScore === evaluation?.boundaryJumpScore &&
+        prevData?.transitionEvaluation === evaluation &&
         prevData?.strokeWidth === strokeWidth
       ) {
         nextCache.set(edge.id, prev);
@@ -1388,6 +1406,7 @@ export function GraphView(props: {
           motionScore: evaluation?.motionScore,
           boundaryJumpScore: evaluation?.boundaryJumpScore,
           strokeWidth,
+          transitionEvaluation: evaluation,
           scoreColorHint:
             typeof score === "number"
               ? scoreToEdgeColor(score, "")
@@ -2473,6 +2492,7 @@ export function GraphView(props: {
         onNodesChange={g.onNodesChange}
         onEdgesChange={g.onEdgesChange}
         onNodeClick={handleNodeClick}
+        onEdgeClick={handleEdgeClick}
         onNodeDragStop={handleNodeDragStop}
         onMove={vp.scheduleSaveViewport}
         onMoveEnd={vp.saveViewport}
@@ -2720,6 +2740,12 @@ export function GraphView(props: {
           compareModeSource === "sidebar" ? compareParameterHistory : undefined
         }
       />
+
+   <FrameViewerModal
+  open={!!selectedTransition}
+  transition={selectedTransition}
+  onClose={() => setSelectedTransition(null)}
+/>
     </div>
   );
 }

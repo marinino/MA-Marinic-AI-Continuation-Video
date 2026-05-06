@@ -304,26 +304,24 @@ export default function App({
     });
   };
 
-  const handleJumpToTimelineNode = (nodeId: string, trackKey: "clips" | "sources") => {
-    setProject((prev) => {
-      if (!prev) return prev;
+const handleJumpToTimelineNode = (nodeId: string, trackKey: "clips" | "sources") => {
+  setProject((prev) => {
+    if (!prev) return prev;
 
-      return {
-        ...prev,
-        uiState: {
-          ...(prev.uiState ?? {}),
-          selectedNodeId: nodeId,
-        },
-      };
-    });
+    return {
+      ...prev,
+      uiState: {
+        ...(prev.uiState ?? {}),
+        selectedNodeId: nodeId,
+      },
+    };
+  });
 
-    if (trackKey === "clips") {
-      setExternalOpenDetailsRequest({
-        nodeId,
-        requestKey: Date.now(),
-      });
-    }
-  };
+  setExternalOpenDetailsRequest({
+    nodeId,
+    requestKey: Date.now(),
+  });
+};
 
   const handleOpenTimelineCompare = () => {
     const filledSlots = clipCompareSlots

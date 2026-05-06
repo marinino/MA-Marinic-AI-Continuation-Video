@@ -548,3 +548,27 @@ export type InfoSlide = {
   image?: string;
   content: React.ReactNode;
 };
+
+export type TransitionFrame = {
+  index: number;
+
+  side: "before" | "after";
+
+  framePath: string;
+  frameUrl: string;
+
+  label: string;
+
+  relativeIndex: number;
+
+  score?: number;
+};
+
+export type TransitionEvaluationData = {
+  status: "not_run" | "running" | "done" | "failed";
+  averageScore?: number;
+  frames: TransitionFrame[];
+};
+export type ViewMode = "single" | "side-by-side" | "grid-4";
+
+
