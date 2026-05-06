@@ -1820,6 +1820,7 @@ export function GraphView(props: {
             videoStatus: "done",
             videoOpened: false,
             totalFrames: 81,
+            generatedFrames: 81,
           } as any,
           draggable: true,
         };

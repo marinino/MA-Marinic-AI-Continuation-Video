@@ -489,9 +489,9 @@ function GraphCardInner(props: NodeCardPreviewProps) {
                 <Chip
                   size="small"
                   label={`Note: ${
-                    props.type === "clip"
+                    props.note!.length > 20
                       ? `${props.note!.trim().slice(0, 20)}...`
-                      : props.note!.trim()
+                      : props.note!.trim().slice(0, 20)
                   }`}
                   title={props.note!.trim()}
                   sx={{
