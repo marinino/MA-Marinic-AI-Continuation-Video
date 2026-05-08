@@ -86,50 +86,50 @@ export function FrameViewerModal({
 
       <DialogContent>
         <Stack spacing={2}>
-<ButtonGroup
-  fullWidth
-  variant="contained"
-  aria-label="Frame viewer mode"
-  sx={{
-    boxShadow: "none",
-    "& .MuiButton-root": {
-      textTransform: "none",
-      borderColor: "divider",
-    },
-    "& .MuiButton-root:first-of-type": {
-      borderTopLeftRadius: 8,
-      borderBottomLeftRadius: 8,
-    },
-    "& .MuiButton-root:last-of-type": {
-      borderTopRightRadius: 8,
-      borderBottomRightRadius: 8,
-    },
-  }}
->
-  <Button
-    disableElevation
-    variant={viewMode === "single" ? "contained" : "outlined"}
-    onClick={() => setViewMode("single")}
-  >
-    Single
-  </Button>
+          <ButtonGroup
+            fullWidth
+            variant="contained"
+            aria-label="Frame viewer mode"
+            sx={{
+              boxShadow: "none",
+              "& .MuiButton-root": {
+                textTransform: "none",
+                borderColor: "divider",
+              },
+              "& .MuiButton-root:first-of-type": {
+                borderTopLeftRadius: 8,
+                borderBottomLeftRadius: 8,
+              },
+              "& .MuiButton-root:last-of-type": {
+                borderTopRightRadius: 8,
+                borderBottomRightRadius: 8,
+              },
+            }}
+          >
+            <Button
+              disableElevation
+              variant={viewMode === "single" ? "contained" : "outlined"}
+              onClick={() => setViewMode("single")}
+            >
+              Single
+            </Button>
 
-  <Button
-    disableElevation
-    variant={viewMode === "side-by-side" ? "contained" : "outlined"}
-    onClick={() => setViewMode("side-by-side")}
-  >
-    Side by Side
-  </Button>
+            <Button
+              disableElevation
+              variant={viewMode === "side-by-side" ? "contained" : "outlined"}
+              onClick={() => setViewMode("side-by-side")}
+            >
+              Side by Side
+            </Button>
 
-  <Button
-    disableElevation
-    variant={viewMode === "grid-4" ? "contained" : "outlined"}
-    onClick={() => setViewMode("grid-4")}
-  >
-    4 Frames
-  </Button>
-</ButtonGroup>
+            <Button
+              disableElevation
+              variant={viewMode === "grid-4" ? "contained" : "outlined"}
+              onClick={() => setViewMode("grid-4")}
+            >
+              4 Frames
+            </Button>
+          </ButtonGroup>
 
           {frames.length === 0 && (
             <Typography color="text.secondary">
