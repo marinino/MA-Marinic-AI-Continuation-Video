@@ -2104,7 +2104,7 @@ export function GraphView(props: {
             const branchIndex = countBranches(nextEdges, parentId);
 
             const PARAM_BRANCH_SPACING = 140;
-            const NODE_GAP_X = 60;
+            const NODE_GAP_X = 100;
 
             const paramSize = getDefaultNodeSize("params");
             const clipSize = getDefaultNodeSize("clip");

@@ -57,7 +57,7 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
   const highlightColor =
     theme.palette.mode === "dark" ? theme.palette.warning.light : theme.palette.warning.main;
 
-  const labelText = typeof transitionScore === "number" ? `${text} · ${transitionScore}` : text;
+  const labelText = typeof transitionScore === "number" ? transitionScore : text;
   const isHoveredTransitionEdge: boolean = (data as any)?.isHoveredTransitionEdge ?? false;
 
   return (

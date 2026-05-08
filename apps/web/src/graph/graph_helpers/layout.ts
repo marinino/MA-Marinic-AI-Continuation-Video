@@ -17,7 +17,7 @@ export function isColliding(a: XY, b: XY, w = 220, h = 120, pad = 30) {
 export function getDefaultNodeSize(type?: string) {
   switch (type) {
     case "params":
-      return { w: 420, h: 500 };
+      return { w: 500, h: 500 };
     case "edit":
       return { w: 280, h: 300 };
     case "import":
