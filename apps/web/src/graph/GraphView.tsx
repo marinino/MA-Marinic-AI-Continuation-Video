@@ -175,6 +175,8 @@ export function GraphView(props: {
     nodeId: string;
     requestKey: number;
   } | null;
+  hoveredTransitionClipId?: string | null;
+  onOpenTransition?: (transition: any) => void;
 }) {
   // ---------- reactflow instance ----------
   const rf = useReactFlow();
@@ -338,8 +340,6 @@ export function GraphView(props: {
   const [importVideoFile, setImportVideoFile] = useState<File | null>(null);
   const [importVideoUploading, setImportVideoUploading] = useState(false);
   const [importVideoStatus, setImportVideoStatus] = useState("");
-
-  const [selectedTransition, setSelectedTransition] = useState<TransitionEvaluationData | null>(null);
 
   const v2v = useV2VSliders(formulaWeights);
 
@@ -544,16 +544,16 @@ export function GraphView(props: {
   }, [props.externalCompareRequest?.requestKey]);
 
   useEffect(() => {
-  if (!props.externalOpenDetailsRequest) return;
+    if (!props.externalOpenDetailsRequest) return;
 
-  const { nodeId } = props.externalOpenDetailsRequest;
+    const { nodeId } = props.externalOpenDetailsRequest;
 
-  selectNode(nodeId);
-  setActionDialogOpen(false);
+    selectNode(nodeId);
+    setActionDialogOpen(false);
 
-  // wichtig: kein Dialog mehr
-  setDetailsOpen(false);
-}, [props.externalOpenDetailsRequest?.requestKey]);
+    // wichtig: kein Dialog mehr
+    setDetailsOpen(false);
+  }, [props.externalOpenDetailsRequest?.requestKey]);
 
   useEffect(() => {
     setCategoryVisibility((prev) => {
@@ -1289,18 +1289,18 @@ export function GraphView(props: {
     ]
   );
 
-const handleEdgeClick: EdgeMouseHandler = useCallback((_evt, edge) => {
-  console.log("EDGE CLICKED", edge.id, edge.data);
+  const handleEdgeClick: EdgeMouseHandler = useCallback((_evt, edge) => {
+    console.log("EDGE CLICKED", edge.id, edge.data);
 
-  const transition = (edge.data as any)?.transitionEvaluation;
+    const transition = (edge.data as any)?.transitionEvaluation;
 
-  if (!transition) {
-    console.log("No transition evaluation on this edge");
-    return;
-  }
+    if (!transition) {
+      console.log("No transition evaluation on this edge");
+      return;
+    }
 
-  setSelectedTransition(transition as any);
-}, []);
+    props.onOpenTransition?.(transition);
+  }, []);
 
   const handleNodeDragStop = useCallback(
     (_: any, node: RFNode) => {
@@ -1377,6 +1377,7 @@ const handleEdgeClick: EdgeMouseHandler = useCallback((_evt, edge) => {
       const isTimelineEdge = highlightedBranch.edgeIds.has(edge.id);
       const prev = prevCache.get(edge.id);
       const prevData = prev?.data as any;
+      const isHoveredTransitionEdge = props.hoveredTransitionClipId === edge.id;
 
       if (
         prev &&
@@ -1388,6 +1389,7 @@ const handleEdgeClick: EdgeMouseHandler = useCallback((_evt, edge) => {
         prevData?.motionScore === evaluation?.motionScore &&
         prevData?.boundaryJumpScore === evaluation?.boundaryJumpScore &&
         prevData?.transitionEvaluation === evaluation &&
+        prevData?.isHoveredTransitionEdge === isHoveredTransitionEdge &&
         prevData?.strokeWidth === strokeWidth
       ) {
         nextCache.set(edge.id, prev);
@@ -1407,6 +1409,7 @@ const handleEdgeClick: EdgeMouseHandler = useCallback((_evt, edge) => {
           boundaryJumpScore: evaluation?.boundaryJumpScore,
           strokeWidth,
           transitionEvaluation: evaluation,
+          isHoveredTransitionEdge,
           scoreColorHint:
             typeof score === "number"
               ? scoreToEdgeColor(score, "")
@@ -1420,7 +1423,13 @@ const handleEdgeClick: EdgeMouseHandler = useCallback((_evt, edge) => {
 
     edgesForUICacheRef.current = nextCache;
     return nextEdges;
-  }, [g.rfEdges, baseNodesById, props.transitionEvaluations, highlightedBranch.edgeIds]);
+  }, [
+    g.rfEdges,
+    baseNodesById,
+    props.transitionEvaluations,
+    highlightedBranch.edgeIds,
+    props.hoveredTransitionClipId,
+  ]);
 
   const compareSelector = useMemo(() => {
     if (!compareSourceNodeId || !compareTargetNodeId) return undefined;
@@ -2394,6 +2403,20 @@ const handleEdgeClick: EdgeMouseHandler = useCallback((_evt, edge) => {
     requestAnimationFrame(() => {});
   };
 
+  const transitionEdgeByClipId = useMemo(() => {
+    const map = new Map<string, RFEdge>();
+
+    for (const edge of edgesForUI) {
+      const transition = (edge.data as any)?.transitionEvaluation;
+
+      if (transition && edge.target) {
+        map.set(edge.target, edge);
+      }
+    }
+
+    return map;
+  }, [edgesForUI]);
+
   return (
     <div style={{ height: "100%", position: "relative" }}>
       {/* Jobs */}
@@ -2740,12 +2763,6 @@ const handleEdgeClick: EdgeMouseHandler = useCallback((_evt, edge) => {
           compareModeSource === "sidebar" ? compareParameterHistory : undefined
         }
       />
-
-   <FrameViewerModal
-  open={!!selectedTransition}
-  transition={selectedTransition}
-  onClose={() => setSelectedTransition(null)}
-/>
     </div>
   );
 }

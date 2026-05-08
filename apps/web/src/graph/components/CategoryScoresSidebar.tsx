@@ -162,24 +162,23 @@ export function CategoryScoresSidebar({
 
             {selectedNodeType === "params" ? (
               <>
-
-              {prompt?.trim() && (
-      <Box sx={{ mt: 1.5, mb: 1 }}>
-        <Typography variant="caption" display="block" sx={{ mb: 0.5, fontWeight: 600 }}>
-          Prompt
-        </Typography>
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-          }}
-        >
-          {prompt}
-        </Typography>
-      </Box>
-    )}
+                {prompt?.trim() && (
+                  <Box sx={{ mt: 1.5, mb: 1 }}>
+                    <Typography variant="caption" display="block" sx={{ mb: 0.5, fontWeight: 600 }}>
+                      Prompt
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {prompt}
+                    </Typography>
+                  </Box>
+                )}
 
                 <Tabs
                   value={tab}

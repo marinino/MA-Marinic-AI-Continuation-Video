@@ -570,5 +570,3 @@ export type TransitionEvaluationData = {
   frames: TransitionFrame[];
 };
 export type ViewMode = "single" | "side-by-side" | "grid-4";
-
-

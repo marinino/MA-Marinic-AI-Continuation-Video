@@ -254,45 +254,37 @@ export async function evaluateProjectTransitions(
         continue;
       }
 
-const parentFramesUsed = parentFrames.slice(-usableFrameCount);
-const childFramesUsed = childFrames.slice(0, usableFrameCount);
+      const parentFramesUsed = parentFrames.slice(-usableFrameCount);
+      const childFramesUsed = childFrames.slice(0, usableFrameCount);
 
-const beforeFrames: TransitionEvaluationFrame[] = parentFramesUsed.map((framePath, index) => {
-  const offset = usableFrameCount - index;
+      const beforeFrames: TransitionEvaluationFrame[] = parentFramesUsed.map((framePath, index) => {
+        const offset = usableFrameCount - index;
 
-  return {
-    index,
-    side: "before",
-    framePath,
-    frameUrl: framePathToUrl(framePath),
-    relativeIndex: -offset,
-    label:
-      offset === 1
-        ? "Last frame before cut"
-        : `${ordinal(offset)}-to-last frame before cut`,
-  };
-});
+        return {
+          index,
+          side: "before",
+          framePath,
+          frameUrl: framePathToUrl(framePath),
+          relativeIndex: -offset,
+          label:
+            offset === 1 ? "Last frame before cut" : `${ordinal(offset)}-to-last frame before cut`,
+        };
+      });
 
-const afterFrames: TransitionEvaluationFrame[] = childFramesUsed.map((framePath, index) => {
-  const offset = index + 1;
+      const afterFrames: TransitionEvaluationFrame[] = childFramesUsed.map((framePath, index) => {
+        const offset = index + 1;
 
-  return {
-    index: usableFrameCount + index,
-    side: "after",
-    framePath,
-    frameUrl: framePathToUrl(framePath),
-    relativeIndex: offset,
-    label:
-      offset === 1
-        ? "1st frame after cut"
-        : `${ordinal(offset)} frame after cut`,
-  };
-});
+        return {
+          index: usableFrameCount + index,
+          side: "after",
+          framePath,
+          frameUrl: framePathToUrl(framePath),
+          relativeIndex: offset,
+          label: offset === 1 ? "1st frame after cut" : `${ordinal(offset)} frame after cut`,
+        };
+      });
 
-const frameViewerFrames: TransitionEvaluationFrame[] = [
-  ...beforeFrames,
-  ...afterFrames,
-];
+      const frameViewerFrames: TransitionEvaluationFrame[] = [...beforeFrames, ...afterFrames];
 
       const metrics = await runPythonJson<PythonTransitionMetrics>(scriptPath, {
         parentFrames: parentFramesUsed,

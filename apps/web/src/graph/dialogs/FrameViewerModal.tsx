@@ -14,8 +14,6 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { TransitionFrame, ViewMode } from "../types/ui";
 
-
-
 export function FrameViewerModal({
   open,
   transition,
@@ -36,13 +34,11 @@ export function FrameViewerModal({
   }, [frames, frameIndex]);
 
   useEffect(() => {
-  if (open) setFrameIndex(0);
-}, [open, transition]);
+    if (open) setFrameIndex(0);
+  }, [open, transition]);
 
   const maxIndex =
-  viewMode === "grid-4"
-    ? Math.max(0, frames.length - 4)
-    : Math.max(0, frames.length - 1);
+    viewMode === "grid-4" ? Math.max(0, frames.length - 4) : Math.max(0, frames.length - 1);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
@@ -81,34 +77,34 @@ export function FrameViewerModal({
           )}
 
           {frames.length > 0 && viewMode === "single" && (
-<FrameImage
-  title={current?.label ?? `Frame ${current?.index ?? frameIndex}`}
-  src={current?.frameUrl}
-  score={current?.score}
-/>
+            <FrameImage
+              title={current?.label ?? `Frame ${current?.index ?? frameIndex}`}
+              src={current?.frameUrl}
+              score={current?.score}
+            />
           )}
 
-{frames.length > 0 && viewMode === "side-by-side" && (
-  <Box
-    sx={{
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 2,
-    }}
-  >
-    <FrameImage
-      title={frames[Math.max(0, frameIndex - 1)]?.label ?? "Before cut"}
-      src={frames[Math.max(0, frameIndex - 1)]?.frameUrl}
-      score={frames[Math.max(0, frameIndex - 1)]?.score}
-    />
+          {frames.length > 0 && viewMode === "side-by-side" && (
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 2,
+              }}
+            >
+              <FrameImage
+                title={frames[Math.max(0, frameIndex - 1)]?.label ?? "Before cut"}
+                src={frames[Math.max(0, frameIndex - 1)]?.frameUrl}
+                score={frames[Math.max(0, frameIndex - 1)]?.score}
+              />
 
-    <FrameImage
-      title={current?.label ?? `Frame ${current?.index ?? frameIndex}`}
-      src={current?.frameUrl}
-      score={current?.score}
-    />
-  </Box>
-)}
+              <FrameImage
+                title={current?.label ?? `Frame ${current?.index ?? frameIndex}`}
+                src={current?.frameUrl}
+                score={current?.score}
+              />
+            </Box>
+          )}
 
           {frames.length > 0 && viewMode === "grid-4" && (
             <Box
@@ -119,12 +115,12 @@ export function FrameViewerModal({
               }}
             >
               {gridFrames.map((f, i) => (
-<FrameImage
-  key={`${f.index}-${i}`}
-  title={f.label ?? `Frame ${f.index}`}
-  src={f.frameUrl}
-  score={f.score}
-/>
+                <FrameImage
+                  key={`${f.index}-${i}`}
+                  title={f.label ?? `Frame ${f.index}`}
+                  src={f.frameUrl}
+                  score={f.score}
+                />
               ))}
             </Box>
           )}
@@ -169,15 +165,7 @@ export function FrameViewerModal({
   );
 }
 
-function FrameImage({
-  title,
-  src,
-  score,
-}: {
-  title: string;
-  src?: string;
-  score?: number;
-}) {
+function FrameImage({ title, src, score }: { title: string; src?: string; score?: number }) {
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.75 }}>

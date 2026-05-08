@@ -6,8 +6,17 @@ import { EdgeKind } from "../types/ui";
 import { scoreToEdgeColor, scoreToStrokeWidth } from "../graph_helpers/layout";
 
 export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
- const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd } =
-  props;
+  const {
+    id,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    data,
+    markerEnd,
+  } = props;
   const theme = useTheme();
 
   const [edgePath, labelX, labelY] = getBezierPath({
@@ -49,33 +58,34 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
     theme.palette.mode === "dark" ? theme.palette.warning.light : theme.palette.warning.main;
 
   const labelText = typeof transitionScore === "number" ? `${text} · ${transitionScore}` : text;
+  const isHoveredTransitionEdge: boolean = (data as any)?.isHoveredTransitionEdge ?? false;
 
   return (
     <>
-      {isTimelineEdge && (
+      {(isTimelineEdge || isHoveredTransitionEdge) && (
         <BaseEdge
-  id={`${id}-timeline-highlight`}
-  path={edgePath}
-  markerEnd={undefined}
-  style={{
-    stroke: highlightColor,
-    strokeWidth: strokeWidth + 6,
-    opacity: 0.95,
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-  }}
-/>
+          id={`${id}-timeline-highlight`}
+          path={edgePath}
+          markerEnd={undefined}
+          style={{
+            stroke: highlightColor,
+            strokeWidth: strokeWidth + (isHoveredTransitionEdge ? 10 : 6),
+            opacity: isHoveredTransitionEdge ? 1 : 0.95,
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+          }}
+        />
       )}
 
-     <BaseEdge
-  id={id}
-  path={edgePath}
-  markerEnd={markerEnd}
-  style={{
-    stroke: edgeColor,
-    strokeWidth,
-  }}
-/>
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        markerEnd={markerEnd}
+        style={{
+          stroke: edgeColor,
+          strokeWidth,
+        }}
+      />
 
       {showLabel && (
         <EdgeLabelRenderer>
@@ -91,8 +101,8 @@ export const LabeledEdge = memo(function LabeledEdge(props: EdgeProps) {
               py: 0.25,
               borderRadius: 1.5,
               border: 1,
-              borderColor: isTimelineEdge ? highlightColor : edgeColor,
-              boxShadow: isTimelineEdge ? 2 : 0,
+              borderColor: isTimelineEdge || isHoveredTransitionEdge ? highlightColor : edgeColor,
+              boxShadow: isTimelineEdge || isHoveredTransitionEdge ? 2 : 0,
               whiteSpace: "nowrap",
             }}
             title={

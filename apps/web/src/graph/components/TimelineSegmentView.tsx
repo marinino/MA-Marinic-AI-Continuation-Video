@@ -31,22 +31,24 @@ function getTimelineSegmentColors(segment: TimelineSegment, mode: "light" | "dar
 export function TimelineSegmentView({
   segment,
   onClick,
+  onTransitionHover,
+  onTransitionClick,
+  canHoverPrevTransition = false,
+  canHoverNextTransition = false,
 }: {
   segment: TimelineSegment;
   onClick: () => void;
+  onTransitionHover?: (side: "prev" | "next" | null) => void;
+  onTransitionClick?: (side: "prev" | "next") => void;
+  canHoverPrevTransition?: boolean;
+  canHoverNextTransition?: boolean;
 }) {
   const theme = useTheme();
-
-  const borderStyle = segment.isEdited
-    ? "2px dashed"
-    : segment.isImported
-      ? "2px solid"
-      : "1px solid";
-
   const colors = getTimelineSegmentColors(segment, theme.palette.mode);
 
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const [segmentWidthPx, setSegmentWidthPx] = useState(0);
+  const [hoverSide, setHoverSide] = useState<"prev" | "next" | null>(null);
 
   useEffect(() => {
     if (!buttonRef.current) return;
@@ -56,26 +58,67 @@ export function TimelineSegmentView({
     });
 
     observer.observe(buttonRef.current);
-
     return () => observer.disconnect();
   }, []);
 
   const imageWidth = 100;
   const minTextSpace = 80;
-
   const showImages = segmentWidthPx >= imageWidth * 2 + minTextSpace;
 
+  const edgeHitZonePx = 36;
+
+  function getHoverSide(evt: React.MouseEvent<HTMLButtonElement>) {
+    const rect = evt.currentTarget.getBoundingClientRect();
+    const x = evt.clientX - rect.left;
+
+    if (canHoverPrevTransition && x <= edgeHitZonePx) return "prev";
+    if (canHoverNextTransition && x >= rect.width - edgeHitZonePx) return "next";
+
+    return null;
+  }
+
+  function handleMouseMove(evt: React.MouseEvent<HTMLButtonElement>) {
+    const side = getHoverSide(evt);
+
+    if (side !== hoverSide) {
+      setHoverSide(side);
+      onTransitionHover?.(side);
+    }
+  }
+
+  function handleMouseLeave() {
+    setHoverSide(null);
+    onTransitionHover?.(null);
+  }
+
+  function handleClick(evt: React.MouseEvent<HTMLButtonElement>) {
+    const side = getHoverSide(evt);
+
+    if (side) {
+      onTransitionClick?.(side);
+      return;
+    }
+
+    onClick();
+  }
+
+  const tooltipTitle = hoverSide
+    ? "View transition frames"
+    : `${segment.label} • ${segment.durationSec.toFixed(2)}s`;
+
   return (
-    <Tooltip title={`${segment.label} • ${segment.durationSec.toFixed(2)}s`} arrow>
+    <Tooltip title={tooltipTitle} arrow>
       <ButtonBase
         ref={buttonRef}
-        onClick={onClick}
+        onClick={handleClick}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
         sx={{
           position: "relative",
           width: `${segment.widthPct}%`,
           minWidth: 72,
           height: 100,
-          border: borderStyle,
+          border: "5px solid",
           borderColor: colors.border,
           bgcolor: colors.bg,
           color: "text.primary",
@@ -83,8 +126,26 @@ export function TimelineSegmentView({
           overflow: "hidden",
           justifyContent: "center",
           fontWeight: 700,
+          cursor: hoverSide ? "zoom-in" : "pointer",
         }}
       >
+        {hoverSide && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              width: edgeHitZonePx,
+              left: hoverSide === "prev" ? 0 : "auto",
+              right: hoverSide === "next" ? 0 : "auto",
+              bgcolor: colors.border,
+              opacity: 0.28,
+              zIndex: 2,
+              pointerEvents: "none",
+            }}
+          />
+        )}
+
         {showImages && segment.firstFrameUrl && (
           <Box
             component="img"
@@ -121,7 +182,7 @@ export function TimelineSegmentView({
           variant="caption"
           sx={{
             position: "relative",
-            zIndex: 1,
+            zIndex: 3,
             px: showImages ? "105px" : 1,
             fontWeight: 700,
             overflow: "hidden",

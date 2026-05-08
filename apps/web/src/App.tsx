@@ -51,6 +51,7 @@ import BugReportIcon from "@mui/icons-material/BugReport";
 import { BranchTimelineBar } from "./graph/components/BranchTimelineBar";
 import { ErrorDialog } from "./graph/dialogs/ErrorDialog";
 import { NodeDetailsDialogProps } from "./graph/types/props";
+import { FrameViewerModal } from "./graph/dialogs/FrameViewerModal";
 
 type ColorMode = "light" | "dark";
 
@@ -119,6 +120,9 @@ export default function App({
   const [isCategorySidebarOpen, setIsCategorySidebarOpen] = useState(true);
 
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
+
+  const [selectedTransition, setSelectedTransition] = useState<any | null>(null);
+  const [hoveredTransitionClipId, setHoveredTransitionClipId] = useState<string | null>(null);
 
   const [clipCompareSlots, setClipCompareSlots] = useState<
     {
@@ -274,6 +278,16 @@ export default function App({
     showOnlyGeneratedPart,
   ]);
 
+  const openTransitionForClip = (clipId: string | null) => {
+    if (!clipId) return;
+
+    const transition = transitionEvaluations[clipId];
+
+    if (transition) {
+      setSelectedTransition(transition);
+    }
+  };
+
   const handleSelectParamNodeFromTimeline = (nodeId: string) => {
     setProject((prev) => {
       if (!prev) return prev;
@@ -304,24 +318,24 @@ export default function App({
     });
   };
 
-const handleJumpToTimelineNode = (nodeId: string, trackKey: "clips" | "sources") => {
-  setProject((prev) => {
-    if (!prev) return prev;
+  const handleJumpToTimelineNode = (nodeId: string, trackKey: "clips" | "sources") => {
+    setProject((prev) => {
+      if (!prev) return prev;
 
-    return {
-      ...prev,
-      uiState: {
-        ...(prev.uiState ?? {}),
-        selectedNodeId: nodeId,
-      },
-    };
-  });
+      return {
+        ...prev,
+        uiState: {
+          ...(prev.uiState ?? {}),
+          selectedNodeId: nodeId,
+        },
+      };
+    });
 
-  setExternalOpenDetailsRequest({
-    nodeId,
-    requestKey: Date.now(),
-  });
-};
+    setExternalOpenDetailsRequest({
+      nodeId,
+      requestKey: Date.now(),
+    });
+  };
 
   const handleOpenTimelineCompare = () => {
     const filledSlots = clipCompareSlots
@@ -754,6 +768,8 @@ const handleJumpToTimelineNode = (nodeId: string, trackKey: "clips" | "sources")
                   externalOpenDetailsRequest={externalOpenDetailsRequest}
                   transitionEvaluations={transitionEvaluations}
                   showOnlyGeneratedPart={showOnlyGeneratedPart}
+                  hoveredTransitionClipId={hoveredTransitionClipId}
+                  onOpenTransition={(transition) => setSelectedTransition(transition)}
                 />
               </ReactFlowProvider>
             </Box>
@@ -797,6 +813,8 @@ const handleJumpToTimelineNode = (nodeId: string, trackKey: "clips" | "sources")
             loading={timelineLoading}
             error={timelineError}
             onJumpToNode={handleJumpToTimelineNode}
+            onTransitionHover={setHoveredTransitionClipId}
+            onTransitionClick={openTransitionForClip}
           />
         </Box>
       </Box>
@@ -874,6 +892,12 @@ const handleJumpToTimelineNode = (nodeId: string, trackKey: "clips" | "sources")
       </Dialog>
 
       <ErrorDialog error={errorDialog} onClose={() => setErrorDialog(null)} />
+
+      <FrameViewerModal
+        open={!!selectedTransition}
+        transition={selectedTransition}
+        onClose={() => setSelectedTransition(null)}
+      />
     </>
   );
 }

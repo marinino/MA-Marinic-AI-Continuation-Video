@@ -11,6 +11,8 @@ export function BranchTimelineBar({
   loading,
   error,
   onJumpToNode,
+  onTransitionHover,
+  onTransitionClick,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -18,6 +20,8 @@ export function BranchTimelineBar({
   loading: boolean;
   error: string | null;
   onJumpToNode: (nodeId: string, trackKey: "clips" | "sources") => void;
+  onTransitionHover?: (clipId: string | null) => void;
+  onTransitionClick?: (clipId: string | null) => void;
 }) {
   return (
     <Box
@@ -41,6 +45,7 @@ export function BranchTimelineBar({
         <IconButton onClick={onToggle} size="small">
           {open ? <ExpandMoreIcon /> : <ExpandLessIcon />}
         </IconButton>
+
         <Typography
           sx={{
             transformOrigin: "center",
@@ -51,6 +56,7 @@ export function BranchTimelineBar({
         >
           {open ? "COLLAPSE" : "TIMELINE"}
         </Typography>
+
         <IconButton onClick={onToggle} size="small">
           {open ? <ExpandMoreIcon /> : <ExpandLessIcon />}
         </IconButton>
@@ -69,7 +75,13 @@ export function BranchTimelineBar({
 
           {timeline &&
             timeline.tracks.map((track) => (
-              <TimelineTrack key={track.key} track={track} onJumpToNode={onJumpToNode} />
+              <TimelineTrack
+                key={track.key}
+                track={track}
+                onJumpToNode={onJumpToNode}
+                onTransitionHover={onTransitionHover}
+                onTransitionClick={onTransitionClick}
+              />
             ))}
         </Box>
       </Collapse>
