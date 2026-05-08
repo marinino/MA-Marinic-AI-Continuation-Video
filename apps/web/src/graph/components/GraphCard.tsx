@@ -472,7 +472,6 @@ function GraphCardInner(props: NodeCardPreviewProps) {
             )}
 
             {props.type === "params" &&
-              d &&
               props.graphCardDisplayMode === "bars" &&
               parameterItems.length > 0 && (
                 <Box sx={{ mt: 1 }}>
