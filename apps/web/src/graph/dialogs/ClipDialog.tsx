@@ -587,7 +587,7 @@ export function ClipDialog(p: ClipDialogProps) {
                     p.categoriesPanel
                   ) : (
                     <Stack spacing={2}>
-                      <Typography variant="subtitle2">Categories (read-only)</Typography>
+                      <Typography variant="subtitle2">Categories (drag to adjust)</Typography>
 
                       <Tabs value={catView} onChange={(_, v) => setCatView(v)} variant="fullWidth">
                         <Tab value="sliders" label="Sliders" />
