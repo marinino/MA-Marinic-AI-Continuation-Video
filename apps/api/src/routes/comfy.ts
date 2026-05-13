@@ -69,13 +69,19 @@ async function ensureCopiedToInput(file: { filename: string; subfolder?: string;
 
 export async function comfyRoutes(app: FastifyInstance) {
   app.post("/comfy/video", async (req, reply) => {
-    const body = (req.body ?? {}) as { text?: string; seed?: number };
+    const body = (req.body ?? {}) as { text?: string; seed?: number; length?: number };
     if (!body.text || typeof body.text !== "string") {
       return reply.code(400).send({ error: "missing_text" });
     }
 
+    const length =
+  typeof body.length === "number" && Number.isFinite(body.length) && body.length > 0
+    ? Math.round(body.length)
+    : 81;
+
     const wf = deepClone(t2vWorkflow);
     wf["11"].inputs.text = body.text;
+    wf["23"].inputs.length = length;
     wf["12"].inputs.noise_seed =
       typeof body.seed === "number" ? body.seed : Math.floor(Math.random() * 1e15);
 

@@ -54,6 +54,7 @@ export type JobSuccess = {
 export type ComfyStartVideoInput = {
   text: string;
   seed?: number;
+  length?: number;
 };
 
 export type ComfyStartVideoResult = {

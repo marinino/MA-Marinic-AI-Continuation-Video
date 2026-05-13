@@ -20,8 +20,11 @@ export type RootDialogProps = {
   onModeChange: (mode: RootMode) => void;
 
   // generate mode
-  prompt: string;
-  onPromptChange: (v: string) => void;
+
+prompt: string;
+onPromptChange: (v: string) => void;
+length: number;
+onLengthChange: (v: number) => void;
   generating?: boolean;
   statusText?: string;
   previewUrl?: string | null;
@@ -65,6 +68,20 @@ export function RootDialog(p: RootDialogProps) {
               placeholder="Describe the video you want…"
               disabled={!!p.generating}
             />
+
+            <TextField
+  label="Frames"
+  type="number"
+  value={p.length}
+  onChange={(e) => p.onLengthChange(Number(e.target.value))}
+  slotProps={{
+    htmlInput: {
+    min: 1,
+    step: 1,
+  }}}
+  fullWidth
+  disabled={!!p.generating}
+/>
 
             {p.generating && <LinearProgress />}
             {p.statusText && (
@@ -116,7 +133,7 @@ export function RootDialog(p: RootDialogProps) {
           <Button
             variant="contained"
             onClick={p.onGenerate}
-            disabled={!p.prompt.trim() || !!p.generating}
+            disabled={!p.prompt.trim() || p.length <= 0 || !!p.generating}
           >
             {p.generating ? "Working…" : "Create Video"}
           </Button>

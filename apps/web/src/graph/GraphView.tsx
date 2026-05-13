@@ -623,13 +623,19 @@ export function GraphView(props: {
     return ((n?.data as any)?.videoFile as StoredMediaFile | null) ?? null;
   }
 
-  const hasRoot = useMemo(() => {
-    return g.rfNodes.some((n) => {
+  const [rootLength, setRootLength] = useState(81);
+
+  const [hasRoot, setHasRoot] = useState<boolean>(false);
+
+  useEffect(() => {
+    setHasRoot(g.rfNodes.some((n) => {
       if (n.type !== "clip") return false;
       const hasIncoming = g.rfEdges.some((e) => e.target === n.id);
       return !hasIncoming;
-    });
-  }, [g.rfNodes, g.rfEdges]);
+    }));
+  }, [g.rfNodes]);
+
+
 
   const handleHideNode = useCallback(
     (nodeId: string) => {
@@ -1824,17 +1830,20 @@ export function GraphView(props: {
     }
 
     setRootPrompt("");
-    setRootDialogOpen(true);
+setRootLength(81);
+setRootDialogOpen(true);
   }
 
   function enqueueRootJob() {
     if (!rootPrompt.trim()) return;
 
     const prompt = rootPrompt;
+    setRootDialogOpen(false);
+    setHasRoot(true);
 
     jobsApi.enqueue({
       label: `Root: ${prompt.slice(0, 30)}${prompt.length > 30 ? "…" : ""}`,
-      startPayload: () => comfyStartVideo({ text: prompt }),
+      startPayload: () => comfyStartVideo({ text: prompt, length: rootLength }),
       onSuccess: (file) => {
         const id = nanoid();
 
@@ -1847,8 +1856,9 @@ export function GraphView(props: {
             videoFile: file,
             videoStatus: "done",
             videoOpened: false,
-            totalFrames: 81,
-            generatedFrames: 81,
+            totalFrames: rootLength,
+            generatedFrames: rootLength,
+            durationSec: rootLength / 16,
           } as any,
           draggable: true,
         };
@@ -1875,10 +1885,11 @@ export function GraphView(props: {
           ...prev,
           uiState: { ...(prev.uiState ?? {}), selectedNodeId: id },
         }));
-
-        setRootDialogOpen(false);
       },
-      onError: (e) => console.error(e),
+      onError: (e) => {
+        console.error(e);
+        setHasRoot(false);
+      },
     });
   }
 
@@ -1887,6 +1898,7 @@ export function GraphView(props: {
 
     setRootUploading(true);
     setRootUploadStatus("Uploading…");
+    setHasRoot(true);
 
     try {
       const stored = await comfyUploadVideo(rootUploadFile);
@@ -1936,6 +1948,7 @@ export function GraphView(props: {
     } catch (e: any) {
       setRootUploadStatus(`Error: ${e?.message ?? String(e)}`);
       setRootUploading(false);
+      setHasRoot(false);
     }
   }
 
@@ -2552,20 +2565,22 @@ export function GraphView(props: {
         }}
       />
 
-      <RootDialog
-        open={rootDialogOpen}
-        mode={rootMode}
-        onModeChange={setRootMode}
-        prompt={rootPrompt}
-        onPromptChange={setRootPrompt}
-        uploadFile={rootUploadFile}
-        onUploadFileChange={setRootUploadFile}
-        uploading={rootUploading}
-        uploadStatusText={rootUploadStatus}
-        onUpload={handleUploadRootVideo}
-        onGenerate={enqueueRootJob}
-        onClose={() => setRootDialogOpen(false)}
-      />
+<RootDialog
+  open={rootDialogOpen}
+  mode={rootMode}
+  onModeChange={setRootMode}
+  prompt={rootPrompt}
+  onPromptChange={setRootPrompt}
+  length={rootLength}
+  onLengthChange={setRootLength}
+  uploadFile={rootUploadFile}
+  onUploadFileChange={setRootUploadFile}
+  uploading={rootUploading}
+  uploadStatusText={rootUploadStatus}
+  onUpload={handleUploadRootVideo}
+  onGenerate={enqueueRootJob}
+  onClose={() => setRootDialogOpen(false)}
+/>
 
       <ClipDialog
         open={clipDialogOpen}
