@@ -153,7 +153,7 @@ export interface NodeCardProps {
   onStartCompare?: (nodeId: string) => void;
   isComparePicking?: boolean;
   compareSourceNodeId?: string | null;
-  onSelectNode?: (nodeId: string) => void;
+  onSelectNode?: (nodeId: string, nodeType?: string) => void;
   activeClipPick?: { slotIndex: number } | null;
   onPickClipNode?: (clip: { id: string; label?: string | null; videoUrl?: string | null }) => void;
 }

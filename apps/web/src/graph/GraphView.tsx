@@ -628,14 +628,14 @@ export function GraphView(props: {
   const [hasRoot, setHasRoot] = useState<boolean>(false);
 
   useEffect(() => {
-    setHasRoot(g.rfNodes.some((n) => {
-      if (n.type !== "clip") return false;
-      const hasIncoming = g.rfEdges.some((e) => e.target === n.id);
-      return !hasIncoming;
-    }));
+    setHasRoot(
+      g.rfNodes.some((n) => {
+        if (n.type !== "clip") return false;
+        const hasIncoming = g.rfEdges.some((e) => e.target === n.id);
+        return !hasIncoming;
+      })
+    );
   }, [g.rfNodes]);
-
-
 
   const handleHideNode = useCallback(
     (nodeId: string) => {
@@ -959,6 +959,9 @@ export function GraphView(props: {
   const handleHideNodeRef = useLatestRef(handleHideNode);
   const handleOpenDetailsRef = useLatestRef(handleOpenDetails);
   const handleStartCompareRef = useLatestRef(handleStartCompare);
+  const isComparePickingRef = useLatestRef(isComparePicking);
+  const compareSourceNodeIdRef = useLatestRef(compareSourceNodeId);
+  const finishComparePickRef = useLatestRef(finishComparePick);
 
   const graphActions = useMemo(
     () => ({
@@ -973,7 +976,16 @@ export function GraphView(props: {
       onHide: (nodeId: string) => handleHideNodeRef.current(nodeId),
       onOpenDetails: (nodeId: string) => handleOpenDetailsRef.current(nodeId),
       onStartCompare: (nodeId: string) => handleStartCompareRef.current(nodeId),
-      onSelectNode: (nodeId: string) => selectNodeRef.current(nodeId),
+      onSelectNode: (nodeId: string) => {
+        if (activeClipPickRef.current !== null) return;
+
+        if (isComparePickingRef.current && compareSourceNodeIdRef.current) {
+          finishComparePickRef.current(nodeId);
+          return;
+        }
+
+        selectNodeRef.current(nodeId);
+      },
     }),
     []
   );
@@ -1275,7 +1287,9 @@ export function GraphView(props: {
       }
 
       if (isComparePicking && compareSourceNodeId) {
-        finishComparePick(node.id);
+        if (node.type === "params") {
+          finishComparePick(node.id);
+        }
         return;
       }
 
@@ -1830,8 +1844,8 @@ export function GraphView(props: {
     }
 
     setRootPrompt("");
-setRootLength(81);
-setRootDialogOpen(true);
+    setRootLength(81);
+    setRootDialogOpen(true);
   }
 
   function enqueueRootJob() {
@@ -2565,22 +2579,22 @@ setRootDialogOpen(true);
         }}
       />
 
-<RootDialog
-  open={rootDialogOpen}
-  mode={rootMode}
-  onModeChange={setRootMode}
-  prompt={rootPrompt}
-  onPromptChange={setRootPrompt}
-  length={rootLength}
-  onLengthChange={setRootLength}
-  uploadFile={rootUploadFile}
-  onUploadFileChange={setRootUploadFile}
-  uploading={rootUploading}
-  uploadStatusText={rootUploadStatus}
-  onUpload={handleUploadRootVideo}
-  onGenerate={enqueueRootJob}
-  onClose={() => setRootDialogOpen(false)}
-/>
+      <RootDialog
+        open={rootDialogOpen}
+        mode={rootMode}
+        onModeChange={setRootMode}
+        prompt={rootPrompt}
+        onPromptChange={setRootPrompt}
+        length={rootLength}
+        onLengthChange={setRootLength}
+        uploadFile={rootUploadFile}
+        onUploadFileChange={setRootUploadFile}
+        uploading={rootUploading}
+        uploadStatusText={rootUploadStatus}
+        onUpload={handleUploadRootVideo}
+        onGenerate={enqueueRootJob}
+        onClose={() => setRootDialogOpen(false)}
+      />
 
       <ClipDialog
         open={clipDialogOpen}

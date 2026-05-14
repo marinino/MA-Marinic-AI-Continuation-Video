@@ -75,9 +75,9 @@ export async function comfyRoutes(app: FastifyInstance) {
     }
 
     const length =
-  typeof body.length === "number" && Number.isFinite(body.length) && body.length > 0
-    ? Math.round(body.length)
-    : 81;
+      typeof body.length === "number" && Number.isFinite(body.length) && body.length > 0
+        ? Math.round(body.length)
+        : 81;
 
     const wf = deepClone(t2vWorkflow);
     wf["11"].inputs.text = body.text;

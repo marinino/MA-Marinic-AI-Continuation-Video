@@ -21,10 +21,10 @@ export type RootDialogProps = {
 
   // generate mode
 
-prompt: string;
-onPromptChange: (v: string) => void;
-length: number;
-onLengthChange: (v: number) => void;
+  prompt: string;
+  onPromptChange: (v: string) => void;
+  length: number;
+  onLengthChange: (v: number) => void;
   generating?: boolean;
   statusText?: string;
   previewUrl?: string | null;
@@ -70,18 +70,19 @@ export function RootDialog(p: RootDialogProps) {
             />
 
             <TextField
-  label="Frames"
-  type="number"
-  value={p.length}
-  onChange={(e) => p.onLengthChange(Number(e.target.value))}
-  slotProps={{
-    htmlInput: {
-    min: 1,
-    step: 1,
-  }}}
-  fullWidth
-  disabled={!!p.generating}
-/>
+              label="Frames"
+              type="number"
+              value={p.length}
+              onChange={(e) => p.onLengthChange(Number(e.target.value))}
+              slotProps={{
+                htmlInput: {
+                  min: 1,
+                  step: 1,
+                },
+              }}
+              fullWidth
+              disabled={!!p.generating}
+            />
 
             {p.generating && <LinearProgress />}
             {p.statusText && (

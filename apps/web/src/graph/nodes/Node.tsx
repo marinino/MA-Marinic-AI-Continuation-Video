@@ -90,7 +90,7 @@ export function NodeCardInner(props: NodeCardProps) {
         isComparePicking={props.isComparePicking}
         compareSourceNodeId={props.compareSourceNodeId}
         showOnlyChangedParameters={props.showOnlyChangedParameters ?? true}
-        onSelectNode={props.onSelectNode}
+        onSelectNode={() => props.onSelectNode?.(props.nodeId, props.type)}
       >
         {props.children}
       </GraphCard>

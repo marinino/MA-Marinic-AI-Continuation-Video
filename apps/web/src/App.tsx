@@ -401,7 +401,11 @@ export default function App({
     return () => {
       cancelled = true;
     };
-  }, [project?.id, lastSavedRevision, timelineSelectedNodeId]);
+  }, [project?.id, timelineSelectedNodeId]);
+
+  useEffect(() => {
+    setTimelineSelectedNodeId(project?.uiState?.selectedNodeId ?? null);
+  }, [project?.uiState?.selectedNodeId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -495,7 +499,6 @@ export default function App({
 
         dirtyRef.current = false;
         setLastSavedRevision((x) => x + 1);
-        setTimelineSelectedNodeId(project.uiState?.selectedNodeId ?? null);
       } catch (err) {}
     }, 500);
 
