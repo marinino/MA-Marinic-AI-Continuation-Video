@@ -431,7 +431,7 @@ export type GraphUIContextValue = {
   onHide: (nodeId: string) => void;
   onOpenDetails: (nodeId: string) => void;
   onStartCompare: (nodeId: string) => void;
-  onSelectNode: (nodeId: string) => void;
+  onSelectNode: (nodeId: string, nodeType?: string) => void;
 
   notesEnabled: boolean;
   highlightUnseenEnabled: boolean;

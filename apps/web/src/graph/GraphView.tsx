@@ -344,18 +344,20 @@ export function GraphView(props: {
   const v2v = useV2VSliders(formulaWeights);
 
   const finishComparePick = useCallback(
-    (targetNodeId: string) => {
-      if (!compareSourceNodeId) return;
+  (targetNodeId: string) => {
+    if (!compareSourceNodeId) return;
+    if (targetNodeId === compareSourceNodeId) return;
 
-      if (targetNodeId === compareSourceNodeId) return;
+    const targetNode = g.rfNodes.find((n) => n.id === targetNodeId);
+    if (targetNode?.type !== "params") return;
 
-      setCompareTargetNodeId(targetNodeId);
-      setIsComparePicking(false);
-      setDetailsNodeId(compareSourceNodeId);
-      setDetailsOpen(true);
-    },
-    [compareSourceNodeId]
-  );
+    setCompareTargetNodeId(targetNodeId);
+    setIsComparePicking(false);
+    setDetailsNodeId(compareSourceNodeId);
+    setDetailsOpen(true);
+  },
+  [compareSourceNodeId, g.rfNodes]
+);
 
   const handleOpenDetails = useCallback(
     (nodeId: string) => {
@@ -976,16 +978,25 @@ export function GraphView(props: {
       onHide: (nodeId: string) => handleHideNodeRef.current(nodeId),
       onOpenDetails: (nodeId: string) => handleOpenDetailsRef.current(nodeId),
       onStartCompare: (nodeId: string) => handleStartCompareRef.current(nodeId),
-      onSelectNode: (nodeId: string) => {
-        if (activeClipPickRef.current !== null) return;
+      onSelectNode: (nodeId: string, nodeType?: string) => {
+  if (activeClipPickRef.current !== null) return;
 
-        if (isComparePickingRef.current && compareSourceNodeIdRef.current) {
-          finishComparePickRef.current(nodeId);
-          return;
-        }
+  if (isComparePickingRef.current && compareSourceNodeIdRef.current) {
+    if (nodeType === "params") {
+      finishComparePickRef.current(nodeId);
+      return;
+    }
 
-        selectNodeRef.current(nodeId);
-      },
+    // Nicht-param nodes im Compare Mode normal auswählen
+    selectNodeRef.current(nodeId);
+
+
+
+    return;
+  }
+
+  selectNodeRef.current(nodeId);
+},
     }),
     []
   );
@@ -1270,26 +1281,25 @@ export function GraphView(props: {
     setRfInstance(instance);
   }, []);
 
-  const handleNodeClick: NodeMouseHandler = useCallback(
-    (_evt, node) => {
-      if (props.activeClipPick && node.type === "clip") {
-        const nodeData = node.data as any;
+const handleNodeClick: NodeMouseHandler = useCallback(
+  (_evt, node) => {
+    if (props.activeClipPick && node.type === "clip") {
+      const nodeData = node.data as any;
 
-        props.onClipPicked?.({
-          id: node.id,
-          label: nodeData?.label ?? null,
-          videoUrl: nodeData?.videoUrl ?? null,
-        });
+      props.onClipPicked?.({
+        id: node.id,
+        label: nodeData?.label ?? null,
+        videoUrl: nodeData?.videoUrl ?? null,
+      });
 
-        setActionDialogOpen(false);
-        setDetailsOpen(false);
-        return;
-      }
+      setActionDialogOpen(false);
+      setDetailsOpen(false);
+      return;
+    }
 
-      if (isComparePicking && compareSourceNodeId) {
-        if (node.type === "params") {
-          finishComparePick(node.id);
-        }
+    if (isComparePicking && compareSourceNodeId) {
+      if (node.type === "params") {
+        finishComparePick(node.id);
         return;
       }
 
@@ -1298,16 +1308,23 @@ export function GraphView(props: {
       if (node.type === "clip" || node.type === "edit" || node.type === "import") {
         setActionDialogOpen(true);
       }
-    },
-    [
-      props.activeClipPick,
-      props.onClipPicked,
-      isComparePicking,
-      compareSourceNodeId,
-      finishComparePick,
-      selectNode,
-    ]
-  );
+
+      return;
+    }
+
+    selectNode(node.id);
+
+   return
+  },
+  [
+    props.activeClipPick,
+    props.onClipPicked,
+    isComparePicking,
+    compareSourceNodeId,
+    finishComparePick,
+    selectNode,
+  ]
+);
 
   const handleEdgeClick: EdgeMouseHandler = useCallback((_evt, edge) => {
     console.log("EDGE CLICKED", edge.id, edge.data);
@@ -2400,35 +2417,7 @@ export function GraphView(props: {
     }
   }
 
-  // ---------- node click ----------
-  const onNodeClick: NodeMouseHandler = (_evt, node) => {
-    if (props.activeClipPick && node.type === "clip") {
-      const nodeData = node.data as any;
 
-      props.onClipPicked?.({
-        id: node.id,
-        label: nodeData?.label ?? null,
-        videoUrl: nodeData?.videoUrl ?? null,
-      });
-
-      setActionDialogOpen(false);
-      setDetailsOpen(false);
-      return;
-    }
-
-    if (isComparePicking && compareSourceNodeId) {
-      finishComparePick(node.id);
-      return;
-    }
-
-    selectNode(node.id);
-
-    if (node.type === "clip" || node.type === "edit" || node.type === "import") {
-      setActionDialogOpen(true);
-    }
-
-    requestAnimationFrame(() => {});
-  };
 
   const transitionEdgeByClipId = useMemo(() => {
     const map = new Map<string, RFEdge>();
