@@ -273,45 +273,28 @@ export function getSimpleFromParentClip(
     highStrength: 0.3,
   };
 
-  const edge = incoming.get(clipId);
-  if (!edge) return fallback;
+  // selected clip -> incoming edge
+  const incomingEdge = incoming.get(clipId);
+  if (!incomingEdge) return fallback;
 
-  const sourceNode = nodesById.get(edge.source);
-  if (!sourceNode || sourceNode.type !== "params") return fallback;
+  // incoming source should be params node
+  const paramsNode = nodesById.get(incomingEdge.source);
+  if (!paramsNode || paramsNode.type !== "params") return fallback;
 
-  const d = (sourceNode.data as any) ?? {};
+  const d = (paramsNode.data as any) ?? {};
 
-  const highStart = typeof d.highNoiseStartStep === "number" ? d.highNoiseStartStep : null;
-  const highEnd = typeof d.highNoiseEndStep === "number" ? d.highNoiseEndStep : null;
-  const lowStart = typeof d.lowNoiseStartStep === "number" ? d.lowNoiseStartStep : null;
-  const lowEnd = typeof d.lowNoiseEndStep === "number" ? d.lowNoiseEndStep : null;
-
-  const highWindow = highStart != null && highEnd != null ? highEnd - highStart : null;
-  const lowWindow = lowStart != null && lowEnd != null ? lowEnd - lowStart : null;
-
-  const derivedTotalSteps =
-    highWindow != null && lowWindow != null && highWindow + lowWindow > 0
-      ? highWindow + lowWindow
-      : typeof d.highNoiseSteps === "number"
-        ? d.highNoiseSteps
-        : typeof d.lowNoiseSteps === "number"
-          ? d.lowNoiseSteps
-          : fallback.totalSteps;
-
-  const derivedLowStepPct =
-    lowWindow != null && derivedTotalSteps > 0
-      ? Math.round((lowWindow / derivedTotalSteps) * 100)
-      : fallback.stepRatioPct;
+  console.log(d);
 
   return {
-    totalSteps: derivedTotalSteps,
-    stepRatioPct: derivedLowStepPct,
-    highShift: typeof d.highNoiseShift === "number" ? d.highNoiseShift : fallback.highShift,
-    highCfg: typeof d.highNoiseCfg === "number" ? d.highNoiseCfg : fallback.highCfg,
-    highStrength:
-      typeof d.highNoiseModelStrength === "number"
-        ? d.highNoiseModelStrength
-        : fallback.highStrength,
+    totalSteps: d.displayTotalSteps,
+
+    stepRatioPct: d.displayLowStepPct,
+
+    highShift: d.highNoiseShift,
+
+    highCfg: d.highNoiseCfg,
+
+    highStrength: d.highNoiseModelStrength,
   };
 }
 

@@ -256,9 +256,13 @@ export function useV2VSliders(formulaWeights: FormulaWeights) {
   });
 
   const replaceSimple = (next: SimpleReal) => {
-    const clamped = clampSimple(simpleSpeedMode, next);
-    const projected = projectToSafeRegion(clamped);
-    setSimple(clampSimple(simpleSpeedMode, projected));
+    setSimple({
+      totalSteps: next.totalSteps,
+      stepRatioPct: next.stepRatioPct,
+      highShift: next.highShift,
+      highCfg: next.highCfg,
+      highStrength: next.highStrength,
+    });
   };
 
   // ✅ wenn mode wechselt → Werte in neuen Bereich clampen

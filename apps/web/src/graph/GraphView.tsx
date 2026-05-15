@@ -1993,6 +1993,8 @@ export function GraphView(props: {
     const nodesById = new Map(g.rfNodes.map((n) => [n.id, n]));
     const parentSimple = getSimpleFromParentClip(fromClipId, nodesById, incoming);
 
+    console.log(parentSimple);
+
     v2v.replaceSimple(parentSimple);
 
     // reset advanced like before
