@@ -131,7 +131,7 @@ export function NodeDetailsContent({
               />
             )}
 
-            {/* branch suggestion block von vorher hier reinkopieren */}
+            
           </>
         ) : props.type === "import" ? (
           <Stack spacing={1}>
