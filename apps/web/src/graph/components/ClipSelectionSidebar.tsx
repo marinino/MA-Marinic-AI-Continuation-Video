@@ -12,6 +12,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { BranchTimelineSegment, ClipSlot } from "../types/ui";
 import { ClipBranchTimeline } from "./ClipBranchTimeline";
 import { VideoSegmentPlayer } from "./VideoSegmentPlayer";
+import { useState } from "react";
 
 export function ClipSelectionSidebar({
   open,
@@ -42,6 +43,8 @@ export function ClipSelectionSidebar({
   onToggleLoopVideos?: () => void;
   showOnlyGeneratedPart: boolean;
 }) {
+  const [showTimelineForSlot, setShowTimelineForSlot] = useState<Record<number, boolean>>({});
+
   return (
     <Box
       sx={{
@@ -105,10 +108,10 @@ export function ClipSelectionSidebar({
               minHeight: 0,
               overflowY: "auto",
               px: 2,
-              py: 1.5,
+              py: 1,
               display: "flex",
               flexDirection: "column",
-              gap: 2,
+              gap: 1,
             }}
           >
             {slots.map((slot, index) => {
@@ -130,8 +133,6 @@ export function ClipSelectionSidebar({
                     bgcolor: isPicking ? "action.hover" : "background.default",
                   }}
                 >
-                  <Typography variant="subtitle2">Window {index + 1}</Typography>
-
                   {!slot.id ? (
                     <>
                       <Box
@@ -194,25 +195,56 @@ export function ClipSelectionSidebar({
                         )}
                       </Box>
 
-                      <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
-                        {slot.label ?? "Unnamed Clip"}
-                      </Typography>
+                      {showTimelineForSlot[index] && timeline.length > 0 ? (
+                        <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1 }}>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <ClipBranchTimeline
+                              segments={timeline}
+                              onSelectParamNode={onSelectParamNode}
+                            />
+                          </Box>
 
-                      {timeline.length > 0 && (
-                        <ClipBranchTimeline
-                          segments={timeline}
-                          onSelectParamNode={onSelectParamNode}
-                        />
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() =>
+                              setShowTimelineForSlot((prev) => ({
+                                ...prev,
+                                [index]: false,
+                              }))
+                            }
+                            sx={{ minWidth: 40 }}
+                          >
+                            Back
+                          </Button>
+                        </Box>
+                      ) : (
+                        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                          <Button variant="outlined" onClick={() => onPickSlot(index)}>
+                            Replace
+                          </Button>
+
+                          <Button variant="text" color="error" onClick={() => onClearSlot(index)}>
+                            Remove
+                          </Button>
+
+                          {timeline.length > 0 && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() =>
+                                setShowTimelineForSlot((prev) => ({
+                                  ...prev,
+                                  [index]: true,
+                                }))
+                              }
+                              sx={{ ml: "auto", minWidth: 40 }}
+                            >
+                              TL
+                            </Button>
+                          )}
+                        </Box>
                       )}
-
-                      <Box sx={{ display: "flex", gap: 1 }}>
-                        <Button variant="outlined" onClick={() => onPickSlot(index)}>
-                          Replace
-                        </Button>
-                        <Button variant="text" color="error" onClick={() => onClearSlot(index)}>
-                          Remove
-                        </Button>
-                      </Box>
                     </>
                   )}
                 </Box>

@@ -466,7 +466,7 @@ export type EditMetaSummary = {
 };
 
 export type BranchTimelineStep = {
-  kind: "params" | "non-param";
+  kind: "params" | "non-param" | "root";
   nodeId: string;
   paramNodeId: string | null;
   clipNodeId: string | null;
@@ -477,7 +477,7 @@ export type BranchTimelineStep = {
 
 export type BranchTimelineSegment = {
   index: number;
-  kind: "params" | "non-param";
+  kind: "params" | "non-param" | "root";
   paramNodeId: string | null;
   label: string;
   frames: number;

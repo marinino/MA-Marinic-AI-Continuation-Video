@@ -37,6 +37,7 @@ import { LoadProjectDialog } from "./graph/dialogs/LoadProjectsDialog";
 import { CategoryScoresSidebar } from "./graph/components/CategoryScoresSidebar";
 import {
   BrachSuggestion,
+  BranchTimelineSegment,
   CompareTimelineOption,
   ErrorDialogState,
   TransitionEvaluation,
@@ -181,7 +182,7 @@ export default function App({
     });
   }, [project, clipCompareSlots]);
 
-  const clipCompareTimelineSlots = useMemo(() => {
+  const clipCompareTimelineSlots = useMemo<BranchTimelineSegment[][]>(() => {
     if (!project) return [];
 
     return clipCompareSlots.map((slot) => {
@@ -193,17 +194,65 @@ export default function App({
         project.edges as any
       );
 
-      const totalFrames = rawSteps.reduce((sum, step) => sum + Math.max(0, step.frames || 0), 0);
+      let currentNodeId = slot.id;
+      let rootNode: any | null = null;
 
-      return rawSteps.map((step, index) => ({
-        index,
-        kind: step.kind,
-        paramNodeId: step.paramNodeId,
-        label: step.label,
-        frames: step.frames,
-        widthPct:
-          totalFrames > 0 ? (step.frames / totalFrames) * 100 : 100 / Math.max(rawSteps.length, 1),
-      }));
+      while (currentNodeId) {
+        const currentNode = project.nodes.find((n: any) => n.id === currentNodeId);
+        if (!currentNode) break;
+
+        const incomingEdge = project.edges.find((e: any) => e.target === currentNodeId);
+
+        if (!incomingEdge) {
+          rootNode = currentNode;
+          break;
+        }
+
+        currentNodeId = incomingEdge.source;
+      }
+
+      const hasRootAlready = rawSteps.some((step) => step.kind === "root");
+
+      const stepsWithRoot =
+        rootNode && !hasRootAlready
+          ? [
+              {
+                kind: "root" as const,
+                paramNodeId: null,
+                label: rootNode.data?.label ?? rootNode.label ?? "Root",
+                frames:
+                  rootNode.data?.videoFile?.totalFrames ??
+                  rootNode.videoFile?.totalFrames ??
+                  rootNode.data?.generatedFrames ??
+                  1,
+              },
+              ...rawSteps,
+            ]
+          : rawSteps;
+
+      const totalFrames = stepsWithRoot.reduce(
+        (sum, step) => sum + Math.max(0, step.frames || 0),
+        0
+      );
+
+      return stepsWithRoot.map((step, index): BranchTimelineSegment => {
+        const kind: BranchTimelineSegment["kind"] =
+          step.kind === "params" || step.kind === "root" || step.kind === "non-param"
+            ? step.kind
+            : "non-param";
+
+        return {
+          index,
+          kind,
+          paramNodeId: step.paramNodeId,
+          label: step.label,
+          frames: step.frames,
+          widthPct:
+            totalFrames > 0
+              ? (step.frames / totalFrames) * 100
+              : 100 / Math.max(stepsWithRoot.length, 1),
+        };
+      });
     });
   }, [project, clipCompareSlots]);
 

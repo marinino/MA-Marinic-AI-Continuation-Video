@@ -5,6 +5,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   LinearProgress,
   MobileStepper,
   Stack,
@@ -22,6 +23,7 @@ import CompareIcon from "@mui/icons-material/Compare";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import AddIcon from "@mui/icons-material/Add";
+import CloseIcon from "@mui/icons-material/Close";
 
 type InformationDialogProps = {
   open: boolean;
@@ -357,14 +359,36 @@ export function InformationDialog({ open, onClose }: InformationDialogProps) {
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ pb: 3 }}>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="md"
+      fullWidth
+      slotProps={{
+        paper: {
+          sx: {
+            height: 600, // fixe Gesamthöhe
+            maxHeight: "90vh",
+            borderRadius: 2,
+          },
+        },
+      }}
+    >
+      <DialogTitle sx={{ pb: 3, pr: 6, position: "relative" }}>
+        <IconButton
+          aria-label="close"
+          onClick={handleClose}
+          sx={{
+            position: "absolute",
+            right: 12,
+            top: 12,
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">{current.title}</Typography>
-
-          <Typography variant="body2" color="text.secondary">
-            {activeStep + 1}/{maxSteps}
-          </Typography>
         </Stack>
 
         <LinearProgress
@@ -423,15 +447,21 @@ export function InformationDialog({ open, onClose }: InformationDialogProps) {
           px: 2,
         }}
       >
-        <MobileStepper
-          variant="dots"
-          steps={maxSteps}
-          position="static"
-          activeStep={activeStep}
-          sx={{ flexGrow: 1, bgcolor: "transparent" }}
-          nextButton={null}
-          backButton={null}
-        />
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <MobileStepper
+            variant="dots"
+            steps={maxSteps}
+            position="static"
+            activeStep={activeStep}
+            sx={{ bgcolor: "transparent", p: 0 }}
+            nextButton={null}
+            backButton={null}
+          />
+
+          <Typography variant="body2" color="text.secondary">
+            {activeStep + 1}/{maxSteps}
+          </Typography>
+        </Stack>
 
         <Stack direction="row" spacing={1}>
           <Button
@@ -444,7 +474,7 @@ export function InformationDialog({ open, onClose }: InformationDialogProps) {
           </Button>
 
           {activeStep === maxSteps - 1 ? (
-            <Button variant="contained" onClick={handleClose}>
+            <Button variant="contained" size="small" onClick={handleClose}>
               Close
             </Button>
           ) : (
