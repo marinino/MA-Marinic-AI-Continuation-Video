@@ -50,40 +50,30 @@ export function VideoSegmentPlayer({
       return Math.max(0, duration - generatedDuration);
     };
 
-    const applyInitialSeek = () => {
-      if (!video || didInitialSeekRef.current) return;
-      if (!shouldClampToGeneratedPart) {
-        didInitialSeekRef.current = true;
-        return;
-      }
-
-      const startTime = getGeneratedStartTime();
-
-      try {
-        video.currentTime = startTime;
-        didInitialSeekRef.current = true;
-      } catch (err) {}
-    };
-
-    const handleEnded = () => {
+    const seekToGeneratedStart = () => {
       if (!shouldClampToGeneratedPart) return;
 
       const startTime = getGeneratedStartTime();
 
       try {
         video.currentTime = startTime;
-
-        if (loop) {
-          const p = video.play();
-          if (p && typeof p.catch === "function") {
-            p.catch(() => {});
-          }
-        }
       } catch {}
+    };
+
+    const applyInitialSeek = () => {
+      if (!shouldClampToGeneratedPart) return;
+
+      seekToGeneratedStart();
+      didInitialSeekRef.current = true;
+    };
+
+    const handleLoadedMetadata = () => {
+      applyInitialSeek();
     };
 
     const handleSeeking = () => {
       if (!shouldClampToGeneratedPart) return;
+
       const startTime = getGeneratedStartTime();
 
       if (video.currentTime < startTime) {
@@ -93,24 +83,50 @@ export function VideoSegmentPlayer({
       }
     };
 
+    const handleTimeUpdate = () => {
+      if (!shouldClampToGeneratedPart) return;
+
+      const startTime = getGeneratedStartTime();
+
+      if (video.currentTime < startTime) {
+        try {
+          video.currentTime = startTime;
+        } catch {}
+      }
+    };
+
+    const handleEnded = () => {
+      if (!shouldClampToGeneratedPart || !loop) return;
+
+      seekToGeneratedStart();
+
+      const p = video.play();
+      if (p && typeof p.catch === "function") {
+        p.catch(() => {});
+      }
+    };
+
     if (video.readyState >= 1) {
       applyInitialSeek();
     } else {
-      video.addEventListener("loadedmetadata", applyInitialSeek, { once: true });
+      video.addEventListener("loadedmetadata", handleLoadedMetadata);
     }
 
-    video.addEventListener("ended", handleEnded);
     video.addEventListener("seeking", handleSeeking);
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("ended", handleEnded);
 
     return () => {
-      video.removeEventListener("loadedmetadata", applyInitialSeek);
-      video.removeEventListener("ended", handleEnded);
+      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
       video.removeEventListener("seeking", handleSeeking);
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("ended", handleEnded);
     };
-  }, [src, shouldClampToGeneratedPart, generatedDuration]);
+  }, [src, shouldClampToGeneratedPart, generatedDuration, loop, showOnlyGeneratedPart]);
 
   return (
     <video
+      key={`${src}-${showOnlyGeneratedPart ? "generated" : "full"}-${generatedFrames}`}
       ref={ref}
       src={src}
       autoPlay={autoPlay}

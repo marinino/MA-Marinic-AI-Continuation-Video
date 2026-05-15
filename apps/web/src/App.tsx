@@ -789,6 +789,7 @@ export default function App({
                 selectedNodeType={sidebarData.selectedNodeType}
                 nodeDetailsProps={sidebarData.nodeDetailsProps}
                 nodeDetailsLogic={sidebarData.nodeDetailsLogic}
+                showOnlyGeneratedPart={showOnlyGeneratedPart}
               />
             </Box>
 

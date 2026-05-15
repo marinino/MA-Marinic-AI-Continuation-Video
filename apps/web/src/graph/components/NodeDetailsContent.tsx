@@ -31,10 +31,12 @@ export function NodeDetailsContent({
   props,
   logic,
   dense = false,
+  showOnlyGeneratedPart,
 }: {
   props: NodeDetailsDialogProps;
   logic: Logic;
   dense?: boolean;
+  showOnlyGeneratedPart?: boolean;
 }) {
   return (
     <>
@@ -148,7 +150,7 @@ export function NodeDetailsContent({
             <VideoSegmentPlayer
               src={props.videoUrl}
               playback={props.videoPlayback}
-              showOnlyGeneratedPart={props.showOnlyGeneratedPart}
+              showOnlyGeneratedPart={showOnlyGeneratedPart ?? props.showOnlyGeneratedPart}
               autoPlay={!dense}
               muted
               controls

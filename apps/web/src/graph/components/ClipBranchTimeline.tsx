@@ -1,12 +1,5 @@
 import { Box, Tooltip } from "@mui/material";
-
-type BranchTimelineSegment = {
-  kind?: "params" | "non-param";
-  paramNodeId: string | null;
-  label: string;
-  frames: number;
-  widthPct: number;
-};
+import { BranchTimelineSegment } from "../types/ui";
 
 export function ClipBranchTimeline({
   segments,

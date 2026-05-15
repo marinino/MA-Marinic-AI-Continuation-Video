@@ -42,6 +42,7 @@ export function CategoryScoresSidebar({
   selectedNodeType,
   nodeDetailsProps,
   nodeDetailsLogic,
+  showOnlyGeneratedPart,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -62,6 +63,7 @@ export function CategoryScoresSidebar({
   showWeightSuggestionsEnabled: boolean;
   nodeDetailsProps?: NodeDetailsDialogProps | null;
   nodeDetailsLogic?: any | null;
+  showOnlyGeneratedPart: boolean;
 }) {
   const [tab, setTab] = useState<SidebarTab>("categories");
 
@@ -289,7 +291,12 @@ export function CategoryScoresSidebar({
                 }}
               >
                 {nodeDetailsProps && nodeDetailsLogic ? (
-                  <NodeDetailsContent props={nodeDetailsProps} logic={nodeDetailsLogic} dense />
+                  <NodeDetailsContent
+                    props={nodeDetailsProps}
+                    logic={nodeDetailsLogic}
+                    dense
+                    showOnlyGeneratedPart={showOnlyGeneratedPart}
+                  />
                 ) : (
                   <Typography variant="body2" color="text.secondary">
                     Select a node to inspect details.
