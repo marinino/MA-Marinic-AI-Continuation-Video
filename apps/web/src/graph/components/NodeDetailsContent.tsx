@@ -130,8 +130,6 @@ export function NodeDetailsContent({
                 colors={logic.colors}
               />
             )}
-
-            
           </>
         ) : props.type === "import" ? (
           <Stack spacing={1}>

@@ -931,28 +931,6 @@ export function GraphView(props: {
     console.log("render GraphView", Math.round(performance.now() - renderStartRef.current), "ms");
   });
 
-  const projectNodeMap = useMemo(() => {
-    return buildNodeMap(props.project);
-  }, [props.project.nodes]);
-
-  const highlightedBranch = useMemo(() => {
-    if (!selectedNodeId) {
-      return {
-        branchPath: [],
-        edgeIds: new Set<string>(),
-        nodeIds: new Set<string>(),
-      };
-    }
-
-    const branchPath = getBranchPathThroughSelected(selectedNodeId, props.project, projectNodeMap);
-
-    return {
-      branchPath,
-      edgeIds: getBranchEdgeIds(branchPath, props.project),
-      nodeIds: getBranchNodeIds(branchPath),
-    };
-  }, [selectedNodeId, props.project.nodes, props.project.edges, projectNodeMap]);
-
   const activeClipPickRef = useLatestRef(props.activeClipPick);
   const selectNodeRef = useLatestRef(selectNode);
   const markVideoOpenedRef = useLatestRef(markVideoOpened);
@@ -1000,62 +978,6 @@ export function GraphView(props: {
   );
 
   const deltaCacheRef = useRef(new Map<string, ParamDeltaCacheEntry>());
-
-  function scoreKey(scores: any): string {
-    if (!scores) return "";
-
-    return Object.keys(scores)
-      .sort()
-      .map((k) => `${k}:${scores[k]}`)
-      .join("|");
-  }
-
-  function paramDeltaKey(nodeId: string, cur: any, prevParamsId: string | null, prev: any): string {
-    return [
-      nodeId,
-      prevParamsId ?? "",
-      cur.prompt ?? "",
-      prev?.prompt ?? "",
-
-      cur.highNoiseCfg,
-      prev?.highNoiseCfg,
-      cur.lowNoiseCfg,
-      prev?.lowNoiseCfg,
-
-      cur.highNoiseShift,
-      prev?.highNoiseShift,
-      cur.lowNoiseShift,
-      prev?.lowNoiseShift,
-
-      cur.highNoiseModelStrength,
-      prev?.highNoiseModelStrength,
-      cur.lowNoiseModelStrength,
-      prev?.lowNoiseModelStrength,
-
-      cur.highNoiseSteps,
-      prev?.highNoiseSteps,
-      cur.lowNoiseSteps,
-      prev?.lowNoiseSteps,
-
-      cur.highNoiseStartStep,
-      prev?.highNoiseStartStep,
-      cur.lowNoiseStartStep,
-      prev?.lowNoiseStartStep,
-
-      cur.highNoiseEndStep,
-      prev?.highNoiseEndStep,
-      cur.lowNoiseEndStep,
-      prev?.lowNoiseEndStep,
-
-      cur.displayTotalSteps,
-      prev?.displayTotalSteps,
-      cur.displayLowStepPct,
-      prev?.displayLowStepPct,
-
-      scoreKey(cur.categoryScores),
-      scoreKey(prev?.categoryScores),
-    ].join("§");
-  }
 
   const baseNodesForUI = useMemo(() => {
     const nodes = g.nodesWithRootFlag as Node[];
@@ -1275,6 +1197,116 @@ export function GraphView(props: {
     props.onClipPicked,
   ]);
 
+  const liveProjectForBranch = useMemo(
+    () => ({
+      ...props.project,
+      nodes: g.rfNodes as any,
+      edges: g.rfEdges as any,
+    }),
+    [props.project, g.rfNodes, g.rfEdges]
+  );
+
+  const baseNodesById = useMemo(() => {
+    return new Map(baseNodesForUI.map((n) => [n.id, n]));
+  }, [baseNodesForUI]);
+
+  const projectNodeMap = useMemo(() => {
+    return buildNodeMap(liveProjectForBranch);
+  }, [liveProjectForBranch]);
+
+  const effectiveTimelineNodeId = useMemo(() => {
+    if (!selectedNodeId) return null;
+
+    const selected = baseNodesById.get(selectedNodeId);
+    if (!selected) return selectedNodeId;
+
+    // Clip selected → Timeline soll den Pfad bis zu diesem Clip zeigen
+    if (selected.type === "clip") {
+      return selected.id;
+    }
+
+    // Param/Edit/Import selected → wie bisher
+    return selected.id;
+  }, [selectedNodeId, baseNodesById]);
+
+  const highlightedBranch = useMemo(() => {
+    if (!effectiveTimelineNodeId) {
+      return {
+        branchPath: [],
+        edgeIds: new Set<string>(),
+        nodeIds: new Set<string>(),
+      };
+    }
+
+    const branchPath = getBranchPathThroughSelected(
+      effectiveTimelineNodeId,
+      liveProjectForBranch,
+      projectNodeMap
+    );
+
+    return {
+      branchPath,
+      edgeIds: getBranchEdgeIds(branchPath, liveProjectForBranch),
+      nodeIds: getBranchNodeIds(branchPath),
+    };
+  }, [effectiveTimelineNodeId, liveProjectForBranch, projectNodeMap]);
+
+  function scoreKey(scores: any): string {
+    if (!scores) return "";
+
+    return Object.keys(scores)
+      .sort()
+      .map((k) => `${k}:${scores[k]}`)
+      .join("|");
+  }
+
+  function paramDeltaKey(nodeId: string, cur: any, prevParamsId: string | null, prev: any): string {
+    return [
+      nodeId,
+      prevParamsId ?? "",
+      cur.prompt ?? "",
+      prev?.prompt ?? "",
+
+      cur.highNoiseCfg,
+      prev?.highNoiseCfg,
+      cur.lowNoiseCfg,
+      prev?.lowNoiseCfg,
+
+      cur.highNoiseShift,
+      prev?.highNoiseShift,
+      cur.lowNoiseShift,
+      prev?.lowNoiseShift,
+
+      cur.highNoiseModelStrength,
+      prev?.highNoiseModelStrength,
+      cur.lowNoiseModelStrength,
+      prev?.lowNoiseModelStrength,
+
+      cur.highNoiseSteps,
+      prev?.highNoiseSteps,
+      cur.lowNoiseSteps,
+      prev?.lowNoiseSteps,
+
+      cur.highNoiseStartStep,
+      prev?.highNoiseStartStep,
+      cur.lowNoiseStartStep,
+      prev?.lowNoiseStartStep,
+
+      cur.highNoiseEndStep,
+      prev?.highNoiseEndStep,
+      cur.lowNoiseEndStep,
+      prev?.lowNoiseEndStep,
+
+      cur.displayTotalSteps,
+      prev?.displayTotalSteps,
+      cur.displayLowStepPct,
+      prev?.displayLowStepPct,
+
+      scoreKey(cur.categoryScores),
+      scoreKey(prev?.categoryScores),
+    ].join("§");
+  }
+
   const handleInit = useCallback((instance: ReactFlowInstance) => {
     setRfInstance(instance);
   }, []);
@@ -1350,10 +1382,6 @@ export function GraphView(props: {
     },
     [g.setRfNodes, g.commit, g.rfEdges, vp.saveViewport]
   );
-
-  const baseNodesById = useMemo(() => {
-    return new Map(baseNodesForUI.map((n) => [n.id, n]));
-  }, [baseNodesForUI]);
 
   const nodesForUICacheRef = useRef(new Map<string, RFNode>());
 
@@ -2233,6 +2261,9 @@ export function GraphView(props: {
 
             g.commit(nextNodes, nextEdges);
 
+            setSelectedNodeId(newClipId);
+            g.setClickedNodeId(newClipId);
+
             props.onChange((prevProject) => {
               // commit via fromRF inside hook
               // but easiest: call commit now
@@ -2247,7 +2278,11 @@ export function GraphView(props: {
 
             // commit graph
 
-            centerOnNode(rfInstance, newClipId, { onAfter: vp.saveViewport });
+            if (rfInstance) {
+              centerOnNode(rfInstance, newClipId, { onAfter: vp.saveViewport });
+            } else {
+              requestAnimationFrame(vp.saveViewport);
+            }
 
             return nextNodes;
           });
@@ -2389,6 +2424,8 @@ export function GraphView(props: {
           const nextNodes = [...prevNodes, importNode, clipNode];
 
           g.commit(nextNodes, nextEdges);
+          setSelectedNodeId(clipId);
+          g.setClickedNodeId(clipId);
 
           props.onChange((prev) => ({
             ...prev,

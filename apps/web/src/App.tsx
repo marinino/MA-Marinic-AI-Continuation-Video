@@ -158,7 +158,6 @@ export default function App({
   } | null>(null);
 
   const [lastSavedRevision, setLastSavedRevision] = useState(0);
-  const [timelineSelectedNodeId, setTimelineSelectedNodeId] = useState<string | null>(null);
   const saveSeqRef = useRef(0);
 
   const selectedNodeId = project?.uiState?.selectedNodeId ?? null;
@@ -417,8 +416,20 @@ export default function App({
     });
   };
 
+  const timelineQueryNodeId = useMemo(() => {
+    if (!project || !selectedNodeId) return null;
+
+    const selected = project.nodes.find((n: any) => n.id === selectedNodeId);
+    if (!selected) return selectedNodeId;
+
+    if (selected.type !== "clip") return selectedNodeId;
+
+    const incoming = project.edges.find((e: any) => e.target === selectedNodeId);
+    return incoming?.source ?? selectedNodeId;
+  }, [project, selectedNodeId]);
+
   useEffect(() => {
-    if (!project?.id || !timelineSelectedNodeId) {
+    if (!project?.id || !timelineQueryNodeId) {
       setBranchTimeline(null);
       setTimelineError(null);
       return;
@@ -429,32 +440,37 @@ export default function App({
     setTimelineLoading(true);
     setTimelineError(null);
 
-    getBranchTimeline(project.id, timelineSelectedNodeId)
-      .then((data) => {
+    const timeout = window.setTimeout(async () => {
+      try {
+        await saveProject(project);
+
+        if (cancelled) return;
+
+        dirtyRef.current = false;
+        setLastSavedRevision((x) => x + 1);
+
+        const data = await getBranchTimeline(project.id, timelineQueryNodeId);
+
         if (!cancelled) {
           setBranchTimeline(data);
         }
-      })
-      .catch((err) => {
+      } catch (err: any) {
         if (!cancelled) {
           setTimelineError(err?.message ?? "Failed to load timeline");
           setBranchTimeline(null);
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) {
           setTimelineLoading(false);
         }
-      });
+      }
+    }, 250);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeout);
     };
-  }, [project?.id, timelineSelectedNodeId]);
-
-  useEffect(() => {
-    setTimelineSelectedNodeId(project?.uiState?.selectedNodeId ?? null);
-  }, [project?.uiState?.selectedNodeId]);
+  }, [project, timelineQueryNodeId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -468,7 +484,6 @@ export default function App({
             const loaded = await withTimeout(loadProject(savedId), 1500);
             if (!cancelled) {
               setProject(loaded);
-              setTimelineSelectedNodeId(loaded.uiState?.selectedNodeId ?? null);
             }
             return;
           } catch (err: any) {
@@ -488,7 +503,7 @@ export default function App({
       const p = await withTimeout(createProject("Demo Project"), 1500);
       if (!cancelled) {
         setProject(p);
-        setTimelineSelectedNodeId(p.uiState?.selectedNodeId ?? null);
+
         localStorage.setItem(STORAGE_ACTIVE_PROJECT, p.id);
       }
     })().catch((e) => {
@@ -567,7 +582,7 @@ export default function App({
       const p = await withTimeout(createProject(trimmed), 1500);
       localStorage.setItem(STORAGE_ACTIVE_PROJECT, p.id);
       setProject(p);
-      setTimelineSelectedNodeId(p.uiState?.selectedNodeId ?? null);
+
       setNewDialogOpen(false);
     } catch (e) {
     } finally {
@@ -689,9 +704,6 @@ export default function App({
                         await saveProject(projectRef.current);
                         dirtyRef.current = false;
                         setLastSavedRevision((x) => x + 1);
-                        setTimelineSelectedNodeId(
-                          projectRef.current.uiState?.selectedNodeId ?? null
-                        );
                       } catch (err) {}
                     }
                   }}
@@ -905,7 +917,6 @@ export default function App({
         onLoaded={(p) => {
           localStorage.setItem(STORAGE_ACTIVE_PROJECT, p.id);
           setProject(p);
-          setTimelineSelectedNodeId(p.uiState?.selectedNodeId ?? null);
         }}
       />
 
