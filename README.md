@@ -1,193 +1,349 @@
-# MA Video Tree (React + Fastify + TypeScript)
+# Interactive Workflows for Multi-Path Scene Continuation in Generative Video Systems
 
-Lokales Tool zum Verwalten eines Video-Workflows als Graph (Clip → Params → Clip).
+Visual-interactive framework for exploring, comparing, editing, and tracking AI-generated video continuations through a graph-based workflow representation.
 
-Frontend: React (Vite)
-Backend: Fastify (Node/TypeScript)
-Shared Types: packages/shared (Zod + TS Types)
+The system was developed as part of a master's thesis at the Institute for Visualization and Interactive Systems (VIS), University of Stuttgart.
 
 ---
 
-## Voraussetzungen
+# Features
 
-- Node.js (empfohlen: LTS)
-- pnpm (Workspace Package Manager)
-- pynenv
-- DaVinci Resolve (If manual editing is planned)
+## Graph-Based Workflow Representation
 
-Versionen prüfen:
-node -v
-pnpm -v
+The application represents video generation workflows as a graph consisting of different node types:
 
-Wenn pnpm fehlt:
-npm i -g pnpm
+### Clip Nodes
 
----
+* Generated video clips
+* Imported video clips
+* Intermediate workflow states
+* Video preview and metadata
 
-## Projektstruktur
+### Parameter Nodes
 
-apps/web – React UI (Port 5173)
-apps/api – Backend API (Port 3001)
-packages/shared – gemeinsame Typen & Schemas
-storage/ – lokale Projektdateien
+* Prompt information
+* Generation parameters
+* Model settings
+* Seeds and inference settings
+* Provenance information for generation steps
 
----
+### Edit Nodes
 
-## Setup (einmalig)
+* Manual editing operations
+* Editing provenance tracking
+* DaVinci Resolve integration
 
-1. Dependencies installieren (Repo-Root):
-   pnpm install
-   pnpm -r build
+### Import Nodes
 
-2. Storage Ordner anlegen:
-   mkdir storage
-   mkdir storage/projects
+* Imported external media
+* Reintegrated timeline segments
+* External workflow integration
 
 ---
 
-## Development Start (Schritt für Schritt)
+## Timeline View
 
-WICHTIG: Backend und Frontend laufen in getrennten Terminals.
+The timeline provides a compact view of the currently selected workflow path.
 
----
+Features include:
 
-### Terminal 1 – Backend starten
-
-Im Repo-Root:
-pnpm -C apps/api dev
-
-Erwartete Ausgabe:
-Server listening at http://0.0.0.0:3001
-
-Test im Browser:
-http://localhost:3001/health
-→ { "ok": true }
+* Temporal clip ordering
+* Path visualization
+* Synchronization between graph and timeline
+* Direct navigation between timeline and graph nodes
+* Visual distinction between generated and edited content
 
 ---
 
-### Terminal 2 – Frontend starten
+## AI Generation Integration
 
-Im Repo-Root (neues Terminal):
-pnpm -C apps/web dev
+The framework integrates with ComfyUI-based video generation pipelines.
 
-Erwartete Ausgabe:
-Local: http://localhost:5173/
+Supported workflows:
 
-Im Browser öffnen:
-http://localhost:5173/
-
----
-
-## Nutzung
-
-- Button: "+ Clip → Params → Clip" erzeugt einen Generierungsschritt
-- Button: "Save" speichert Projekt nach:
-  storage/projects/<projectId>.json
+* Scene continuation
+* Multi-path exploration
+* Branching generation workflows
+* Comparative evaluation of continuations
 
 ---
 
-## Häufige Probleme & Lösungen
+## Editing Workflow Integration
 
-### Install pyenv for Windows
+The framework supports integration with external editing software.
 
+Current support:
+
+* DaVinci Resolve
+* Timeline import
+* Clip export
+* Re-integration of edited material
+* Editing provenance tracking
+
+---
+
+# Requirements
+
+## External Dependencies
+
+The application currently relies on:
+
+* Node.js (20+ recommended)
+* pnpm
+* Python 3.11
+* ComfyUI
+* DaVinci Resolve (optional but recommended)
+
+---
+
+# Installation
+
+Clone the repository:
+
+```bash
+git clone <repository-url>
+cd <repository>
 ```
+
+Install dependencies:
+
+```bash
+pnpm install
+```
+
+Build workspace packages:
+
+```bash
+pnpm -r build
+```
+
+---
+
+# Python Setup
+
+Python 3.11 is required.
+
+## Windows (pyenv)
+
+Install pyenv:
+
+```powershell
 Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/pyenv-win/pyenv-win/master/pyenv-win/install-pyenv-win.ps1" -OutFile ".\install-pyenv-win.ps1"
+
 .\install-pyenv-win.ps1
 ```
 
-then install the correct Python version
+Install Python:
 
-```
+```powershell
 pyenv install 3.11.9
 pyenv global 3.11.9
 ```
 
-### Frontend zeigt "Loading..."
+Verify installation:
 
-Ursache: Backend läuft nicht.
-
-Lösung:
-
-- Prüfen: http://localhost:3001/health
-- Falls nicht erreichbar:
-  pnpm -C apps/api dev
+```bash
+python --version
+```
 
 ---
 
-### Browser: Verbindung fehlgeschlagen auf localhost:5173
+# Environment Configuration
 
-Ursache: Frontend läuft nicht.
+Create a `.env` file in the repository root.
 
-Lösung:
+Example:
+
+```env
+# Python executable inside the ComfyUI virtual environment
+PYTHON_BIN=C:\Users\<username>\...\tools\comfyui\.venv\Scripts\python.exe
+
+# DaVinci Resolve
+RESOLVE_SCRIPT_LIB_DIR=C:\ProgramData\Blackmagic Design\DaVinci Resolve\Support\Developer\Scripting\Modules
+RESOLVE_DIR=C:\Program Files\Blackmagic Design\DaVinci Resolve
+
+# ComfyUI directories
+COMFY_INPUT_DIR=C:\...\tools\comfyui\input
+COMFY_OUTPUT_DIR=C:\...\tools\comfyui\output
+COMFY_TEMP_DIR=C:\...\tools\comfyui\temp
+
+# Transition evaluation
+TRANSITION_EVAL_SCRIPT=C:\...\apps\api\src\scripts\transition_eval.py
+```
+
+## Environment Variables
+
+| Variable                 | Description                                                             |
+| ------------------------ | ----------------------------------------------------------------------- |
+| `PYTHON_BIN`             | Python executable used for workflow execution and transition evaluation |
+| `RESOLVE_SCRIPT_LIB_DIR` | DaVinci Resolve scripting API modules                                   |
+| `RESOLVE_DIR`            | DaVinci Resolve installation directory                                  |
+| `COMFY_INPUT_DIR`        | ComfyUI input directory                                                 |
+| `COMFY_OUTPUT_DIR`       | ComfyUI output directory                                                |
+| `COMFY_TEMP_DIR`         | ComfyUI temporary directory                                             |
+| `TRANSITION_EVAL_SCRIPT` | Script used to evaluate transitions between clips                       |
+
+---
+
+# First-Time Setup
+
+Before running the application:
+
+1. Install Node.js
+2. Install pnpm
+3. Install Python 3.11
+4. Set up ComfyUI
+5. Create the `.env` file
+6. Verify all configured paths
+7. Run the startup script
+
+---
+
+# Starting the Application
+
+The recommended way to launch the application is through the provided startup scripts.
+
+## Windows
+
+```powershell
+.\scripts\start.bat
+```
+
+## Linux
+
+```bash
+./scripts/start.sh
+```
+
+The startup scripts automatically:
+
+* check required dependencies
+* activate the Python environment
+* start backend services
+* start frontend services
+* launch required workers
+* initialize generation integrations
+
+---
+
+
+# Project Structure
+
+```text
+apps/
+├── api/
+└── web/
+
+packages/
+└── shared/
+
+scripts/
+
+storage/
+├── projects/
+├── clips/
+└── exports/
+
+tools/
+└── comfyui/
+```
+
+---
+
+# Troubleshooting
+
+## Missing Dependency: pnpm
+
+Install pnpm globally:
+
+```bash
+npm install -g pnpm
+```
+
+Verify:
+
+```bash
+pnpm --version
+```
+
+---
+
+## Missing Dependency: Node.js
+
+Verify installation:
+
+```bash
+node --version
+```
+
+---
+
+## Frontend Stuck on Loading
+
+Backend is likely not running.
+
+Verify:
+
+```text
+http://localhost:3001/health
+```
+
+Expected response:
+
+```json
+{
+  "ok": true
+}
+```
+
+---
+
+## Cannot Connect to Frontend
+
+Verify that the frontend development server is running:
+
+```bash
 pnpm -C apps/web dev
-
-Alternativ Port ändern:
-pnpm -C apps/web dev -- --port 5174
-→ http://localhost:5174/
+```
 
 ---
 
-### Browser: 404 Not Found auf localhost:5173
+## ComfyUI Integration Not Working
 
-Ursache: index.html fehlt oder liegt falsch.
+Verify:
 
-Pfad muss existieren:
-apps/web/index.html
-
-Minimaler Inhalt:
-
-<!doctype html>
-<html lang="de">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MA Video Tree</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+* ComfyUI is installed
+* ComfyUI is running
+* all ComfyUI paths are correctly configured
+* Python environment is valid
 
 ---
 
-### Fehler: "tsc" nicht gefunden
+## DaVinci Resolve Integration Not Working
 
-Ursache: TypeScript fehlt.
+Verify:
 
-Lösung (Repo-Root):
-pnpm add -D typescript
-pnpm install
-
----
-
-## Optional: Shared Types Watcher
-
-Nur nötig, wenn aktiv an packages/shared gearbeitet wird:
-
-pnpm -C packages/shared dev
+* DaVinci Resolve is installed
+* scripting support is enabled
+* Resolve paths are configured correctly
 
 ---
 
-## Ports
+# Architecture
 
-Frontend: http://localhost:5173
-Backend: http://localhost:3001
+The system consists of:
+
+* React frontend
+* Fastify backend
+* Shared TypeScript package
+* Python evaluation scripts
+* ComfyUI generation backend
+* DaVinci Resolve integration
+
+The architecture is designed to support provenance-aware AI video generation workflows and iterative exploration of alternative scene continuations.
 
 ---
 
-## Hinweise
+# License
 
-- Tool ist vollständig lokal
-- Keine Cloud-Abhängigkeiten
-- Backend & Frontend können später zu einer Desktop-App gebündelt werden
-- Architektur vorbereitet für Python/ComfyUI Worker
-
----
-
-## Nächste Schritte (Roadmap)
-
-- Timeline View (Clip-Pfad)
-- Media Upload & Preview
-- Job-System für AI-Generierung
-- Edit-Nodes (DaVinci / Blender)
+This project was developed as part of a master's thesis at the Institute for Visualization and Interactive Systems (VIS), University of Stuttgart.
