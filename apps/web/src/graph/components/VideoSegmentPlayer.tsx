@@ -9,6 +9,7 @@ export function VideoSegmentPlayer({
   loop = false,
   muted = false,
   controls = true,
+  syncCommand,
   style,
   className,
 }: {
@@ -18,6 +19,10 @@ export function VideoSegmentPlayer({
   autoPlay?: boolean;
   loop?: boolean;
   muted?: boolean;
+syncCommand?: {
+  action: "play" | "pause" | "forward5" | "backward5";
+  id: number;
+} | null;
   controls?: boolean;
   style?: React.CSSProperties;
   className?: string;
@@ -123,6 +128,41 @@ export function VideoSegmentPlayer({
       video.removeEventListener("ended", handleEnded);
     };
   }, [src, shouldClampToGeneratedPart, generatedDuration, loop, showOnlyGeneratedPart]);
+
+useEffect(() => {
+  const video = ref.current;
+  if (!video || !syncCommand) return;
+
+  switch (syncCommand.action) {
+    case "play": {
+      video.currentTime = 0;
+
+      const p = video.play();
+      if (p && typeof p.catch === "function") {
+        p.catch(() => {});
+      }
+      break;
+    }
+
+    case "pause":
+      video.pause();
+      break;
+
+    case "forward5":
+      video.currentTime = Math.min(
+        video.duration || Infinity,
+        video.currentTime + 5
+      );
+      break;
+
+    case "backward5":
+      video.currentTime = Math.max(
+        0,
+        video.currentTime - 5
+      );
+      break;
+  }
+}, [syncCommand]);
 
   return (
     <video

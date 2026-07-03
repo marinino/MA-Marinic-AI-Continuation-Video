@@ -571,3 +571,5 @@ export type TransitionEvaluationData = {
   frames: TransitionFrame[];
 };
 export type ViewMode = "single" | "side-by-side" | "grid-4";
+
+export type SyncAction = "play" | "pause" | "forward5" | "backward5";

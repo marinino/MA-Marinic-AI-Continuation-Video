@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { BranchTimelineSegment, ClipSlot } from "../types/ui";
+import { BranchTimelineSegment, ClipSlot, SyncAction } from "../types/ui";
 import { ClipBranchTimeline } from "./ClipBranchTimeline";
 import { VideoSegmentPlayer } from "./VideoSegmentPlayer";
 import { useState } from "react";
@@ -44,6 +44,14 @@ export function ClipSelectionSidebar({
   showOnlyGeneratedPart: boolean;
 }) {
   const [showTimelineForSlot, setShowTimelineForSlot] = useState<Record<number, boolean>>({});
+
+
+const [syncCommand, setSyncCommand] = useState<{
+  action: SyncAction;
+  id: number;
+} | null>(null);
+
+const [isSyncPlaying, setIsSyncPlaying] = useState(false);
 
   return (
     <Box
@@ -92,6 +100,45 @@ export function ClipSelectionSidebar({
               >
                 Compare
               </Button>
+<Button
+  variant="outlined"
+  disabled={slots.filter((slot) => slot.videoUrl).length < 2}
+  onClick={() => {
+    setSyncCommand({
+      action: isSyncPlaying ? "pause" : "play",
+      id: Date.now(),
+    });
+
+    setIsSyncPlaying((prev) => !prev);
+  }}
+>
+  {isSyncPlaying ? "Sync Stop" : "Sync Start"}
+</Button>
+<Button
+  variant="outlined"
+  disabled={slots.filter((slot) => slot.videoUrl).length < 2}
+  onClick={() =>
+    setSyncCommand({
+      action: "backward5",
+      id: Date.now(),
+    })
+  }
+>
+  Sync -5s
+</Button>
+
+<Button
+  variant="outlined"
+  disabled={slots.filter((slot) => slot.videoUrl).length < 2}
+  onClick={() =>
+    setSyncCommand({
+      action: "forward5",
+      id: Date.now(),
+    })
+  }
+>
+  Sync +5s
+</Button>
               <FormControlLabel
                 control={
                   <Switch checked={loopVideos} onChange={onToggleLoopVideos} color="success" />
@@ -173,21 +220,22 @@ export function ClipSelectionSidebar({
                         }}
                       >
                         {slot.videoUrl ? (
-                          <VideoSegmentPlayer
-                            src={slot.videoUrl}
-                            playback={slot.playback}
-                            showOnlyGeneratedPart={showOnlyGeneratedPart}
-                            autoPlay
-                            loop={loopVideos}
-                            muted
-                            controls={!loopVideos}
-                            style={{
-                              width: "100%",
-                              maxHeight: 220,
-                              display: "block",
-                              objectFit: "contain",
-                            }}
-                          />
+                         <VideoSegmentPlayer
+  src={slot.videoUrl}
+  playback={slot.playback}
+  showOnlyGeneratedPart={showOnlyGeneratedPart}
+  autoPlay
+  loop={loopVideos}
+  syncCommand={syncCommand}
+  muted
+  controls={!loopVideos}
+  style={{
+    width: "100%",
+    maxHeight: 220,
+    display: "block",
+    objectFit: "contain",
+  }}
+/>
                         ) : (
                           <Typography variant="body2" color="grey.400">
                             No preview available
